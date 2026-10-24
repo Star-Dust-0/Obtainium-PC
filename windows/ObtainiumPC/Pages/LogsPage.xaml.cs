@@ -31,6 +31,18 @@ public sealed partial class LogsPage : Page
         if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var brushObj)
             && brushObj is Microsoft.UI.Xaml.Media.Brush b)
             cardBrush = b;
+        // lib/pages/logs.dart _levelColor: error / warning / debug / info get
+        // distinct colors (upstream has no level filter, only colors).
+        Microsoft.UI.Xaml.Media.Brush LevelBrush(AppLogLevel level) => level switch
+        {
+            AppLogLevel.Error => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 99, 71)),
+            AppLogLevel.Warning => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 77)),
+            AppLogLevel.Debug => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 150, 150)),
+            _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Application.Current.RequestedTheme == ApplicationTheme.Dark
+                    ? Windows.UI.Color.FromArgb(255, 230, 230, 230)
+                    : Windows.UI.Color.FromArgb(255, 30, 30, 30)),
+        };
         LogsList.ItemsSource = logs.Select(l => new Border
         {
             Padding = new Thickness(12, 8, 12, 8),
@@ -43,6 +55,7 @@ public sealed partial class LogsPage : Page
                 TextWrapping = TextWrapping.Wrap,
                 FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
                 FontSize = 12,
+                Foreground = LevelBrush(l.Level),
             },
         }).ToList();
         EmptyState.Visibility = logs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
