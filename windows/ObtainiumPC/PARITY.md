@@ -6,8 +6,9 @@ upstream sync). Test expectations are derived from that code, not from this
 port's own implementation.
 
 Source totals: 30 upstream sources; all 30 have a Windows port
-(11 ported + 2 mapped + 17 track-only Android stores). Final treatment
-of track-only Android packages is still pending the user's decision.
+(9 ported + 2 mapped + 19 track-only Android stores). Track-only is the
+final, settled treatment for the 19 Android-package sources (decision
+recorded below); "30 sources represented" never means "30 installable".
 
 Tracks every upstream Obtainium (ImranR98) source and feature against the
 WinUI 3 port. Statuses:
