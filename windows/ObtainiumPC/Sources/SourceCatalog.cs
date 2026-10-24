@@ -1,5 +1,6 @@
 using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.Apk4Free;
+using ObtainiumPC.Sources.ApkPure;
 using ObtainiumPC.Sources.ApkCombo;
 using ObtainiumPC.Sources.Aptoide;
 using ObtainiumPC.Sources.GitHub;
@@ -30,7 +31,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -54,6 +55,7 @@ public static class SourceCatalog
         "LiteAPKs" => new LiteApksSource(),
         "Apk4Free" => new Apk4FreeSource(),
         "APKCombo" => new ApkComboSource(),
+        "APKPure" => new ApkPureSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -79,6 +81,8 @@ public static class SourceCatalog
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
         if (host == "apkcombo.com" || host == "www.apkcombo.com")
             return new ApkComboSource();
+        if (host == "apkpure.net" || host == "apkpure.com" || host.EndsWith(".apkpure.net") || host.EndsWith(".apkpure.com"))
+            return new ApkPureSource();
         if (host == "apk4free.net" || host == "www.apk4free.net")
             return new Apk4FreeSource();
         if (host == "liteapks.com" || host == "www.liteapks.com")
