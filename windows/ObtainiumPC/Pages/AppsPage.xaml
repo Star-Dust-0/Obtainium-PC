@@ -16,7 +16,7 @@
             </Button>
             <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
         </StackPanel>
-        <ListView x:Name="AppsList" Grid.Row="1" ItemsSource="{x:Bind Rows}" SelectionMode="None" Padding="28,4,28,20">
+        <ListView x:Name="AppsList" Grid.Row="1" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="28,4,28,20">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:AppRow">
                     <Grid Padding="12" ColumnSpacing="12">

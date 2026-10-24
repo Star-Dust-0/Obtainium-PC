@@ -72,6 +72,12 @@ namespace ObtainiumPC.Pages
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        private void AppsList_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is AppRow row)
+                Frame.Navigate(typeof(AppDetailPage), row.App.Id);
+        }
+
         private async void Refresh_Click(object sender, RoutedEventArgs e)
         {
             RefreshButton.IsEnabled = false;
