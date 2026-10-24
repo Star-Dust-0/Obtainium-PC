@@ -102,6 +102,11 @@ public abstract class AppSourceBase
     /// Original: changeLogPageFromStandardUrl (null = no separate changelog page).
     public virtual string? ChangeLogPageFromStandardUrl(string standardUrl) => null;
 
+    /// Original: getRequestHeaders(forAPKDownload: true). Extra headers sent
+    /// with the actual asset download (e.g. Referer requirements).
+    public virtual IReadOnlyDictionary<string, string>? GetDownloadRequestHeaders(
+        string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => null;
+
     /// Original: assetUrlPrefetchModifier. Applied at download time, never stored.
     public virtual string AssetUrlPrefetchModifier(
         string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => assetUrl;

@@ -123,8 +123,9 @@ namespace ObtainiumPC.Pages
                 // The GitHub PAT is only attached to GitHub asset requests.
                 var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
                     ? App.Settings.GitHubPersonalAccessToken : null;
+                var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(
-                    downloadUrl, asset.Key, progress, gitHubPat);
+                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
                 var installable = dlSource?.SupportsInstall != false;

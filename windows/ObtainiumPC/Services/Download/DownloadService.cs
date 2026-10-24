@@ -29,6 +29,7 @@ public sealed class DownloadService
         string fileName,
         IProgress<(long Received, long? Total)>? progress = null,
         string? personalAccessToken = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
         CancellationToken ct = default)
     {
         Directory.CreateDirectory(DownloadDir);
@@ -40,6 +41,9 @@ public sealed class DownloadService
             req.Headers.TryAddWithoutValidation("Authorization", "Token " + personalAccessToken);
             req.Headers.TryAddWithoutValidation("Accept", "application/octet-stream");
         }
+        if (extraHeaders != null)
+            foreach (var (key, value) in extraHeaders)
+                req.Headers.TryAddWithoutValidation(key, value);
         using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         res.EnsureSuccessStatusCode();
         var total = res.Content.Headers.ContentLength;
