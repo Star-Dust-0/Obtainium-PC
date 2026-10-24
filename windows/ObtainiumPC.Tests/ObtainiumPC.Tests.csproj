@@ -38,6 +38,7 @@
     <Compile Include="..\ObtainiumPC\Sources\ApkPure\ApkPureSource.cs" Link="Sources\ApkPureSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\Uptodown\UptodownSource.cs" Link="Sources\UptodownSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\RuStore\RuStoreSource.cs" Link="Sources\RuStoreSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\HuaweiAppGallery\HuaweiAppGallerySource.cs" Link="Sources\HuaweiAppGallerySource.cs" />
     <Compile Include="..\ObtainiumPC\Pages\ThemeLookupCore.cs" Link="Pages\ThemeLookupCore.cs" />
   </ItemGroup>
 </Project>

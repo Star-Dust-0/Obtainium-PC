@@ -10,6 +10,7 @@ using ObtainiumPC.Sources.DirectLink;
 using ObtainiumPC.Sources.Farsroid;
 using ObtainiumPC.Sources.FDroid;
 using ObtainiumPC.Sources.GitLab;
+using ObtainiumPC.Sources.HuaweiAppGallery;
 using ObtainiumPC.Sources.ItchIo;
 using ObtainiumPC.Sources.Jenkins;
 using ObtainiumPC.Sources.LiteApks;
@@ -33,7 +34,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "Uptodown", "RuStore", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "Uptodown", "RuStore", "Huawei AppGallery", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -60,6 +61,7 @@ public static class SourceCatalog
         "APKPure" => new ApkPureSource(),
         "Uptodown" => new UptodownSource(),
         "RuStore" => new RuStoreSource(),
+        "Huawei AppGallery" => new HuaweiAppGallerySource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -91,6 +93,9 @@ public static class SourceCatalog
             return new UptodownSource();
         if (host == "rustore.ru" || host.EndsWith(".rustore.ru"))
             return new RuStoreSource();
+        if (host == "appgallery.huawei.com" || host == "appgallery.cloud.huawei.com" || host == "appgallery.huawei.ru"
+            || host.EndsWith(".appgallery.huawei.com") || host.EndsWith(".appgallery.cloud.huawei.com") || host.EndsWith(".appgallery.huawei.ru"))
+            return new HuaweiAppGallerySource();
         if (host == "apk4free.net" || host == "www.apk4free.net")
             return new Apk4FreeSource();
         if (host == "liteapks.com" || host == "www.liteapks.com")
