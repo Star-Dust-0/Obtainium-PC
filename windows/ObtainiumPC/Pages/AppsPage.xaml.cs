@@ -130,6 +130,31 @@ base.OnNavigatedTo(e);
             if (CategoryCombo.SelectedItem == null) CategoryCombo.SelectedIndex = 0;
         }
 
+        // lib/pages/apps.dart shareConfigLinks: obtainium:// deep links wrapped
+        // in the redirect URL (clipboard; share sheet disclosed in PARITY).
+        private void BatchCopyConfigs_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var lines = sel.Select(a =>
+            {
+                var inner = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+                {
+                    ["id"] = a.Id,
+                    ["url"] = a.Url,
+                    ["author"] = a.Author,
+                    ["name"] = a.Name,
+                    ["preferredApkIndex"] = a.PreferredAssetIndex,
+                    ["additionalSettings"] = a.AdditionalSettingsJson,
+                    ["overrideSource"] = a.OverrideSource,
+                });
+                return "https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/" + Uri.EscapeDataString(inner);
+            });
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(string.Join("\n", lines));
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        }
+
         // lib/pages/apps.dart categorize batch action (SelectionModal ->
         // checkboxes here; upstream color management not ported).
         private async void BatchCategorize_Click(object sender, RoutedEventArgs e)
