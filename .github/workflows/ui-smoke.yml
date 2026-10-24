@@ -85,15 +85,33 @@ jobs:
           $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
           $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
           if ($win -eq $null) { throw 'main window not found for walkthrough' }
-          function ClickNamed($name) {
-            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
-            $el = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
-            if ($el -eq $null) { throw "nav item '$name' not found" }
-            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); return } catch {}
-            $r = $el.Current.BoundingRectangle
-            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
-            Start-Sleep -Milliseconds 300
-            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          function ClickNamed($name, $verifyName) {
+            # Invoke/click, then (when a verification element is given) confirm
+            # it appears, retrying the click - one stray click must not derail
+            # the whole walkthrough.
+            foreach ($attempt in 1..3) {
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -eq $null) {
+                if ($attempt -eq 3) { throw "nav item '$name' not found" }
+                Start-Sleep 1; continue
+              }
+              $invoked = $false
+              try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $invoked = $true } catch {}
+              if (-not $invoked) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              }
+              if (-not $verifyName) { return }
+              foreach ($w in 1..6) {
+                Start-Sleep 1
+                $vc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $verifyName)
+                if ($win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $vc) -ne $null) { return }
+              }
+            }
+            throw "clicking '$name' never produced '$verifyName'"
           }
           $pages = @(
             @('Add App', '03-add-app'),
@@ -148,14 +166,7 @@ jobs:
           "gear IsEnabled = $($gear.Current.IsEnabled)"
           if ($gear.Current.IsEnabled) { throw 'OS app settings gear must be disabled for unpackaged apps' }
 
-          # Per-app options page.
-          ClickNamed 'Options'
-          Start-Sleep 3; AssertAlive 'options'; Shot '10-app-options'
-          ClickNamed 'Apps'; Start-Sleep 2; AssertAlive 'back-from-options'
-
           # Download safe completion: Update downloads the asset; poll for the file.
-          ClickPartial 'Notepad' $win | Out-Null
-          Start-Sleep 2
           ClickNamed 'Update'
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           $file = $null
@@ -171,9 +182,13 @@ jobs:
           Get-Process | Where-Object { $_.Name -like 'npp*' -and $_.Id -ne $p.Id } | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep 2
 
+          # Per-app options page (last detail-page stop; verified nav).
+          ClickNamed 'Options' 'Notepad++ options'
+          Start-Sleep 2; AssertAlive 'options'; Shot '10-app-options'
+
           # Settings scrolled capture (best effort) and theme persistence.
-          ClickNamed 'Apps'; Start-Sleep 2
-          ClickNamed 'Settings'; Start-Sleep 2
+          ClickNamed 'Settings' 'Theme'
+          Start-Sleep 2
           try {
             $allEls = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
             foreach ($el in $allEls) {
