@@ -41,6 +41,7 @@ namespace ObtainiumPC.Pages
             SortOrderCombo.SelectedIndex = App.Settings.SortOrder == 1 ? 1 : 0;
             PinUpdatesToggle.IsOn = App.Settings.PinUpdates;
             BuryNonInstalledToggle.IsOn = App.Settings.BuryNonInstalled;
+            AddWithoutCheckToggle.IsOn = App.Settings.AllowAddingAppsWithoutCheck;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
 
             foreach (var (label, minutes) in IntervalOptions) UpdateIntervalCombo.Items.Add(new ComboBoxItem { Content = label, Tag = minutes });
@@ -109,6 +110,7 @@ namespace ObtainiumPC.Pages
         private void CheckOnStartToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CheckOnStart = CheckOnStartToggle.IsOn; Save(); }
         private void NotifyToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.NotifyUpdates = NotifyToggle.IsOn; Save(); }
         private void HideDowngradesToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideDowngrades = HideDowngradesToggle.IsOn; Save(); }
+        private void AddWithoutCheckToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.AllowAddingAppsWithoutCheck = AddWithoutCheckToggle.IsOn; Save(); }
         private void RepoRenameToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.GitHubCheckRepoRename = RepoRenameToggle.IsOn; Save(); }
 
         private void GlobalVersionRegexBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GlobalVersionExtractionRegEx = EmptyToNull(GlobalVersionRegexBox.Text); Save(); }

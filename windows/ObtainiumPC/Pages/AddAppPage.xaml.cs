@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -41,7 +42,51 @@ namespace ObtainiumPC.Pages
                 if (TrackOnlyBox.IsChecked == true)
                     settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
                 var overrideSource = (OverrideSourceCombo.SelectedItem as ComboBoxItem)?.Tag as string;
-                var app = await App.Updater.CheckAppAsync(url, settings, overrideSource: overrideSource);
+                ObtainiumPC.Models.TrackedApp app;
+                try
+                {
+                    app = await App.Updater.CheckAppAsync(url, settings, overrideSource: overrideSource);
+                }
+                catch (InvalidUrlException) { throw; }
+                catch (Exception checkEx) when (App.Settings.AllowAddingAppsWithoutCheck)
+                {
+                    // lib/pages/add_app.dart: on an unexpected failure, offer to
+                    // add a placeholder app (sourceProvider.buildPlaceholderApp).
+                    var proceed = new ContentDialog
+                    {
+                        Title = "Add without checking?",
+                        Content = "Fetching the latest version failed (" + checkEx.Message + "). The app can be added anyway and checked later.",
+                        PrimaryButtonText = "Add anyway",
+                        CloseButtonText = "Cancel",
+                        XamlRoot = this.XamlRoot,
+                    };
+                    if (await proceed.ShowAsync() != ContentDialogResult.Primary) return;
+                    string sourceName;
+                    try { sourceName = SourceCatalog.Resolve(url, App.Settings, overrideSource).Name; }
+                    catch { sourceName = overrideSource ?? "Unknown"; }
+                    app = new ObtainiumPC.Models.TrackedApp
+                    {
+                        // lib/providers/source_provider.dart generateTempID:
+                        // bare 12-char lowercase sha256 prefix.
+                        Id = Convert.ToHexString(
+                            System.Security.Cryptography.SHA256.HashData(
+                                System.Text.Encoding.UTF8.GetBytes(url + JsonSerializer.Serialize(settings))))[..12].ToLowerInvariant(),
+                        Url = url,
+                        Author = sourceName,
+                        Name = url,
+                        LatestVersion = "unknown",
+                        OverrideSource = overrideSource,
+                        AdditionalSettings = settings,
+                    };
+                    app.AssetUrls = new List<KeyValuePair<string, string>> { new("placeholder", "placeholder") };
+                }
+                // lib/providers/apps_provider.dart addAppsByURL: appAlreadyAdded.
+                var dupe = App.TrackedApps.FirstOrDefault(t => t.Id == app.Id || t.Url == app.Url);
+                if (dupe != null)
+                {
+                    Show(InfoBarSeverity.Error, "App already added: " + dupe.FinalName);
+                    return;
+                }
                 App.TrackedApps.Add(app);
                 await App.SaveAppsAsync();
                 Show(InfoBarSeverity.Success, $"Added {app.FinalName} (latest: {app.LatestVersion ?? "unknown"}).");

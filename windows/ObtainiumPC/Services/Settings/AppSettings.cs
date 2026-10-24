@@ -24,6 +24,8 @@ public sealed class AppSettings
     public int SortOrder { get; set; }
     public bool PinUpdates { get; set; } = true;
     public bool BuryNonInstalled { get; set; }
+    // lib/providers/settings_provider.dart allowAddingAppsWithoutCheck (default false)
+    public bool AllowAddingAppsWithoutCheck { get; set; }
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;

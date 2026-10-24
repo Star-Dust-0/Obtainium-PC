@@ -24,6 +24,7 @@
                 <ToggleSwitch x:Name="CheckOnStartToggle" Header="Check for updates on app start" Toggled="CheckOnStartToggle_Toggled"/>
                 <ToggleSwitch x:Name="NotifyToggle" Header="Show update notifications" Toggled="NotifyToggle_Toggled"/>
                 <ToggleSwitch x:Name="HideDowngradesToggle" Header="Hide downgrades (when installed version is newer)" Toggled="HideDowngradesToggle_Toggled"/>
+                <ToggleSwitch x:Name="AddWithoutCheckToggle" Header="Offer to add apps without a version check when the source fails" Toggled="AddWithoutCheckToggle_Toggled"/>
 
                 <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
                 <TextBox x:Name="GlobalVersionRegexBox" Header="Trim version string with RegEx" TextWrapping="Wrap" LostFocus="GlobalVersionRegexBox_LostFocus"/>
