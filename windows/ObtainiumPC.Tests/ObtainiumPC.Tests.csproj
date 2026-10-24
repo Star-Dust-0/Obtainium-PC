@@ -32,6 +32,7 @@
     <Compile Include="..\ObtainiumPC\Sources\ItchIo\ItchIoSource.cs" Link="Sources\ItchIoSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ApkCombo\ApkComboSource.cs" Link="Sources\ApkComboSource.cs" />
     <Compile Include="..\ObtainiumPC\Services\Store\AppStore.cs" Link="Services\AppStore.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Store\AppSort.cs" Link="Services\AppSort.cs" />
     <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\CoolApk\CoolApkSource.cs" Link="Sources\CoolApkSource.cs" />

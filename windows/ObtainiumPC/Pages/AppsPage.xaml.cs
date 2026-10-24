@@ -83,7 +83,11 @@ namespace ObtainiumPC.Pages
             var showHealth = App.Settings.ShowUpdateHealthIndicator;
 
             Rows.Clear();
-            foreach (var app in App.TrackedApps)
+            // lib/components/app_list_tile.dart AppListBuilder.sort via Settings
+            // (sortColumn/sortOrder).
+            var sorted = Services.Store.AppSort.Sort(App.TrackedApps,
+                App.Settings.SortColumn, App.Settings.SortOrder);
+            foreach (var app in sorted)
             {
                 var hasUpdate = App.Updater.IsAppUpdateable(app);
                 if (updatesOnly && !hasUpdate) continue;

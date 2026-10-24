@@ -13,6 +13,8 @@
             <StackPanel Spacing="6" MaxWidth="720">
                 <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
                 <ComboBox x:Name="ThemeCombo" Header="Theme" MinWidth="260" SelectionChanged="ThemeCombo_SelectionChanged"/>
+                <ComboBox x:Name="SortByCombo" Header="Sort apps by" MinWidth="260" SelectionChanged="SortByCombo_SelectionChanged"/>
+                <ComboBox x:Name="SortOrderCombo" Header="Sort order" MinWidth="260" SelectionChanged="SortOrderCombo_SelectionChanged"/>
 
                 <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
                 <ComboBox x:Name="UpdateIntervalCombo" Header="Background update interval" MinWidth="260" SelectionChanged="UpdateIntervalCombo_SelectionChanged"/>

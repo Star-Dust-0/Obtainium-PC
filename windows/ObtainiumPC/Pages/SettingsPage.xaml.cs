@@ -31,6 +31,14 @@ namespace ObtainiumPC.Pages
             var s = App.Settings;
 
             foreach (var (label, value) in ThemeOptions) ThemeCombo.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+            SortByCombo.Items.Add("As added");
+            SortByCombo.Items.Add("Name (Author)");
+            SortByCombo.Items.Add("Author (Name)");
+            SortByCombo.Items.Add("Release date");
+            SortByCombo.SelectedIndex = Math.Clamp(App.Settings.SortColumn, 0, 3);
+            SortOrderCombo.Items.Add("Ascending");
+            SortOrderCombo.Items.Add("Descending");
+            SortOrderCombo.SelectedIndex = App.Settings.SortOrder == 1 ? 1 : 0;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
 
             foreach (var (label, minutes) in IntervalOptions) UpdateIntervalCombo.Items.Add(new ComboBoxItem { Content = label, Tag = minutes });
@@ -54,6 +62,16 @@ namespace ObtainiumPC.Pages
         }
 
         private void Save() { if (!_loading) App.Settings.Save(); }
+
+        private void SortByCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SortByCombo.SelectedIndex >= 0) { App.Settings.SortColumn = SortByCombo.SelectedIndex; Save(); }
+        }
+
+        private void SortOrderCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SortOrderCombo.SelectedIndex >= 0) { App.Settings.SortOrder = SortOrderCombo.SelectedIndex; Save(); }
+        }
 
         private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
