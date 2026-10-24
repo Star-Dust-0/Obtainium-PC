@@ -22,14 +22,21 @@ public sealed partial class LogsPage : Page
 
     private void LoadLogs()
     {
+        if (LogsList == null) return; // SelectionChanged can fire during InitializeComponent
         LoadingBar.Visibility = Visibility.Visible;
         var logs = AppLogger.GetLogs(DateTimeOffset.Now.AddDays(-_days)).Reverse().ToList();
+        // ThemeResource brushes may not be present on Application.Resources;
+        // index access throws when the key is missing.
+        Microsoft.UI.Xaml.Media.Brush? cardBrush = null;
+        if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var brushObj)
+            && brushObj is Microsoft.UI.Xaml.Media.Brush b)
+            cardBrush = b;
         LogsList.ItemsSource = logs.Select(l => new Border
         {
             Padding = new Thickness(12, 8, 12, 8),
             Margin = new Thickness(0, 0, 0, 6),
             CornerRadius = new CornerRadius(8),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            Background = cardBrush,
             Child = new TextBlock
             {
                 Text = l.ToString(),

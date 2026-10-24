@@ -51,7 +51,7 @@ namespace ObtainiumPC.Pages
                 {
                     Text = "This app's source is not supported yet, so its options cannot be shown.",
                     TextWrapping = TextWrapping.Wrap,
-                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    Foreground = Pages.ThemeLookup.Brush("TextFillColorSecondaryBrush"),
                 });
                 _building = false;
                 return;
@@ -69,7 +69,7 @@ namespace ObtainiumPC.Pages
                         FormPanel.Children.Add(new TextBlock
                         {
                             Text = item.Label,
-                            Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["SubtitleTextBlockStyle"],
+                            Style = Pages.ThemeLookup.Style("SubtitleTextBlockStyle"),
                             Margin = new Thickness(0, 20, 0, 6),
                         });
                         break;
@@ -123,7 +123,7 @@ namespace ObtainiumPC.Pages
                         };
                         var error = new TextBlock
                         {
-                            Foreground = (Microsoft.UI.Xaml.Media.Brush)Microsoft.UI.Xaml.Application.Current.Resources["SystemFillColorCriticalBrush"],
+                            Foreground = Pages.ThemeLookup.Brush("SystemFillColorCriticalBrush"),
                             FontSize = 12,
                             Visibility = Visibility.Collapsed,
                             Margin = new Thickness(0, 2, 0, 6),

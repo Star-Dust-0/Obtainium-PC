@@ -390,16 +390,19 @@ public sealed class GitHubSource : AppSourceBase
             if (IsReleaseTooYoung(GetReleaseDateFromRelease(rel, useLatestAssetDateAsReleaseDate), minAgeDays))
             { releaseSkipped++; continue; }
 
+            // Assets are JSON objects; their [name, url] pair lives under
+            // "final_url" (upstream: e['final_url'] as MapEntry).
+            KeyValuePair<string, string> PairOf(JsonNode? asset) => PairFrom(asset?["final_url"]);
             var allAssetsWithUrls = FindReleaseAssetUrls(rel, includeZips, includeTarballs);
-            var allAssetUrls = allAssetsWithUrls.Select(PairFrom).ToList();
+            var allAssetUrls = allAssetsWithUrls.Select(PairOf).ToList();
             var appAssetsWithUrls = allAssetsWithUrls.Where(e =>
-                AssetFilterService.IsAppOrContainerFile(PairFrom(e).Key, includeZips, includeTarballs)).ToList();
+                AssetFilterService.IsAppOrContainerFile(PairOf(e).Key, includeZips, includeTarballs)).ToList();
             var filteredAssetPairs = AssetFilterService.FilterAssets(
-                appAssetsWithUrls.Select(PairFrom).ToList(),
+                appAssetsWithUrls.Select(PairOf).ToList(),
                 GetString(additionalSettings, "apkFilterRegEx"),
                 GetBool(additionalSettings, "invertAPKFilter") ? true : (bool?)null);
             var filteredAssets = appAssetsWithUrls
-                .Where(e => filteredAssetPairs.Any(e2 => e2.Key == PairFrom(e).Key))
+                .Where(e => filteredAssetPairs.Any(e2 => e2.Key == PairOf(e).Key))
                 .ToList();
 
             if (filteredAssetPairs.Count == 0 && !GetBool(additionalSettings, "trackOnly"))

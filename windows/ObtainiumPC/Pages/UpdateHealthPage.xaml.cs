@@ -110,11 +110,11 @@ public sealed partial class UpdateHealthPage : Page
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var text = new StackPanel();
-        text.Children.Add(new TextBlock { Text = app.FinalName, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        text.Children.Add(new TextBlock { Text = app.FinalName, Style = ThemeLookup.Style("BodyStrongTextBlockStyle") });
         text.Children.Add(new TextBlock
         {
             Text = string.Join("\n", reasons.Select(r => UpdateHealthService.ReasonLabel(r, app, config))),
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            Foreground = ThemeLookup.Brush("TextFillColorSecondaryBrush"),
             TextWrapping = TextWrapping.Wrap,
         });
         Grid.SetColumn(text, 0);
@@ -126,7 +126,7 @@ public sealed partial class UpdateHealthPage : Page
             Child = row,
             Padding = new Thickness(12, 8, 12, 8),
             CornerRadius = new CornerRadius(8),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            Background = ThemeLookup.Brush("CardBackgroundFillColorDefaultBrush"),
             Margin = new Thickness(0, 0, 0, 6),
         };
     }
@@ -148,7 +148,7 @@ public sealed partial class UpdateHealthPage : Page
         {
             Text = app.FinalName,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            Foreground = ThemeLookup.Brush("TextFillColorSecondaryBrush"),
         };
         Grid.SetColumn(text, 0);
         Grid.SetColumn(restore, 1);
@@ -159,7 +159,7 @@ public sealed partial class UpdateHealthPage : Page
             Child = row,
             Padding = new Thickness(12, 8, 12, 8),
             CornerRadius = new CornerRadius(8),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            Background = ThemeLookup.Brush("CardBackgroundFillColorDefaultBrush"),
             Margin = new Thickness(0, 0, 0, 6),
         };
     }
