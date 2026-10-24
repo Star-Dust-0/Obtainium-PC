@@ -79,7 +79,7 @@ silently omitted.
 | Settings page | mapped | theme, interval, min age, check-on-start, notifications, hide-downgrades, add-without-check, global regexes, source PATs, update-health thresholds, sort column+order, pin/bury toggles, list density, category registry with colors, repo-rename detection, about section with attribution |
 | Import / Export | ported | upstream schema v2, three credential levels, same-ID replace |
 | Apps list search/filter | mapped | name/author/URL query + updates-only toggle + category filter dropdown (upstream full filter dialog simplified, disclosed) |
-| Apps list categories/groups | mapped | per-app categories, category registry with colors + Settings management, batch categorize, filter dropdown, row labels; collapsible group headers not ported (pending) |
+| Apps list categories/groups | ported | per-app categories, category registry with colors + Settings management, batch categorize, filter dropdown, row labels; collapsible group headers (none/category/source grouping, per-session collapse, collapse-on-startup toggle) |
 | Logs page | ported | JSONL store, day filter, copy, share (native share sheet), clear, level colors |
 | Crowdsourced app configs | mapped | Add App links to apps.obtainium.imranr.dev; in-app config picker dialog not ported (pending) |
 | Localization | mapped | English default + language picker (Settings) + formal Arabic (RTL, flow direction flips, ~150 strings: all chrome, settings, dialogs, detail-page status). Upstream ships 15+ community languages via .arb; the port ships English + Arabic, extensible per language |
