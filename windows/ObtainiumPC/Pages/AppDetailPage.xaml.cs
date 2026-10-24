@@ -240,9 +240,8 @@ namespace ObtainiumPC.Pages
         }
 
         // lib/components/app_list_tile.dart showChangeLogDialog: a changelog that
-        // is only a URL is shown as a link; otherwise the text is shown. WinUI
-        // renders it as plain text (upstream renders markdown for some sources -
-        // simplification disclosed in PARITY.md).
+        // is only a URL is shown as a link; otherwise it is rendered as markdown
+        // (common subset - full flutter_markdown_plus parity disclosed in PARITY).
         private static readonly System.Text.RegularExpressions.Regex ChangelogUrlRegex =
             new(@"^(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$",
                 System.Text.RegularExpressions.RegexOptions.Compiled);
@@ -269,7 +268,7 @@ namespace ObtainiumPC.Pages
                 {
                     MaxHeight = 400,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    Content = new TextBlock { Text = changeLog, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+                    Content = Services.MarkdownRenderer.Render(changeLog),
                 });
             }
             var dialog = new ContentDialog
