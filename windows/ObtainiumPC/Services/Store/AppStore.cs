@@ -14,27 +14,60 @@ public sealed class AppStore
 {
     public const int CurrentExportSchemaVersion = 2;
 
-    private static string FilePath =>
-        Path.Combine(Settings.AppSettings.DataDir, "apps.json");
+    private readonly string? _dataDir;
+
+    public AppStore(string? dataDir = null) => _dataDir = dataDir;
+
+    private string FilePath =>
+        Path.Combine(_dataDir ?? Settings.AppSettings.DataDir, "apps.json");
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
+    /// <summary>
+    /// True when the last load found the store unreadable/corrupt. Saves are
+    /// blocked in that state: a user's real apps.json must never be silently
+    /// overwritten just because it failed to parse once.
+    /// </summary>
+    public bool LastLoadFailed { get; private set; }
+
+    /// <summary>Backup copy of the unreadable store, when one could be made.</summary>
+    public string? LastLoadBackupPath { get; private set; }
+
     public async Task<List<TrackedApp>> LoadAsync()
     {
+        LastLoadFailed = false;
+        LastLoadBackupPath = null;
         try
         {
             if (!File.Exists(FilePath)) return new List<TrackedApp>();
             var json = await File.ReadAllTextAsync(FilePath);
             return JsonSerializer.Deserialize<List<TrackedApp>>(json) ?? new List<TrackedApp>();
         }
-        catch
+        catch (Exception e)
         {
+            LastLoadFailed = true;
+            try
+            {
+                LastLoadBackupPath = FilePath + ".corrupt-" + DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+                File.Copy(FilePath, LastLoadBackupPath, overwrite: false);
+            }
+            catch (Exception copyError)
+            {
+                Logging.AppLogger.Error("apps.json is unreadable and its preservation copy failed", copyError);
+            }
+            Logging.AppLogger.Error("apps.json is unreadable; the original is preserved and store changes will not be saved this session", e);
             return new List<TrackedApp>();
         }
     }
 
     public async Task SaveAsync(IEnumerable<TrackedApp> apps)
     {
+        if (LastLoadFailed)
+        {
+            Logging.AppLogger.Warn("Skipping save: apps.json failed to load this session, so overwriting it is blocked. " +
+                (LastLoadBackupPath != null ? $"Preserved copy: {LastLoadBackupPath}" : "No preservation copy could be made."));
+            return;
+        }
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         await File.WriteAllTextAsync(FilePath, JsonSerializer.Serialize(apps, JsonOpts));
     }

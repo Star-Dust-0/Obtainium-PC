@@ -30,5 +30,7 @@
     <Compile Include="..\ObtainiumPC\Sources\FDroid\FDroidSource.cs" Link="Sources\FDroidSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ItchIo\ItchIoSource.cs" Link="Sources\ItchIoSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ApkCombo\ApkComboSource.cs" Link="Sources\ApkComboSource.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Store\AppStore.cs" Link="Services\AppStore.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
   </ItemGroup>
 </Project>
