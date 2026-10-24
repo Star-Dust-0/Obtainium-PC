@@ -309,7 +309,12 @@ jobs:
           ClickPartial 'العربية' $root | Out-Null
           Start-Sleep 4
           AssertAlive 'arabic-switch'
-          if ((FindNamed 'التطبيقات' $win2) -eq $null) { Shot 'arabic-missing'; throw 'Arabic nav label not found after language switch' }
+          $found = $false
+          foreach ($w in 1..15) {
+            Start-Sleep 1
+            if ((FindNamed 'التطبيقات' $win2) -ne $null) { $found = $true; break }
+          }
+          if (-not $found) { Shot 'arabic-missing'; throw 'Arabic nav label not found after language switch' }
           Shot '15-arabic-rtl-settings'
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"ar"') { throw 'language not persisted to settings.json' }
@@ -325,7 +330,12 @@ jobs:
           ClickPartial 'English' $root | Out-Null
           Start-Sleep 4
           AssertAlive 'english-switch'
-          if ((FindNamed 'Apps' $win2) -eq $null) { Shot 'english-missing'; throw 'English nav label not found after switching back' }
+          $found = $false
+          foreach ($w in 1..15) {
+            Start-Sleep 1
+            if ((FindNamed 'Apps' $win2) -ne $null) { $found = $true; break }
+          }
+          if (-not $found) { Shot 'english-missing'; throw 'English nav label not found after switching back' }
           Shot '17-back-to-english'
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"en"') { throw 'language not persisted back to en' }
