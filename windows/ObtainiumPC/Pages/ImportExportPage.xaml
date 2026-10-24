@@ -27,6 +27,14 @@
                 <TextBlock Text="Reads an Obtainium export file (schema v2 and legacy formats). Apps with an existing ID are replaced; new apps are added."
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <Button Content="Import from file..." Click="Import_Click" HorizontalAlignment="Left"/>
+
+                <TextBlock Text="Bulk import" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+                <TextBlock Text="Import apps in bulk from an external list. You review and pick which repos to add before anything is saved."
+                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox x:Name="StarsUsernameBox" PlaceholderText="GitHub username" Width="220" VerticalAlignment="Center"/>
+                    <Button Content="Import GitHub starred repos..." Click="ImportStars_Click" VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>

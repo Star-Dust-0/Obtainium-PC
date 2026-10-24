@@ -58,6 +58,76 @@ namespace ObtainiumPC.Pages
                 $"{App.TrackedApps.Count} app(s) written to {file.Name}.");
         }
 
+        private async void ImportStars_Click(object sender, RoutedEventArgs e)
+        {
+            await App.InitAsync();
+            var username = StarsUsernameBox.Text.Trim();
+            if (username.Length == 0)
+            {
+                ShowResult(InfoBarSeverity.Warning, "Username required", "Enter the GitHub username whose starred repos you want to import.");
+                return;
+            }
+
+            List<Services.BulkImport.GitHubStarsService.StarredRepo> repos;
+            try
+            {
+                repos = await Services.BulkImport.GitHubStarsService.GetStarredReposAsync(username, App.Settings);
+            }
+            catch (Exception ex)
+            {
+                ShowResult(InfoBarSeverity.Error, "Could not fetch starred repos", ex.Message);
+                return;
+            }
+            if (repos.Count == 0)
+            {
+                ShowResult(InfoBarSeverity.Informational, "Nothing found", $"No starred repos for '{username}'.");
+                return;
+            }
+
+            // Review before adding: every repo starts checked, duplicates unchecked.
+            var existingUrls = App.TrackedApps.Select(a => a.Url).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var items = repos.Select(r =>
+            {
+                var isDuplicate = existingUrls.Contains(r.Url);
+                return new CheckBox
+                {
+                    Content = string.IsNullOrEmpty(r.Description) ? r.FullName : $"{r.FullName} - {r.Description}",
+                    IsChecked = !isDuplicate,
+                    IsEnabled = !isDuplicate,
+                    Tag = r,
+                };
+            }).ToList();
+            var listView = new ListView { ItemsSource = items, SelectionMode = ListViewSelectionMode.None, MaxHeight = 420 };
+            var dialog = new ContentDialog
+            {
+                Title = $"Starred repos of {username} ({repos.Count})",
+                Content = new ScrollViewer { Content = listView },
+                PrimaryButtonText = "Add selected",
+                CloseButtonText = "Cancel",
+                XamlRoot = XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            var added = 0;
+            foreach (var checkbox in items)
+            {
+                if (checkbox.IsChecked != true || checkbox.Tag is not Services.BulkImport.GitHubStarsService.StarredRepo repo) continue;
+                var url = App.Updater is null ? repo.Url : repo.Url; // standardized on first update check
+                var app = new Models.TrackedApp
+                {
+                    Id = Services.Updates.AppUpdateService.GenerateTempId(repo.Url),
+                    Url = repo.Url,
+                    Name = repo.FullName.Split('/').Last(),
+                    Author = repo.FullName.Split('/').First(),
+                };
+                App.TrackedApps.Add(app);
+                added++;
+            }
+            await App.SaveAppsAsync();
+            ShowResult(InfoBarSeverity.Success, "Starred repos added",
+                $"Added {added} app(s). They resolve their first version on the next update check.");
+        }
+
         private async void Import_Click(object sender, RoutedEventArgs e)
         {
             await App.InitAsync();
