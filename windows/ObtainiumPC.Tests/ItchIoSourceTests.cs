@@ -19,6 +19,7 @@ public class ItchIoSourceTests
     private const string StorePage = """
         <html><head><title>Cool Game by Some Author</title></head>
         <body>
+          <input type="hidden" name="csrf_token" value="tok123">
           <span class="on_follow"><span class="full_label">Follow Some Author</span></span>
           <abbr title="15 March 2026 @ 10:00 UTC">updated</abbr>
           <div class="upload">
@@ -37,8 +38,10 @@ public class ItchIoSourceTests
     private static ItchIoSource Source(FixtureHttpHandler handler) => new(FixtureHttpHandler.Client(handler));
     private static readonly IReadOnlyDictionary<string, JsonElement> NoSettings = new Dictionary<string, JsonElement>();
 
+    private static readonly Dictionary<string, string> SessionCookie = new() { ["Set-Cookie"] = "itchio=sess" };
+
     private static FixtureHttpHandler BaseHandler() => new FixtureHttpHandler()
-        .Respond(StoreUrl, StorePage)
+        .Respond(StoreUrl, StorePage, headers: SessionCookie)
         .Respond("https://author.itch.io/game/file/111?as_props=1&source=game_download", """{"url":"https://cdn.example/signed-file"}""")
         .Respond("https://cdn.example/signed-file", "binary");
 
@@ -68,7 +71,7 @@ public class ItchIoSourceTests
         // No abbr either -> 'latest'.
         var noDate = StorePage.Replace("""<abbr title="15 March 2026 @ 10:00 UTC">updated</abbr>""", "");
         var handler = new FixtureHttpHandler()
-            .Respond(StoreUrl, noDate)
+            .Respond(StoreUrl, noDate, headers: SessionCookie)
             .Respond("https://author.itch.io/game/file/111?as_props=1&source=game_download", """{"url":"https://cdn.example/signed-file"}""")
             .Respond("https://cdn.example/signed-file", "binary");
         var details2 = await Source(handler).GetLatestAssetDetailsAsync(StoreUrl, NoSettings);
@@ -79,7 +82,7 @@ public class ItchIoSourceTests
     public async Task No_windows_uploads_throws_no_app_asset()
     {
         var androidOnly = StorePage.Replace("icon-windows8", "icon-apple");
-        var handler = new FixtureHttpHandler().Respond(StoreUrl, androidOnly);
+        var handler = new FixtureHttpHandler().Respond(StoreUrl, androidOnly, headers: SessionCookie);
         await Assert.ThrowsAsync<NoAppAssetException>(() =>
             Source(handler).GetLatestAssetDetailsAsync(StoreUrl, NoSettings));
     }
@@ -88,7 +91,7 @@ public class ItchIoSourceTests
     public async Task Prefetch_modifier_resolves_signed_url_at_download_time()
     {
         var source = Source(new FixtureHttpHandler()
-            .Respond("https://author.itch.io/game", StorePage)
+            .Respond("https://author.itch.io/game", StorePage, headers: SessionCookie)
             .Respond("https://author.itch.io/game/file/111?as_props=1&source=game_download", """{"url":"https://cdn.example/fresh-signed"}"""));
         var resolved = await source.AssetUrlPrefetchModifierAsync(
             "https://author.itch.io/game/download/111", StoreUrl, NoSettings);

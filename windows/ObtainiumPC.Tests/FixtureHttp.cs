@@ -6,11 +6,12 @@ namespace ObtainiumPC.Tests;
 /// Minimal stub handler: exact URL to response mapping, 404 otherwise.
 public sealed class FixtureHttpHandler : HttpMessageHandler
 {
-    private readonly Dictionary<string, (HttpStatusCode Status, string Body)> _responses = new();
+    private readonly Dictionary<string, (HttpStatusCode Status, string Body, Dictionary<string, string> Headers)> _responses = new();
 
-    public FixtureHttpHandler Respond(string url, string body, HttpStatusCode status = HttpStatusCode.OK)
+    public FixtureHttpHandler Respond(string url, string body, HttpStatusCode status = HttpStatusCode.OK,
+        Dictionary<string, string>? headers = null)
     {
-        _responses[url] = (status, body);
+        _responses[url] = (status, body, headers ?? new Dictionary<string, string>());
         return this;
     }
 
@@ -18,7 +19,12 @@ public sealed class FixtureHttpHandler : HttpMessageHandler
     {
         var url = request.RequestUri!.ToString();
         if (_responses.TryGetValue(url, out var r))
-            return Task.FromResult(new HttpResponseMessage(r.Status) { Content = new StringContent(r.Body) });
+        {
+            var response = new HttpResponseMessage(r.Status) { Content = new StringContent(r.Body) };
+            foreach (var (key, value) in r.Headers)
+                response.Headers.TryAddWithoutValidation(key, value);
+            return Task.FromResult(response);
+        }
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
     }
 
