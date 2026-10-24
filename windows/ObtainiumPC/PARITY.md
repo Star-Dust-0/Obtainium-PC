@@ -5,8 +5,9 @@ Upstream reference: ImranR98/Obtainium at commit
 upstream sync). Test expectations are derived from that code, not from this
 port's own implementation.
 
-Source totals: 30 upstream sources; 25 ported (11 ported + 2 mapped +
-12 track-only), 7 pending (all Android APK stores, to be ported track-only).
+Source totals: 30 upstream sources; all 30 have a Windows port
+(11 ported + 2 mapped + 17 track-only Android stores). Final treatment
+of track-only Android packages is still pending the user's decision.
 
 Tracks every upstream Obtainium (ImranR98) source and feature against the
 WinUI 3 port. Statuses:
@@ -36,19 +37,19 @@ WinUI 3 port. Statuses:
 | F-Droid (fdroid) | track-only | ported pipeline; install disabled with label; ABI nativecode filtering not ported (Android-only) |
 | F-Droid third-party repo (fdroidrepo) | track-only | index-v2.json + legacy index.xml; stable-channel preference; install disabled with label |
 | IzzyOnDroid | track-only | F-Droid-compatible API on Izzy hosts; install disabled with label |
-| APKMirror | pending | Android packages - proposed track-only |
-| APKPure | pending | Android packages - proposed track-only |
+| APKMirror | track-only | app_exists API + RSS feed, release scrape; direct downloads forbidden upstream (PR #44) |
+| APKPure | track-only | version-history API, variant grouping, arch suffixes |
 | APKCombo | track-only | per-variant current-build links, R2 presigned URLs re-scraped at download; install disabled with label |
 | Apk4Free | track-only | two-page scrape with title cleaning and version fallbacks; install disabled with label |
 | LiteAPKs | track-only | WordPress API, Referer header + time-based CDN token at download; install disabled with label |
 | Aptoide | track-only | page-scraped app ID + ws2 API; install disabled with label |
-| Uptodown | pending | Android packages - proposed track-only |
-| CoolApk | pending | Android packages - proposed track-only |
+| Uptodown | track-only | page scrape + eAPI HMAC session, download prefetch, search |
+| CoolApk | track-only | signed API requests |
 | Farsroid | track-only | download-box API + shared HTML link grabber; install disabled with label |
 | RockMods | track-only | JSON-LD version tracking only (track-only upstream too, PR #2966) |
-| RuStore | pending | Android packages - proposed track-only |
-| Huawei AppGallery | pending | Android packages - proposed track-only |
-| Samsung Galaxy Store | pending | Android packages - proposed track-only |
+| RuStore | track-only | HMAC device session, split-set mapping, search |
+| Huawei AppGallery | track-only | front2 handshake, zone hosts, signed API, search |
+| Samsung Galaxy Store | track-only | VAS stub + ODS grants, store-details enrichment |
 | Vivo App Store | track-only | h5 detail API; install disabled with label |
 | Tencent App Store | track-only | simple.jsp embedded-JSON scrape; install disabled with label |
 | Telegram App | track-only | channel-page version scrape, fixed download URL; install disabled with label |
