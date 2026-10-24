@@ -94,10 +94,12 @@ public class UptodownSourceTests
     {
         var handler = new FixtureHttpHandler().Respond(
             "https://en.uptodown.com/android/en/s",
-            """{"success":1,"data":{"apps":[
+            """
+            {"success":1,"data":{"apps":[
                 {"url":"https://cool.en.uptodown.com/android","name":"<b>Cool</b> App","author":"Cool Dev","platformURL":"/android"},
                 {"url":"https://cool.en.uptodown.com/mac","name":"Cool Mac","author":"Cool Dev","platformURL":"/mac"}
-            ]}}""");
+            ]}}
+            """);
         var results = await new UptodownSource(FixtureHttpHandler.Client(handler))
             .SearchAsync("cool", new Dictionary<string, JsonElement>());
         var hit = Assert.Single(results!);
