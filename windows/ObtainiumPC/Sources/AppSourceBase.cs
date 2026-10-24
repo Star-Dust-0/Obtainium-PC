@@ -15,6 +15,13 @@ public sealed record AssetDetails(
     List<KeyValuePair<string, string>> AllAssetUrls,
     bool? IsArchived,
     int? NewerReleasesFilteredOut);
+{
+    /// Optional context fields some sources resolve (APKMirror): release page,
+    /// real package id and size. Init-only so positional construction is unaffected.
+    public string? ReleaseUrl { get; init; }
+    public string? AppId { get; init; }
+    public long? ApkSizeBytes { get; init; }
+}
 
 public class ObtainiumSourceException : Exception
 {

@@ -40,6 +40,7 @@
     <Compile Include="..\ObtainiumPC\Sources\RuStore\RuStoreSource.cs" Link="Sources\RuStoreSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\HuaweiAppGallery\HuaweiAppGallerySource.cs" Link="Sources\HuaweiAppGallerySource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\SamsungGalaxyStore\SamsungGalaxyStoreSource.cs" Link="Sources\SamsungGalaxyStoreSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\ApkMirror\ApkMirrorSource.cs" Link="Sources\ApkMirrorSource.cs" />
     <Compile Include="..\ObtainiumPC\Pages\ThemeLookupCore.cs" Link="Pages\ThemeLookupCore.cs" />
   </ItemGroup>
 </Project>

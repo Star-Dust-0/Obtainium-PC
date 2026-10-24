@@ -2,6 +2,7 @@ using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.Apk4Free;
 using ObtainiumPC.Sources.ApkPure;
 using ObtainiumPC.Sources.ApkCombo;
+using ObtainiumPC.Sources.ApkMirror;
 using ObtainiumPC.Sources.Aptoide;
 using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
@@ -35,7 +36,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "Uptodown", "RuStore", "Huawei AppGallery", "Samsung Galaxy Store", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKMirror", "APKPure", "Uptodown", "RuStore", "Huawei AppGallery", "Samsung Galaxy Store", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -62,6 +63,7 @@ public static class SourceCatalog
         "APKPure" => new ApkPureSource(),
         "Uptodown" => new UptodownSource(),
         "RuStore" => new RuStoreSource(),
+        "APKMirror" => new ApkMirrorSource(),
         "Huawei AppGallery" => new HuaweiAppGallerySource(),
         "Samsung Galaxy Store" => new SamsungGalaxyStoreSource(),
         "HTML" => new Html.HtmlSource(),
@@ -95,6 +97,8 @@ public static class SourceCatalog
             return new UptodownSource();
         if (host == "rustore.ru" || host.EndsWith(".rustore.ru"))
             return new RuStoreSource();
+        if (host == "apkmirror.com" || host.EndsWith(".apkmirror.com"))
+            return new ApkMirrorSource();
         if (host == "galaxystore.samsung.com" || host == "apps.samsung.com" || host == "apps.samsung.cn"
             || host == "galaxyappstore.com" || host == "apps.galaxyappstore.com")
             return new SamsungGalaxyStoreSource();
