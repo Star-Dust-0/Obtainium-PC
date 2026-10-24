@@ -14,7 +14,7 @@ public sealed record AssetDetails(
     string? ChangeLog,
     List<KeyValuePair<string, string>> AllAssetUrls,
     bool? IsArchived,
-    int? NewerReleasesFilteredOut);
+    int? NewerReleasesFilteredOut)
 {
     /// Optional context fields some sources resolve (APKMirror): release page,
     /// real package id and size. Init-only so positional construction is unaffected.
