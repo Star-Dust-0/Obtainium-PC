@@ -27,5 +27,6 @@
     <Compile Include="..\ObtainiumPC\Sources\AppSourceBase.cs" Link="Sources\AppSourceBase.cs" />
     <Compile Include="..\ObtainiumPC\Sources\AssetFilterService.cs" Link="Sources\AssetFilterService.cs" />
     <Compile Include="..\ObtainiumPC\Sources\Forms\OptionForm.cs" Link="Sources\OptionForm.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\FDroid\FDroidSource.cs" Link="Sources\FDroidSource.cs" />
   </ItemGroup>
 </Project>
