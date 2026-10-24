@@ -42,7 +42,9 @@
                 <StackPanel Spacing="4">
                     <TextBlock x:Name="InstalledText" TextWrapping="Wrap"/>
                     <TextBlock x:Name="LatestText" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="ReleaseDateText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <HyperlinkButton x:Name="ReleaseDateLink" Click="ReleaseDate_Click" Visibility="Collapsed" Padding="0">
+                        <TextBlock x:Name="ReleaseDateText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </HyperlinkButton>
                     <HyperlinkButton x:Name="ReleaseLink" Content="Open release page" Click="ReleaseLink_Click"/>
                 </StackPanel>
 

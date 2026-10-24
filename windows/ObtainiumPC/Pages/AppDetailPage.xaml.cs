@@ -40,6 +40,13 @@ namespace ObtainiumPC.Pages
             InstalledText.Text = "Installed: " + (_app.InstalledVersion ?? "not installed");
             LatestText.Text = "Latest: " + (_app.LatestVersion ?? "unknown");
             ReleaseDateText.Text = _app.ReleaseDate is { } rd ? "Released: " + rd.ToString("yyyy-MM-dd") : "";
+            // lib/pages/app.dart + app_list_tile.dart getChangeLogFn: the release
+            // date becomes a tappable "changes" link when a changelog or release
+            // URL exists.
+            var hasChangeLog = _app.ChangeLog is { Length: > 0 }
+                || !string.IsNullOrEmpty(_app.ReleaseUrl);
+            ReleaseDateLink.Visibility = hasChangeLog && _app.ReleaseDate != null
+                ? Visibility.Visible : Visibility.Collapsed;
             ReleaseLink.Visibility = !string.IsNullOrEmpty(_app.ReleaseUrl) ? Visibility.Visible : Visibility.Collapsed;
             TrackButton.Label = _app.Disabled ? "Enable tracking" : "Disable tracking";
             // lib/pages/app.dart: reset is offered only for track-only apps or
@@ -185,6 +192,49 @@ namespace ObtainiumPC.Pages
         private void OsSettings_Click(object sender, RoutedEventArgs e)
         {
             // Reserved for packaged (MSIX) installs: ms-settings:appsfeatures-app?<PFN>.
+        }
+
+        // lib/components/app_list_tile.dart showChangeLogDialog: a changelog that
+        // is only a URL is shown as a link; otherwise the text is shown. WinUI
+        // renders it as plain text (upstream renders markdown for some sources -
+        // simplification disclosed in PARITY.md).
+        private static readonly System.Text.RegularExpressions.Regex ChangelogUrlRegex =
+            new(@"^(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private async void ReleaseDate_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            var changeLog = _app.ChangeLog?.Trim();
+            string? changesUrl = null;
+            if (!string.IsNullOrEmpty(changeLog) && ChangelogUrlRegex.IsMatch(changeLog))
+            {
+                changesUrl = changeLog;
+                changeLog = null;
+            }
+            var panel = new StackPanel { Spacing = 12 };
+            if (changesUrl != null)
+            {
+                var link = new HyperlinkButton { Content = changesUrl, NavigateUri = new Uri(changesUrl) };
+                panel.Children.Add(link);
+            }
+            if (!string.IsNullOrEmpty(changeLog))
+            {
+                panel.Children.Add(new ScrollViewer
+                {
+                    MaxHeight = 400,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = new TextBlock { Text = changeLog, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+                });
+            }
+            var dialog = new ContentDialog
+            {
+                Title = "Changes - " + _app.LatestVersion,
+                Content = panel,
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot,
+            };
+            await dialog.ShowAsync();
         }
 
         private async void ResetInstall_Click(object sender, RoutedEventArgs e)
