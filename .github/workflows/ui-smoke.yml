@@ -1,0 +1,77 @@
+name: UI smoke (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build (default: main)'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish windows/ObtainiumPC/ObtainiumPC.csproj -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:DebugType=none -o publish
+          if ($LASTEXITCODE -ne 0) { throw 'publish failed' }
+      - name: Seed a tracked app (GitHub source)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $apps = @(
+            @{
+              id = 'seed-obtainium'; url = 'https://github.com/ImranR98/Obtainium'
+              author = 'ImranR98'; name = 'Obtainium'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+            }
+          )
+          ($apps | ConvertTo-Json -Depth 6) | Set-Content (Join-Path $dir 'apps.json')
+          # Make the first-run state deterministic.
+          $settings = @{ updateIntervalMinutes = 360; checkOnStart = $true; notifyUpdates = $false }
+          ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+      - name: Launch and capture
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory -Force shots | Out-Null
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size)
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          $p = Start-Process publish\ObtainiumPC.exe -PassThru
+          Start-Sleep 12
+          $p.Refresh()
+          if ($p.HasExited) { Shot 'exited'; throw "app exited at launch (code $($p.ExitCode))" }
+          Shot '01-apps-list-initial'
+          # Let check-on-start resolve the seeded GitHub app's version.
+          Start-Sleep 30
+          $p.Refresh()
+          if ($p.HasExited) { Shot 'exited-during-check'; throw "app exited during update check (code $($p.ExitCode))" }
+          Shot '02-apps-list-after-check'
+          $apps = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw
+          "== seeded store after check =="; $apps
+          $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $logs) { "== logs =="; Get-Content $logs | Select-Object -First 20 }
+          Stop-Process -Id $p.Id -Force
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-shots
+          path: shots/
