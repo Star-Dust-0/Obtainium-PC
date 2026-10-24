@@ -35,8 +35,8 @@ jobs:
           New-Item -ItemType Directory -Force $dir | Out-Null
           $apps = @(
             @{
-              id = 'seed-obtainium'; url = 'https://github.com/ImranR98/Obtainium'
-              author = 'ImranR98'; name = 'Obtainium'
+              id = 'seed-npp'; url = 'https://github.com/notepad-plus-plus/notepad-plus-plus'
+              author = 'notepad-plus-plus'; name = 'Notepad++'
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
             }
@@ -66,7 +66,7 @@ jobs:
           $p.Refresh()
           if ($p.HasExited) { Shot 'exited'; throw "app exited at launch (code $($p.ExitCode))" }
           Shot '01-apps-list-initial'
-          # Let check-on-start resolve the seeded GitHub app's version.
+          # Let check-on-start resolve the seeded repo's version (ships real .exe assets).
           Start-Sleep 30
           $p.Refresh()
           if ($p.HasExited) { Shot 'exited-during-check'; throw "app exited during update check (code $($p.ExitCode))" }
@@ -75,6 +75,44 @@ jobs:
           "== seeded store after check =="; $apps
           $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
           if (Test-Path $logs) { "== logs =="; Get-Content $logs | Select-Object -First 20 }
+
+          # Page walkthrough: click each nav item via UIA + real mouse input,
+          # screenshotting every page. The token field is a PasswordBox
+          # (masked), so no screenshot can leak the seeded token.
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          Add-Type @"
+          using System; using System.Runtime.InteropServices;
+          public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }
+"@
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          if ($win -eq $null) { throw 'main window not found for walkthrough' }
+          function ClickNamed($name) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            $el = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            if ($el -eq $null) { throw "nav item '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); return } catch {}
+            $r = $el.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          }
+          $pages = @(
+            @('Add App', '03-add-app'),
+            @('Update Health', '04-update-health'),
+            @('Import / Export', '05-import-export'),
+            @('Logs', '06-logs'),
+            @('Settings', '07-settings'),
+            @('Apps', '08-apps-final')
+          )
+          foreach ($pg in $pages) {
+            ClickNamed $pg[0]
+            Start-Sleep 3
+            $p.Refresh()
+            if ($p.HasExited) { Shot "exited-on-$($pg[1])"; throw "app exited navigating to $($pg[0]) (code $($p.ExitCode))" }
+            Shot $pg[1]
+          }
           Stop-Process -Id $p.Id -Force
       - uses: actions/upload-artifact@v4
         if: always()
