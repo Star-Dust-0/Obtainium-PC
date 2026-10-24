@@ -60,6 +60,13 @@ public abstract class AppSourceBase
     public abstract string Name { get; }
     public abstract IReadOnlyList<string> Hosts { get; }
 
+    /// False for sources whose artifacts are Android packages: tracking and
+    /// downloading work, but Windows cannot install them (track-only).
+    public virtual bool SupportsInstall => true;
+
+    /// Upstream: naiveStandardVersionDetection.
+    public virtual bool NaiveStandardVersionDetection => false;
+
     public abstract string SourceSpecificStandardizeUrl(string url, bool forSelection = false);
 
     /// Per-source additional form items (e.g. GitHub's sort method). Rows of items,

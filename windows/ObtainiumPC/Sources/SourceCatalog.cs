@@ -2,6 +2,7 @@ using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
 using ObtainiumPC.Sources.DirectLink;
+using ObtainiumPC.Sources.FDroid;
 using ObtainiumPC.Sources.GitLab;
 using ObtainiumPC.Sources.ItchIo;
 using ObtainiumPC.Sources.NeutronCode;
@@ -18,7 +19,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -29,6 +30,7 @@ public static class SourceCatalog
         "SourceHut" => new SourceHutSource(),
         "NeutronCode" => new NeutronCodeSource(),
         "itch.io" => new ItchIoSource(),
+        "F-Droid" => new FDroidSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -52,6 +54,8 @@ public static class SourceCatalog
             return new CodebergSource(new CodebergSourceConfig(
                 ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "f-droid.org" || host == "www.f-droid.org")
+            return new FDroidSource();
         if (host == "itch.io" || host.EndsWith(".itch.io"))
             return new ItchIoSource();
         if (host == "neutroncode.com" || host == "www.neutroncode.com")

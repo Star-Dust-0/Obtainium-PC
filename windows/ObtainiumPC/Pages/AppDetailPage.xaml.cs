@@ -94,8 +94,16 @@ namespace ObtainiumPC.Pages
                     downloadUrl, asset.Key, progress, gitHubPat);
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
-                DownloadService.OpenInstaller(path);
-                Show(InfoBarSeverity.Success, $"Downloaded {asset.Key} and opened the installer. Use Mark as updated after installing.");
+                var installable = dlSource?.SupportsInstall != false;
+                if (installable)
+                {
+                    DownloadService.OpenInstaller(path);
+                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key} and opened the installer. Use Mark as updated after installing.");
+                }
+                else
+                {
+                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key}. Android package - cannot install on Windows; the file is saved for manual transfer.");
+                }
                 MarkUpdatedButton.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
