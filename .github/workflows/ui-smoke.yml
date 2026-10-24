@@ -46,7 +46,7 @@ jobs:
           # Make the first-run state deterministic.
           # The runner's per-job token is throwaway and never leaves the runner;
           # it only raises the GitHub API rate limit for the live check.
-          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN }
+          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json') }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Launch and capture
         shell: pwsh
@@ -424,10 +424,27 @@ jobs:
           $dlgCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgCond) -eq $null) { Shot 'deeplink-import-missing'; throw 'deep-link app payload did not show the import confirmation' }
           Shot '20-deeplink-import-dialog'
-          $cancelCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Cancel')
-          $cancelBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cancelCond)
-          if ($cancelBtn -ne $null) { try { $cancelBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          $importCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import')
+          $importBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $importCond)
+          if ($importBtn -eq $null) { Shot 'deeplink-import-btn-missing'; throw 'import confirmation button missing' }
+          $importBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 3
+          $doneCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import complete')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $doneCond) -eq $null) { Shot 'deeplink-import-noconfirm'; throw 'deep-link import did not complete' }
+          $closeCond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Close')
+          $closeBtn2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $closeCond2)
+          if ($closeBtn2 -ne $null) { try { $closeBtn2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
           Start-Sleep 2
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+          $obtCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $obtCond) -eq $null) { Shot 'deeplink-imported-missing'; throw 'deep-link-imported app not in the list' }
+          Shot '22-deeplink-imported'
+          Start-Sleep 3
+          $exportFile = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
+          if (-not (Test-Path $exportFile)) { Shot 'auto-export-missing'; throw 'auto-export file missing after the deep-link import' }
+          if ((Get-Content $exportFile -Raw) -notlike '*deeplink-smoke-1*') { Shot 'auto-export-content'; throw 'auto-export file does not contain the imported app' }
+          'auto-export round-trip verified'
 
           # 4) malformed payload: error dialog, never an import.
           Start-Process $exe -ArgumentList 'obtainium://app/not-json'
@@ -444,6 +461,31 @@ jobs:
           Start-Process $exe -ArgumentList 'obtainium://refresh'
           Start-Sleep 4
           AssertAlive 'deeplink-refresh'
+
+          # Group headers + collapse-on-startup across a relaunch.
+          $settingsPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $sj = Get-Content $settingsPath -Raw | ConvertFrom-Json
+          $sj | Add-Member -NotePropertyName GroupBy -NotePropertyValue 'source' -Force
+          $sj | Add-Member -NotePropertyName CollapseGroupsOnStartup -NotePropertyValue $true -Force
+          $sj | ConvertTo-Json -Depth 6 | Set-Content $settingsPath
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 6
+          $wcond3 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win3 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond3)
+          if ($win3 -eq $null) { throw 'main window not found after group relaunch' }
+          $script:shotWin = $win3
+          $ghCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'GitHub')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $ghCond) -eq $null) { Shot 'group-header-missing'; throw 'group header missing with source grouping' }
+          $nppRow = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Notepad++')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -ne $null) { Shot 'group-not-collapsed'; throw 'collapse-on-startup did not collapse the group' }
+          Shot '23-groups-collapsed'
+          ClickNamedIn 'GitHub' $win3
+          Start-Sleep 2
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -eq $null) { Shot 'group-expand-failed'; throw 'group did not expand on header click' }
+          Shot '24-groups-expanded'
+          'group collapse verified'
 
           # Every launch above went through the single-instance redirect.
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
