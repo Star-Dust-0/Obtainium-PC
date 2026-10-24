@@ -11,6 +11,41 @@ namespace ObtainiumPC.Pages
 {
     public sealed partial class AddAppPage : Page
     {
+        // lib/pages/add_app.dart openSourcesListDialog: every source as a
+        // chip with (track only) / (searchable) markers; clicking opens the
+        // source's first host, like upstream's launchUrlString.
+        private async void SupportedSources_Click(object sender, RoutedEventArgs e)
+        {
+            var panel = new StackPanel { Spacing = 6 };
+            var names = new List<string>(SourceCatalog.OverrideSourceNames) { "CoolApk" };
+            foreach (var name in names)
+            {
+                AppSourceBase source;
+                try { source = name == "CoolApk" ? new Sources.CoolApk.CoolApkSource() : SourceCatalog.ResolveByName(name, App.Settings); }
+                catch { continue; }
+                var label = source.Name
+                    + (source.SupportsInstall ? "" : " " + Services.Localization.Loc.T("(track only)"))
+                    + (source.CanSearch ? " " + Services.Localization.Loc.T("(searchable)") : "");
+                var chip = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Left };
+                var host = source.Hosts.Count > 0 ? source.Hosts[0] : null;
+                if (host != null)
+                {
+                    var uri = new Uri("https://" + host);
+                    chip.Click += async (_, _) => await Windows.System.Launcher.LaunchUriAsync(uri);
+                }
+                else chip.IsEnabled = false;
+                panel.Children.Add(chip);
+            }
+            var dialog = new ContentDialog
+            {
+                Title = Services.Localization.Loc.T("Supported sources"),
+                Content = new ScrollViewer { Content = panel, MaxHeight = 480 },
+                CloseButtonText = Services.Localization.Loc.T("OK"),
+                XamlRoot = XamlRoot,
+            };
+            await dialog.ShowAsync();
+        }
+
         public AddAppPage()
         {
             this.InitializeComponent();

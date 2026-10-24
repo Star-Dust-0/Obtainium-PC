@@ -304,6 +304,49 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        // lib/pages/home.dart interpretLink app/apps deep-link: add app(s)
+        // from raw JSON. The OS deep-link itself is Android/protocol-handler
+        // territory; the paste box is the Windows entry point. A bare app
+        // object or array is wrapped in the export envelope, like the
+        // deep-link handler does with jsonEncode({'apps': ...}).
+        private async void ImportPasteJson_Click(object sender, RoutedEventArgs e)
+        {
+            var box = new TextBox
+            {
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                MinHeight = 220,
+                PlaceholderText = "{\"apps\": [ ... ]} or a single app object",
+                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            };
+            var dialog = new ContentDialog
+            {
+                Title = Services.Localization.Loc.T("Paste raw JSON"),
+                Content = new ScrollViewer { Content = box, MaxHeight = 320, Width = 480 },
+                PrimaryButtonText = Services.Localization.Loc.T("Import"),
+                CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                XamlRoot = XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            var text = box.Text.Trim();
+            if (text.Length == 0) return;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(text);
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    text = "{\"apps\": " + text + "}";
+                else if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                         && !doc.RootElement.TryGetProperty("apps", out _))
+                    text = "{\"apps\": [" + text + "]}";
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"), ex.Message);
+                return;
+            }
+            await ImportJsonAsync(text);
+        }
+
         // lib/pages/import_export.dart _runDownloadsImport: lists the export
         // files in the app's downloads folder and imports the one picked.
         private async void ImportDownloads_Click(object sender, RoutedEventArgs e)

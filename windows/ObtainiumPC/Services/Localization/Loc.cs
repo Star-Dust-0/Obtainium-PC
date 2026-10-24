@@ -122,6 +122,10 @@ public static class Loc
         ["{0} apps"] = "{0} تطبيقات",
         ["Update available"] = "التحديث متاح",
         ["All"] = "الكل",
+        ["Supported sources"] = "المصادر المدعومة",
+        ["(track only)"] = "(تتبّع فقط)",
+        ["(searchable)"] = "(قابل للبحث)",
+        ["Paste raw JSON"] = "لصق JSON خام",
 
         // Settings labels
         ["Theme"] = "السمة",

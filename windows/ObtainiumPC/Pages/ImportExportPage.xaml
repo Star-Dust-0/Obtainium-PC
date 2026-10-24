@@ -35,6 +35,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Content="Import from file..." Click="Import_Click"/>
                     <Button Content="Import from downloads..." Click="ImportDownloads_Click"/>
+                    <Button Content="Paste raw JSON..." Click="ImportPasteJson_Click"/>
                 </StackPanel>
 
                 <TextBlock Text="Import from URL list" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
