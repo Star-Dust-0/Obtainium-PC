@@ -54,7 +54,9 @@ public class ApkPureSourceTests
         Assert.Equal("Some Dev", details.Names.Author);
         Assert.Equal("new stuff", details.ChangeLog);
         var asset = Assert.Single(details.AssetUrls);
-        Assert.Equal("com.example.app-300.apk", asset.Key);
+        // apkpure.dart joins native_code BEFORE clearing universal for the arch filter,
+        // so the asset key keeps the -universal suffix.
+        Assert.Equal("com.example.app-300-universal.apk", asset.Key);
         Assert.Equal("https://dl.apkpure.com/app-300.apk", asset.Value);
     }
 
