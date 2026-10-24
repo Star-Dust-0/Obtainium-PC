@@ -8,6 +8,7 @@ public sealed class FixtureHttpHandler : HttpMessageHandler
 {
     private readonly Dictionary<string, (HttpStatusCode Status, string Body, Dictionary<string, string> Headers)> _responses = new();
     private readonly List<(string Prefix, HttpStatusCode Status, string Body)> _prefixResponses = new();
+    private readonly Dictionary<string, Queue<(HttpStatusCode Status, string Body)>> _sequences = new();
 
     public FixtureHttpHandler Respond(string url, string body, HttpStatusCode status = HttpStatusCode.OK,
         Dictionary<string, string>? headers = null)
@@ -22,9 +23,20 @@ public sealed class FixtureHttpHandler : HttpMessageHandler
         return this;
     }
 
+    public FixtureHttpHandler RespondSequence(string url, params string[] bodies)
+    {
+        _sequences[url] = new Queue<(HttpStatusCode, string)>(bodies.Select(b => (HttpStatusCode.OK, b)));
+        return this;
+    }
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var url = request.RequestUri!.ToString();
+        if (_sequences.TryGetValue(url, out var queue) && queue.Count > 0)
+        {
+            var (status, body) = queue.Dequeue();
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+        }
         foreach (var (prefix, status, body) in _prefixResponses)
             if (url.StartsWith(prefix, StringComparison.Ordinal))
                 return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
