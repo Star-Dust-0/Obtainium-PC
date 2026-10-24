@@ -78,4 +78,60 @@ public class DetailActionTests
         var (enabled, _) = ObtainiumPC.Services.Versioning.VersionService.DetailAction(null, null);
         Assert.False(enabled);
     }
+    // Regression (test/version_reconciliation_test.dart "collapses a leading v
+    // in both directions"): a registry version without the tag's leading "v"
+    // is the same release - the tracked value collapses to the latest and no
+    // update is offered. This is the Notepad++ 8.9.8.1 vs v8.9.8.1 case.
+    [Fact]
+    public void Reconcile_collapses_leading_v_real_to_latest()
+    {
+        var corrected = VersionService.ReconcileTrackedVersion(
+            "2026.03", "2026.03", "v2026.03",
+            versionDetectionIsStandard: true, naiveStandardVersionDetection: false);
+        Assert.Equal("v2026.03", corrected);
+    }
+
+    [Fact]
+    public void Reconcile_collapses_leading_v_tracked_to_latest()
+    {
+        var corrected = VersionService.ReconcileTrackedVersion(
+            "v2026.03", "v2026.03", "2026.03",
+            versionDetectionIsStandard: true, naiveStandardVersionDetection: false);
+        Assert.Equal("2026.03", corrected);
+    }
+
+    [Fact]
+    public void Reconcile_collapses_packaging_suffix_on_installed_side()
+    {
+        var corrected = VersionService.ReconcileTrackedVersion(
+            "1.6.15-debug", "1.6.15-debug", "1.6.15",
+            versionDetectionIsStandard: true, naiveStandardVersionDetection: false);
+        Assert.Equal("1.6.15", corrected);
+    }
+
+    [Fact]
+    public void Reconcile_adopts_real_when_nothing_tracked_then_collapse()
+    {
+        // Caller adopts real first (installed was null), then reconciliation
+        // collapses the cosmetic diff - the npp 8.9.8.1 -> v8.9.8.1 flow.
+        var adopted = "8.9.8.1";
+        var corrected = VersionService.ReconcileTrackedVersion(
+            adopted, "8.9.8.1", "v8.9.8.1",
+            versionDetectionIsStandard: true, naiveStandardVersionDetection: false);
+        Assert.Equal("v8.9.8.1", corrected);
+    }
+
+    [Fact]
+    public void No_update_shown_after_cosmetic_collapse()
+    {
+        var corrected = VersionService.ReconcileTrackedVersion(
+            "8.9.8.1", "8.9.8.1", "v8.9.8.1",
+            versionDetectionIsStandard: true, naiveStandardVersionDetection: false);
+        Assert.Equal("v8.9.8.1", corrected);
+        // After the collapse, installed == latest, so no update and the
+        // detail action button is disabled (upstream hasAction).
+        var action = VersionService.DetailAction(corrected, "v8.9.8.1");
+        Assert.False(action.Enabled);
+    }
+
 }

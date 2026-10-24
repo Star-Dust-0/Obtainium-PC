@@ -264,8 +264,17 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             if (match is not { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong })
                 return false;
             if (string.IsNullOrEmpty(match.Info.DisplayVersion)) return false;
-            if (_app.InstalledVersion == match.Info.DisplayVersion) return true;
-            _app.InstalledVersion = match.Info.DisplayVersion;
+            var realInstalled = match.Info.DisplayVersion;
+            var before = _app.InstalledVersion;
+            if (before == null) _app.InstalledVersion = realInstalled;
+            // Same reconciliation as the update-check path: collapse cosmetic
+            // differences (leading "v") so the same release reads as installed.
+            var corrected = Services.Versioning.VersionService.ReconcileTrackedVersion(
+                _app.InstalledVersion, realInstalled, _app.LatestVersion ?? realInstalled,
+                versionDetectionIsStandard: true,
+                naiveStandardVersionDetection: false);
+            if (corrected != null) _app.InstalledVersion = corrected;
+            if (_app.InstalledVersion == before) return true;
             await App.SaveAppsAsync();
             return true;
         }

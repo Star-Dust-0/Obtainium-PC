@@ -119,9 +119,21 @@ public sealed class AppUpdateService
             && SettingBool(settings, "versionDetection", fallback: true))
         {
             var detected = Detection.InstalledAppsService.FindMatch(currentApp.FinalName, currentApp.Author);
-            if (detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
-                && detected.Info.DisplayVersion is { Length: > 0 } osVersion)
-                currentApp.InstalledVersion = osVersion;
+            var realInstalled = detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
+                && detected.Info.DisplayVersion is { Length: > 0 } dv ? dv : null;
+            // lib/providers/apps_provider_lifecycle.dart reconcileInstallStatus:
+            // adopt the real version when nothing is tracked, then collapse
+            // cosmetic differences (leading "v", packaging qualifiers) and
+            // adopt latestVersion when the real version is the same release.
+            // Without this, "8.9.8.1" vs tag "v8.9.8.1" shows a false update.
+            if (realInstalled != null && currentApp.InstalledVersion == null)
+                currentApp.InstalledVersion = realInstalled;
+            var corrected = Versioning.VersionService.ReconcileTrackedVersion(
+                currentApp.InstalledVersion, realInstalled, version,
+                versionDetectionIsStandard: true,
+                naiveStandardVersionDetection: SettingBool(settings, "naiveStandardVersionDetection")
+                    || source.NaiveStandardVersionDetection);
+            if (corrected != null) currentApp.InstalledVersion = corrected;
         }
 
         var app = currentApp ?? new TrackedApp();
