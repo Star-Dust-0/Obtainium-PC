@@ -98,7 +98,17 @@ namespace ObtainiumPC.Pages
             UpdateButton.IsEnabled = actionEnabled;
             // Upstream labels from installed==null regardless of enabled state:
             // a disabled button at version parity reads "Update", not "Install".
-            UpdateButton.Label = Services.Localization.Loc.T(firstInstall ? "Install" : "Update");
+            var actionLabel = Services.Localization.Loc.T(firstInstall ? "Install" : "Update");
+            if (UpdateButton.Label != actionLabel)
+            {
+                UpdateButton.Label = actionLabel;
+                // WinUI 3 AppBarButton: a programmatic Label change on a disabled
+                // button does not always invalidate the rendered text (observed
+                // in ui-smoke: glyph updated, label stale). Collapsing and
+                // restoring forces a re-template so pixels match the property.
+                UpdateButton.Visibility = Visibility.Collapsed;
+                UpdateButton.Visibility = Visibility.Visible;
+            }
             ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph =
                 firstInstall ? "\uE8B5" : "\uE777";
             // Windows has a per-app settings page only for packaged (MSIX) apps.

@@ -270,6 +270,9 @@ jobs:
             if ($el.Current.Name -like 'Installed: *') { $installedText = $el.Current.Name; break }
           }
           "installed text: $installedText"
+          $btnCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+          $allBtns = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
+          foreach ($be in $allBtns) { "button UIA: name=[$($be.Current.Name)] enabled=$($be.Current.IsEnabled)" }
           if ($installedText -notlike '*8.9.8.1*') { throw "detection did not surface the installed version (got: $installedText)" }
           Get-Process | Where-Object { $_.Name -like 'notepad++*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep 2
