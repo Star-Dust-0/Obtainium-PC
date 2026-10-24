@@ -42,9 +42,13 @@ namespace ObtainiumPC.Pages
             ReleaseDateText.Text = _app.ReleaseDate is { } rd ? "Released: " + rd.ToString("yyyy-MM-dd") : "";
             ReleaseLink.Visibility = !string.IsNullOrEmpty(_app.ReleaseUrl) ? Visibility.Visible : Visibility.Collapsed;
             TrackButton.Label = _app.Disabled ? "Enable tracking" : "Disable tracking";
-            // lib/pages/app.dart: reset is offered only when the recorded
-            // install matches the latest version.
-            ResetInstallButton.Visibility = _app.InstalledVersion != null
+            // lib/pages/app.dart: reset is offered only for track-only apps or
+            // non-standard version detection (not yet ported -> treated as
+            // standard), when the recorded install matches the latest version.
+            var trackOnly = _app.AdditionalSettings.TryGetValue("trackOnly", out var to)
+                && to.ValueKind == System.Text.Json.JsonValueKind.True;
+            ResetInstallButton.Visibility = trackOnly
+                && _app.InstalledVersion != null
                 && _app.InstalledVersion == _app.LatestVersion
                 ? Visibility.Visible : Visibility.Collapsed;
             // lib/pages/app.dart hasAction + Install/Update label.
