@@ -177,6 +177,24 @@ namespace ObtainiumPC.Pages
             App.Settings.Save();
         }
 
+        // Pick the auto-export target with the file picker (upstream picks a
+        // directory; the Windows port stores the full file path).
+        private async void AutoExportBrowse_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new Windows.Storage.Pickers.FileSavePicker
+            {
+                SuggestedFileName = "obtainium-export",
+                DefaultFileExtension = ".json",
+            };
+            picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
+            InitPicker(picker);
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return;
+            AutoExportPathBox.Text = file.Path;
+            App.Settings.AutoExportPath = file.Path;
+            App.Settings.Save();
+        }
+
         private void AutoExportPathBox_LostFocus(object sender, RoutedEventArgs e)
         {
             var path = (AutoExportPathBox.Text ?? "").Trim();
