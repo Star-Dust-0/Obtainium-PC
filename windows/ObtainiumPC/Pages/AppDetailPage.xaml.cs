@@ -201,13 +201,28 @@ namespace ObtainiumPC.Pages
                 if (installable)
                 {
                     DownloadService.OpenInstaller(path);
-                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key} and opened the installer. Use Mark as updated after installing.");
+                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key} and opened the installer.");
+                    if (CanDetectInstalled())
+                    {
+                        PostDownloadNote.Text =
+                            "Once the installer finishes, the installed version is detected automatically (registry, also on every update check). " +
+                            "Use Detect installed version now to reconcile immediately; Mark as updated is the manual fallback when detection cannot find the app.";
+                        DetectNowButton.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        PostDownloadNote.Text =
+                            "Automatic installed-version detection is not available for this app. After installing, use Mark as updated.";
+                        DetectNowButton.Visibility = Visibility.Collapsed;
+                    }
                 }
                 else
                 {
                     Show(InfoBarSeverity.Success, $"Downloaded {asset.Key}. Android package - cannot install on Windows; the file is saved for manual transfer.");
+                    PostDownloadNote.Text = "";
+                    DetectNowButton.Visibility = Visibility.Collapsed;
                 }
-                MarkUpdatedButton.Visibility = Visibility.Visible;
+                PostDownloadPanel.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
@@ -220,13 +235,65 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        // lib/pages/app.dart: manual mark is the fallback for when OS-level
+        // detection is unavailable or cannot match the app (upstream detects
+        // from the Android package manager; this port detects from the
+        // registry Uninstall entries).
         private async void MarkUpdated_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
             _app.InstalledVersion = _app.LatestVersion;
             await App.SaveAppsAsync();
-            MarkUpdatedButton.Visibility = Visibility.Collapsed;
+            PostDownloadPanel.Visibility = Visibility.Collapsed;
             Render();
+        }
+
+        private bool CanDetectInstalled()
+        {
+            if (_app == null || _app.GetSettingBool("trackOnly")) return false;
+            if (!_app.GetSettingBool("versionDetection", true)) return false;
+            if (SourceCatalog.TryResolve(_app.Url, App.Settings, out var s) && s is { VersionDetectionDisallowed: true })
+                return false;
+            return true;
+        }
+
+        // Runs the same registry detection AppUpdateService applies on every
+        // update check; only Strong/Exact matches are trusted.
+        private async Task<bool> TryDetectInstalledAsync()
+        {
+            if (_app == null || !CanDetectInstalled()) return false;
+            var match = Services.Detection.InstalledAppsService.FindMatch(_app.FinalName, _app.Author);
+            if (match is not { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong })
+                return false;
+            if (string.IsNullOrEmpty(match.Info.DisplayVersion)) return false;
+            if (_app.InstalledVersion == match.Info.DisplayVersion) return true;
+            _app.InstalledVersion = match.Info.DisplayVersion;
+            await App.SaveAppsAsync();
+            return true;
+        }
+
+        private async void DetectNow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            DetectNowButton.IsEnabled = false;
+            try
+            {
+                if (await TryDetectInstalledAsync())
+                {
+                    Show(InfoBarSeverity.Success, "Detected installed version " + _app.InstalledVersion + ".");
+                    PostDownloadPanel.Visibility = Visibility.Collapsed;
+                    Render();
+                }
+                else
+                {
+                    Show(InfoBarSeverity.Warning,
+                        "No matching installed app was found. If the installer has not finished yet, complete it and try again; otherwise use Mark as updated.");
+                }
+            }
+            finally
+            {
+                DetectNowButton.IsEnabled = true;
+            }
         }
 
         private void Options_Click(object sender, RoutedEventArgs e)
