@@ -96,11 +96,11 @@ namespace ObtainiumPC.Pages
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
             UpdateButton.IsEnabled = actionEnabled;
-            if (actionEnabled && firstInstall)
-            {
-                UpdateButton.Label = "Install";
-                ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph = "\uE8B5";
-            }
+            // Upstream labels from installed==null regardless of enabled state:
+            // a disabled button at version parity reads "Update", not "Install".
+            UpdateButton.Label = Services.Localization.Loc.T(firstInstall ? "Install" : "Update");
+            ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph =
+                firstInstall ? "\uE8B5" : "\uE777";
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
@@ -229,7 +229,10 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             finally
             {
                 DownloadPanel.Visibility = Visibility.Collapsed;
-                UpdateButton.IsEnabled = true;
+                // Recompute instead of blindly re-enabling: if detection already
+                // reconciled installed == latest, the action stays disabled.
+                UpdateButton.IsEnabled = Services.Versioning.VersionService
+                    .DetailAction(_app.InstalledVersion, _app.LatestVersion).Enabled;
             }
         }
 

@@ -57,14 +57,29 @@ jobs:
           # $script:shotWin) so no console or desktop bleeds in; full screen
           # only when no window is tracked (e.g. the external installer).
           $script:shotWin = $null
+          $dwmSrc = 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
+          Add-Type -TypeDefinition $dwmSrc
           function Shot($name) {
             $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
             $x=$b.X; $y=$b.Y; $w=$b.Width; $h=$b.Height
             if ($script:shotWin -ne $null) {
+              # UIA BoundingRectangle includes the invisible resize border, so
+              # whatever sits behind the window (console, desktop) bleeds into
+              # the capture. DWM extended frame bounds are the visible frame.
               try {
-                $r=$script:shotWin.Current.BoundingRectangle
-                if ($r.Width -gt 50 -and $r.Height -gt 50) {
-                  $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height
+                $hwnd = [IntPtr]$script:shotWin.Current.NativeWindowHandle
+                $fr = New-Object DwmFrame+RECT
+                if ($hwnd -ne [IntPtr]::Zero -and
+                    [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+                  $fw = $fr.Right - $fr.Left; $fh = $fr.Bottom - $fr.Top
+                  if ($fw -gt 50 -and $fh -gt 50) {
+                    $x=$fr.Left; $y=$fr.Top; $w=$fw; $h=$fh
+                  }
+                } else {
+                  $r=$script:shotWin.Current.BoundingRectangle
+                  if ($r.Width -gt 50 -and $r.Height -gt 50) {
+                    $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height
+                  }
                 }
               } catch {}
             }
