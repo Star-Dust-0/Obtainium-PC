@@ -15,6 +15,27 @@ public static class AssetFilterService
         ".exe", ".msi", ".msix", ".msixbundle", ".appx", ".appxbundle", ".appinstaller",
     };
 
+    /// APK container extensions from upstream lib/services/apk_filter_service.dart -
+    /// used by track-only Android sources whose assets are APK packages.
+    public static readonly IReadOnlyList<string> ApkContainerExtensions = new[]
+    {
+        ".apk", ".xapk", ".apkm", ".apks",
+    };
+
+    /// Port of upstream ApkFilterService.isApkOrContainerFile (Android assets).
+    public static bool IsApkOrContainerFile(string name, bool includeArchives = false, bool includeTarballs = false)
+    {
+        var lower = name.ToLowerInvariant();
+        bool EndsWithAny(IReadOnlyList<string> exts)
+        {
+            foreach (var e in exts) if (lower.EndsWith(e)) return true;
+            return false;
+        }
+        return EndsWithAny(ApkContainerExtensions)
+            || (includeArchives && EndsWithAny(ArchiveExtensions))
+            || (includeTarballs && EndsWithAny(TarballExtensions));
+    }
+
     public static readonly IReadOnlyList<string> ArchiveExtensions = new[] { ".zip" };
 
     public static readonly IReadOnlyList<string> TarballExtensions = new[]

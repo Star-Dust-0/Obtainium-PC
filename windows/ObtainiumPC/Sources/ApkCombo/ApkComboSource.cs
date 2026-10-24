@@ -74,9 +74,12 @@ public sealed class ApkComboSource : AppSourceBase
                 if (url != null)
                 {
                     // Unwrap "/r2?u=<encoded presigned URL>" redirectors (issue #341).
-                    if (Uri.TryCreate(url, UriKind.Absolute, out var parsed) && parsed.AbsolutePath == "/r2")
+                    // The href is site-relative, so match the path portion directly.
+                    var qIdx = url.IndexOf('?');
+                    var pathPart = qIdx >= 0 ? url[..qIdx] : url;
+                    if (pathPart == "/r2" && qIdx >= 0)
                     {
-                        var uParam = parsed.Query.TrimStart('?')
+                        var uParam = url[(qIdx + 1)..]
                             .Split('&', StringSplitOptions.RemoveEmptyEntries)
                             .Select(p => p.Split('=', 2))
                             .Where(p => p.Length == 2 && p[0] == "u")
@@ -86,7 +89,7 @@ public sealed class ApkComboSource : AppSourceBase
                     }
                 }
                 if (url == null || !Uri.TryCreate(url, UriKind.Absolute, out var apkUri)
-                    || !AssetFilterService.IsAppOrContainerFile(apkUri.AbsolutePath))
+                    || !AssetFilterService.IsApkOrContainerFile(apkUri.AbsolutePath))
                     continue;
                 var verCode = a.SelectSingleNode(".//*[contains(@class,'info')]//*[contains(@class,'header')]//*[contains(@class,'vercode')]")
                     ?.InnerText.Trim() ?? "";
