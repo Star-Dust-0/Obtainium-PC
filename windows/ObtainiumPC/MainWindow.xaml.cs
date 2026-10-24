@@ -13,7 +13,6 @@ namespace ObtainiumPC
         public MainWindow()
         {
             this.InitializeComponent();
-            Loaded += (_, _) => ApplyLocalization();
             Title = "Obtainium-PC";
             SystemBackdrop = new MicaBackdrop();
             Activated += MainWindow_Activated;
