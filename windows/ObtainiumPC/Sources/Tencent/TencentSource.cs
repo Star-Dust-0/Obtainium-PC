@@ -25,7 +25,7 @@ public sealed class TencentSource : AppSourceBase
     public override bool SupportsInstall => false;
 
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false) =>
-        StandardizeUrlWithRegex(url, pathPattern: @"/appdetail/[^/]+");
+        StandardizeUrlWithRegex(url, subdomainPrefix: "", pathPattern: @"/appdetail/[^/]+");
 
     public override async Task<AssetDetails> GetLatestAssetDetailsAsync(
         string standardUrl,
