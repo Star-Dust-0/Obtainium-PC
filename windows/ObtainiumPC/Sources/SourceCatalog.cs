@@ -3,6 +3,7 @@ using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
 using ObtainiumPC.Sources.DirectLink;
 using ObtainiumPC.Sources.GitLab;
+using ObtainiumPC.Sources.NeutronCode;
 using ObtainiumPC.Sources.SourceHut;
 using ObtainiumPC.Sources.SourceForge;
 
@@ -16,7 +17,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -25,6 +26,7 @@ public static class SourceCatalog
         "Forgejo (Codeberg)" => Resolve("https://codeberg.org/x/y", settings),
         "SourceForge" => new SourceForge.SourceForgeSource(),
         "SourceHut" => new SourceHutSource(),
+        "NeutronCode" => new NeutronCodeSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -48,6 +50,8 @@ public static class SourceCatalog
             return new CodebergSource(new CodebergSourceConfig(
                 ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "neutroncode.com" || host == "www.neutroncode.com")
+            return new NeutronCodeSource();
         if (host == "git.sr.ht")
             return new SourceHutSource();
         if (host == "sourceforge.net" || host == "www.sourceforge.net")
