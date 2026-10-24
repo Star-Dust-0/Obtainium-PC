@@ -102,12 +102,19 @@ namespace ObtainiumPC.Pages
             if (UpdateButton.Label != actionLabel)
             {
                 UpdateButton.Label = actionLabel;
-                // WinUI 3 AppBarButton: a programmatic Label change on a disabled
-                // button does not always invalidate the rendered text (observed
-                // in ui-smoke: glyph updated, label stale). Collapsing and
-                // restoring forces a re-template so pixels match the property.
-                UpdateButton.Visibility = Visibility.Collapsed;
-                UpdateButton.Visibility = Visibility.Visible;
+                // WinUI 3 AppBarButton: a programmatic Label change on an
+                // already-templated button does not reliably re-render the
+                // text (ui-smoke 40138881409: UIA name said "Update" while
+                // pixels still rendered "Install", even across a visibility
+                // toggle). Removing and re-inserting the element forces a
+                // fresh template application, so pixels match the property.
+                var commands = DetailCommandBar.PrimaryCommands;
+                var idx = commands.IndexOf(UpdateButton);
+                if (idx >= 0)
+                {
+                    commands.RemoveAt(idx);
+                    commands.Insert(idx, UpdateButton);
+                }
             }
             ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph =
                 firstInstall ? "\uE8B5" : "\uE777";

@@ -14,7 +14,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <CommandBar DefaultLabelPosition="Right" Background="Transparent">
+                <CommandBar x:Name="DetailCommandBar" DefaultLabelPosition="Right" Background="Transparent">
                     <AppBarButton x:Name="UpdateButton" Label="Update" Click="Update_Click">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE896;"/></AppBarButton.Icon>
                     </AppBarButton>
