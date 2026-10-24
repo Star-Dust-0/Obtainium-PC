@@ -81,7 +81,7 @@ silently omitted.
 | Apps list categories/groups | mapped | per-app categories, category registry with colors + Settings management, batch categorize, filter dropdown, row labels; collapsible group headers not ported (pending) |
 | Logs page | ported | JSONL store, day filter, copy, share (native share sheet), clear, level colors |
 | Crowdsourced app configs | mapped | Add App links to apps.obtainium.imranr.dev; in-app config picker dialog not ported (pending) |
-| Localization infra | pending | English only; no translations or language picker yet |
+| Localization | mapped | English default + language picker (Settings) + formal Arabic (RTL, flow direction flips, ~150 strings: all chrome, settings, dialogs, detail-page status). Upstream ships 15+ community languages via .arb; the port ships English + Arabic, extensible per language |
 | APK installer actions | blocked | Android-only; install stays interactive-only on Windows |
 | Shizuku/ADB/root install methods | blocked | Android-only |
 | OS app settings (gear) | mapped | packaged apps only (PFN); honestly disabled otherwise |
