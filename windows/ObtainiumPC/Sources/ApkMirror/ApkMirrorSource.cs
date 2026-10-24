@@ -182,7 +182,8 @@ public sealed class ApkMirrorSource : AppSourceBase
         var minAgeDays = GetInt(additionalSettings, "minimumUpdateAgeDays") ?? 0;
         DateTimeOffset? ReleaseDateFor(HtmlNode item)
         {
-            var pubDateRaw = item.SelectSingleNode("pubDate")?.InnerHtml;
+            // HtmlAgilityPack lowercases tag names.
+            var pubDateRaw = item.SelectSingleNode("pubdate")?.InnerHtml;
             var dateString = pubDateRaw == null ? null : string.Join(' ', pubDateRaw.Split(' ').Take(5));
             if (dateString == null) return null;
             return DateTimeOffset.TryParseExact(dateString + " GMT", "ddd, dd MMM yyyy HH:mm:ss 'GMT'",
