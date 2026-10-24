@@ -179,8 +179,11 @@ public sealed class GitHubSource : AppSourceBase
         var results = new Dictionary<string, IReadOnlyList<string>>();
         var items = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?["items"]?.AsArray();
         if (items == null) return results;
+        var minStarCount = GetQueryInt(querySettings, "minStarCount");
         foreach (var e in items)
         {
+            var stars = e?["stargazers_count"]?.GetValue<int>() ?? e?["stars_count"]?.GetValue<int>() ?? 0;
+            if (stars < minStarCount) continue;
             var htmlUrl = e?["html_url"]?.GetValue<string>();
             var fullName = e?["full_name"]?.GetValue<string>();
             if (htmlUrl == null || fullName == null) continue;

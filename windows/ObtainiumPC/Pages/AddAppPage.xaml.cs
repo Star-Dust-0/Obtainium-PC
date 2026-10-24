@@ -127,14 +127,24 @@ namespace ObtainiumPC.Pages
                 var items = new List<SearchResultItem>();
                 var errors = new List<string>();
                 // Searchable sources ported so far (PARITY.md).
-                var searchable = new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "F-Droid", "Uptodown", "RuStore", "Huawei AppGallery" }
+                var searchable = new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "F-Droid", "F-Droid Third-Party Repo", "Uptodown", "RuStore", "Huawei AppGallery" }
                     .Select(n => SourceCatalog.ResolveByName(n, App.Settings))
                     .Where(src => src.CanSearch);
                 foreach (var source in searchable)
                 {
+                    // lib/pages/add_app.dart runSearch: sources with
+                    // includeAdditionalOptsInMainSearch get a per-search
+                    // settings dialog before the query.
+                    var querySettings = new Dictionary<string, JsonElement>();
+                    if (source.IncludeAdditionalOptsInMainSearch)
+                    {
+                        var collected = await CollectSearchQuerySettings(source);
+                        if (collected == null) continue; // cancelled: skip this source
+                        querySettings = collected;
+                    }
                     try
                     {
-                        var res = await source.SearchAsync(query, new Dictionary<string, JsonElement>());
+                        var res = await source.SearchAsync(query, querySettings);
                         if (res == null) continue;
                         foreach (var (url, v) in res)
                             items.Add(new SearchResultItem { Url = url, Name = v.Count > 0 ? v[0] : url, Description = v.Count > 1 ? v[1] : "" });
@@ -156,6 +166,48 @@ namespace ObtainiumPC.Pages
                 SearchRing.IsActive = false;
                 SearchButton.IsEnabled = true;
             }
+        }
+
+        // lib/pages/add_app.dart runSearch dialog: url field plus the source's
+        // searchQuerySettingItemsForUrl (Codeberg: token + minStarCount;
+        // F-Droid Third-Party Repo: url only).
+        private async Task<Dictionary<string, JsonElement>?> CollectSearchQuerySettings(AppSourceBase source)
+        {
+            var panel = new StackPanel { Spacing = 10 };
+            var isFdroidRepo = source.Name == "F-Droid Third-Party Repo";
+            var urlBox = new TextBox
+            {
+                Header = isFdroidRepo ? "Repository URL" : "Instance URL",
+                PlaceholderText = isFdroidRepo ? "https://example.com/fdroid/repo" : "https://codeberg.org",
+                Text = isFdroidRepo ? "" : "https://" + (source.Hosts.Count > 0 ? source.Hosts[0] : "codeberg.org"),
+            };
+            panel.Children.Add(urlBox);
+            PasswordBox? tokenBox = null;
+            TextBox? minStarsBox = null;
+            if (source.Name == "Forgejo (Codeberg)")
+            {
+                tokenBox = new PasswordBox { Header = "Personal access token (optional)" };
+                panel.Children.Add(tokenBox);
+                minStarsBox = new TextBox { Header = "Minimum star count", Text = "0" };
+                panel.Children.Add(minStarsBox);
+            }
+            var dialog = new ContentDialog
+            {
+                Title = "Search " + source.Name,
+                Content = panel,
+                PrimaryButtonText = "Search",
+                CloseButtonText = "Cancel",
+                XamlRoot = XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return null;
+            var settings = new Dictionary<string, JsonElement>();
+            if (urlBox.Text.Trim().Length > 0)
+                settings["url"] = JsonSerializer.SerializeToElement(urlBox.Text.Trim());
+            if (tokenBox != null && tokenBox.Password.Length > 0)
+                settings["forgejo-creds"] = JsonSerializer.SerializeToElement(tokenBox.Password);
+            if (minStarsBox != null)
+                settings["minStarCount"] = JsonSerializer.SerializeToElement(minStarsBox.Text.Trim());
+            return settings;
         }
 
         private void SearchResults_ItemClick(object sender, ItemClickEventArgs e)

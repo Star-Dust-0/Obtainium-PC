@@ -62,20 +62,34 @@ public sealed class CodebergSource : AppSourceBase
     // lib/app_sources/codeberg.dart search (searchCommon on the Forgejo API,
     // root prop "data").
     public override bool CanSearch => true;
+    public override bool IncludeAdditionalOptsInMainSearch => true;
 
     public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
         string query, IReadOnlyDictionary<string, JsonElement> querySettings, CancellationToken ct = default)
     {
+        // lib/app_sources/codeberg.dart search: host override via the dialog's
+        // url field, Forgejo token from the dialog (codeberg.org tokens persist
+        // in the source config), minStarCount filter via GitHub's searchCommon.
+        var host = Hosts[0];
+        var urlSetting = GetQueryString(querySettings, "url");
+        if (urlSetting != null && Uri.TryCreate(urlSetting, UriKind.Absolute, out var u) && !string.IsNullOrEmpty(u.Host))
+            host = u.Host;
         using var http = new HttpClient();
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
+        var token = GetQueryString(querySettings, "forgejo-creds") ?? GetQueryString(querySettings, "github-creds");
+        if (token != null)
+            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
         var res = await http.GetAsync(
-            $"https://{Hosts[0]}/api/v1/repos/search?q=" + Uri.EscapeDataString(query) + "&limit=100", ct);
+            $"https://{host}/api/v1/repos/search?q=" + Uri.EscapeDataString(query) + "&limit=100", ct);
         res.EnsureSuccessStatusCode();
         var results = new Dictionary<string, IReadOnlyList<string>>();
         var data = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?["data"]?.AsArray();
         if (data == null) return results;
+        var minStarCount = GetQueryInt(querySettings, "minStarCount");
         foreach (var e in data)
         {
+            var stars = e?["stars_count"]?.GetValue<int>() ?? e?["stargazers_count"]?.GetValue<int>() ?? 0;
+            if (stars < minStarCount) continue;
             var htmlUrl = e?["html_url"]?.GetValue<string>();
             var fullName = e?["full_name"]?.GetValue<string>();
             if (htmlUrl == null || fullName == null) continue;

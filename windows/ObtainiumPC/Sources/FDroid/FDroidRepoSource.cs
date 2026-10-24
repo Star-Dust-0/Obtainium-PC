@@ -243,6 +243,32 @@ public sealed class FDroidRepoSource : AppSourceBase
     private async Task<FdroidIndex> FetchIndex(string url, CancellationToken ct) =>
         await TryFetchIndexV2(url, ct) ?? await FetchIndexV1(url, ct);
 
+    // lib/app_sources/fdroidrepo.dart search: fetch the repo index from the
+    // dialog's url field and substring-match id/name/summary.
+    public override bool CanSearch => true;
+    public override bool IncludeAdditionalOptsInMainSearch => true;
+
+    public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query, IReadOnlyDictionary<string, JsonElement> querySettings, CancellationToken ct = default)
+    {
+        var url = GetQueryString(querySettings, "url")
+            ?? throw new ObtainiumSourceException("A repository URL is required to search this source.");
+        url = SourceSpecificStandardizeUrl(url);
+        var index = await FetchIndex(url, ct);
+        var results = new Dictionary<string, IReadOnlyList<string>>();
+        foreach (var entry in index.Entries)
+        {
+            if (query.Length == 0
+                || entry.Id.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || entry.Summary.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                results[$"{index.BaseUrl}?appId={entry.Id}"] = new List<string> { entry.Name, entry.Summary };
+            }
+        }
+        return results;
+    }
+
     private static FdroidIndexEntry? FindIndexEntry(List<FdroidIndexEntry> entries, string appIdOrName)
     {
         var byId = entries.FirstOrDefault(e => e.Id == appIdOrName);

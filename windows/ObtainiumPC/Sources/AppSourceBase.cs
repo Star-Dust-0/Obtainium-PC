@@ -123,6 +123,30 @@ public abstract class AppSourceBase
     /// Original: canSearch. Whether the source supports app search by name.
     public virtual bool CanSearch => false;
 
+    /// <summary>lib/app_sources/app_source.dart includeAdditionalOptsInMainSearch:
+    /// the Add App search flow shows this source's per-search settings dialog.</summary>
+    public virtual bool IncludeAdditionalOptsInMainSearch => false;
+
+    /// <summary>Integer query setting from the per-search settings dialog.</summary>
+    protected static int GetQueryInt(IReadOnlyDictionary<string, JsonElement> querySettings, string key)
+    {
+        if (!querySettings.TryGetValue(key, out var v)) return 0;
+        try
+        {
+            return v.ValueKind == JsonValueKind.Number ? v.GetInt32()
+                : int.TryParse(v.ToString(), out var n) ? n : 0;
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>String query setting from the per-search settings dialog.</summary>
+    protected static string? GetQueryString(IReadOnlyDictionary<string, JsonElement> querySettings, string key)
+    {
+        if (!querySettings.TryGetValue(key, out var v)) return null;
+        var t = v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString();
+        return string.IsNullOrWhiteSpace(t) ? null : t;
+    }
+
     /// Original: search. Returns url -> [name, description]; null = unsupported.
     public virtual Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
         string query,
