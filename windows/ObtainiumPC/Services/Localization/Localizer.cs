@@ -71,6 +71,7 @@ public static class Localizer
             case Button { Content: string } btn:
                 btn.Content = FromOriginal(btn, (string)btn.Content);
                 break;
+            // RadioButton inherits ToggleButton; both land here.
             case ToggleButton { Content: string } tg:
                 tg.Content = FromOriginal(tg, (string)tg.Content);
                 break;
@@ -97,9 +98,6 @@ public static class Localizer
                 break;
             case HyperlinkButton { Content: string } hb:
                 hb.Content = FromOriginal(hb, (string)hb.Content);
-                break;
-            case RadioButton { Content: string } rb:
-                rb.Content = FromOriginal(rb, (string)rb.Content);
                 break;
         }
     }
