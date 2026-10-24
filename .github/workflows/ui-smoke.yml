@@ -110,6 +110,112 @@ jobs:
             if ($p.HasExited) { Shot "exited-on-$($pg[1])"; throw "app exited navigating to $($pg[0]) (code $($p.ExitCode))" }
             Shot $pg[1]
           }
+
+          # --- Interaction testing ---
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          function ClickPartial($prefix, $scope) {
+            $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              $n = $el.Current.Name
+              if ($n -and $n.StartsWith($prefix)) {
+                $r = $el.Current.BoundingRectangle
+                if ($r.Width -gt 10 -and $r.Height -gt 10) {
+                  [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                  Start-Sleep -Milliseconds 300
+                  [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                  return $el
+                }
+              }
+            }
+            throw "element starting with '$prefix' not found"
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+          }
+          function AssertAlive($tag) {
+            $p.Refresh()
+            if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" }
+          }
+
+          # App detail page (click the app card).
+          ClickPartial 'Notepad' $win | Out-Null
+          Start-Sleep 3; AssertAlive 'detail'; Shot '09-app-detail'
+
+          # The OS app-settings gear must be DISABLED for this unpackaged app.
+          $gear = FindNamed 'App settings' $win
+          if ($gear -eq $null) { throw 'gear button not found on detail page' }
+          "gear IsEnabled = $($gear.Current.IsEnabled)"
+          if ($gear.Current.IsEnabled) { throw 'OS app settings gear must be disabled for unpackaged apps' }
+
+          # Per-app options page.
+          ClickNamed 'Options'
+          Start-Sleep 3; AssertAlive 'options'; Shot '10-app-options'
+          ClickNamed 'Apps'; Start-Sleep 2; AssertAlive 'back-from-options'
+
+          # Download safe completion: Update downloads the asset; poll for the file.
+          ClickPartial 'Notepad' $win | Out-Null
+          Start-Sleep 2
+          ClickNamed 'Update'
+          $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
+          $file = $null
+          foreach ($i in 1..40) {
+            Start-Sleep 3
+            $file = Get-ChildItem $dlDir -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($file -and $file.Length -gt 1000000) { break }
+          }
+          AssertAlive 'download'; Shot '11-download-complete'
+          if (-not $file) { throw 'download did not produce a file' }
+          "downloaded: $($file.FullName) ($($file.Length) bytes)"
+          # The app opens the installer after download; close it so later shots are clean.
+          Get-Process | Where-Object { $_.Name -like 'npp*' -and $_.Id -ne $p.Id } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep 2
+
+          # Settings scrolled capture (best effort) and theme persistence.
+          ClickNamed 'Apps'; Start-Sleep 2
+          ClickNamed 'Settings'; Start-Sleep 2
+          try {
+            $allEls = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $allEls) {
+              $sp = $null
+              try { $sp = $el.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern) } catch {}
+              if ($sp -ne $null -and $sp.Current.VerticallyScrollable) {
+                $sp.ScrollVertical([System.Windows.Automation.ScrollAmount]::LargeIncrement)
+                $sp.ScrollVertical([System.Windows.Automation.ScrollAmount]::LargeIncrement)
+                break
+              }
+            }
+            Start-Sleep 2
+          } catch { 'scroll capture unsupported: ' + $_.Exception.Message }
+          Shot '07b-settings-scrolled'
+          $comboType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ComboBox)
+          $combos = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          if ($combos.Count -eq 0) { throw 'no combo boxes on Settings page' }
+          try { $combos[0].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[0].Current.Name $win | Out-Null }
+          Start-Sleep 2
+          # ComboBox dropdown items live in a popup window: search from the desktop root.
+          ClickPartial 'Dark' $root | Out-Null
+          Start-Sleep 2
+          Shot '12-settings-dark'
+
+          # Restart and verify the theme persisted.
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 3
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 12; AssertAlive 'relaunch'
+          Shot '13-theme-persisted'
+          $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
+          if ($savedSettings -notmatch '"Theme"\s*:\s*"dark"') { throw 'theme not persisted to settings.json' }
+          'theme persisted in settings.json'
+
+          # Smaller window: resize and validate the layout survives.
+          $wcond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
+          if ($win2 -eq $null) { throw 'main window not found after relaunch' }
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags); }'
+          [W]::SetWindowPos([IntPtr]$win2.Current.NativeWindowHandle, [IntPtr]::Zero, 100, 60, 700, 480, 0x4) | Out-Null
+          Start-Sleep 3
+          AssertAlive 'small-window'; Shot '14-small-window'
           Stop-Process -Id $p.Id -Force
       - uses: actions/upload-artifact@v4
         if: always()
