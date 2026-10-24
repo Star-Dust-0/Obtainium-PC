@@ -1,20 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
-    <Platforms>x64</Platforms>
-    <WindowsSdkPackageVersion>10.0.19041.41</WindowsSdkPackageVersion>
+    <!--
+      Pure-logic tests compile the sources under test directly instead of
+      referencing the WinUI app project: dotnet test cannot build the app's
+      PRI/packaging tasks (MSBuild-only), and the logic covered here has no
+      WinUI dependency.
+    -->
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ObtainiumPC\ObtainiumPC.csproj" />
+    <Compile Include="..\ObtainiumPC\Models\TrackedApp.cs" Link="Models\TrackedApp.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Settings\AppSettings.cs" Link="Services\AppSettings.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Versioning\*.cs" LinkBase="Services\Versioning" />
+    <Compile Include="..\ObtainiumPC\Services\Updates\UpdateHealthService.cs" Link="Services\UpdateHealthService.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Detection\InstalledAppsService.cs" Link="Services\InstalledAppsService.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\AppSourceBase.cs" Link="Sources\AppSourceBase.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\AssetFilterService.cs" Link="Sources\AssetFilterService.cs" />
   </ItemGroup>
 </Project>
