@@ -38,6 +38,12 @@
 
                 <TextBlock Text="More settings from the original (search, update health thresholds, logs, crowdsourced app configs) land as their pages are ported."
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,24,0,12" FontSize="12"/>
+
+                <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                <TextBlock Text="Obtainium-PC - a native Windows port of Obtainium by ImranR98, licensed GPL-3.0. Brought to you by Instinct." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <HyperlinkButton Content="Upstream Obtainium (ImranR98)" NavigateUri="https://github.com/ImranR98/Obtainium"/>
+                <HyperlinkButton Content="Obtainium-PC source (this fork)" NavigateUri="https://github.com/MohamedElnaggar00/Obtainium-PC"/>
+                <HyperlinkButton Content="GPL-3.0 license" NavigateUri="https://github.com/ImranR98/Obtainium/blob/main/LICENSE.md"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>
