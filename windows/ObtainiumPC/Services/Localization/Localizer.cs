@@ -15,7 +15,7 @@ namespace ObtainiumPC.Services.Localization;
 /// </summary>
 public static class Localizer
 {
-    private sealed class Original { public string Text = ""; }
+    private sealed class Original { public string Text = ""; public string Lang = "en"; }
     private static readonly ConditionalWeakTable<DependencyObject, Original> Originals = new();
 
     public static void Apply(DependencyObject root)
@@ -47,13 +47,24 @@ public static class Localizer
             // dynamic texts (versions, counts) are never frozen.
             if (!IsKey(current)) return current;
             holder.Text = current;
+            holder.Lang = Loc.Language;
         }
-        else if (current != holder.Text && IsKey(current))
+        else if (current == Loc.TranslateAs(holder.Text, holder.Lang))
+        {
+            // Element shows the original or its translation under the
+            // language that was active at the last visit - re-translate
+            // under the current language (this is what makes switching
+            // back from Arabic to English work: the Arabic text is not a
+            // key, so without the remembered language it looked dynamic).
+            holder.Lang = Loc.Language;
+        }
+        else if (IsKey(current))
         {
             // Dynamic label moved to another known key (e.g. Enable/Disable).
             holder.Text = current;
+            holder.Lang = Loc.Language;
         }
-        else if (current != holder.Text && current != Loc.T(holder.Text))
+        else
         {
             // Code set a new dynamic string that is not a key: leave it.
             return current;

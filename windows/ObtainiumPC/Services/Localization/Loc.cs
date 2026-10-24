@@ -26,6 +26,11 @@ public static class Loc
     public static string T(string en) =>
         Language == "ar" && Ar.TryGetValue(en, out var ar) ? ar : en;
 
+    /// Translate a key as if the given language were active (used to detect
+    /// an element still showing the previous language's translation).
+    public static string TranslateAs(string en, string language) =>
+        language == "ar" && Ar.TryGetValue(en, out var ar) ? ar : en;
+
     private static readonly Dictionary<string, string> Ar = new()
     {
         // Navigation + page titles
