@@ -39,9 +39,10 @@ jobs:
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
             }
           )
-          ($apps | ConvertTo-Json -Depth 6) | Set-Content (Join-Path $dir 'apps.json')
+          # -InputObject keeps a one-element array a JSON array (pipeline unrolls it).
+          ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
           # Make the first-run state deterministic.
-          $settings = @{ updateIntervalMinutes = 360; checkOnStart = $true; notifyUpdates = $false }
+          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Launch and capture
         shell: pwsh
