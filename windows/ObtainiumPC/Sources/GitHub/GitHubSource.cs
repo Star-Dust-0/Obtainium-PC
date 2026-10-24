@@ -105,7 +105,7 @@ public sealed class GitHubSource : AppSourceBase
         catch (ObtainiumSourceException) { throw; }
     }
 
-    private async Task<AssetDetails> FetchReleaseDetailsWithTagFallback(
+    internal async Task<AssetDetails> FetchReleaseDetailsWithTagFallback(
         string standardUrl,
         IReadOnlyDictionary<string, JsonElement> additionalSettings,
         CancellationToken cancellationToken)
@@ -126,7 +126,7 @@ public sealed class GitHubSource : AppSourceBase
 
     private string? GetTokenIfAny(IReadOnlyDictionary<string, JsonElement> additionalSettings)
     {
-        var perApp = GetString(additionalSettings, "githubPAT");
+        var perApp = GetString(additionalSettings, "github-creds");
         return !string.IsNullOrEmpty(perApp) ? perApp : _config.PersonalAccessToken;
     }
 
@@ -165,7 +165,7 @@ public sealed class GitHubSource : AppSourceBase
     }
 
     private string ConvertStandardUrlToApiUrl(string standardUrl) =>
-        _config.ApiHost + "/repos" + standardUrl.Substring("https://github.com".Length);
+        _config.ApiHost + "/repos" + new Uri(standardUrl).AbsolutePath;
 
     // ------------------------------------------------------------------
     // Repo rename / archive state

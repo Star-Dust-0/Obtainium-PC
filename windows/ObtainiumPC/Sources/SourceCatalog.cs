@@ -1,5 +1,6 @@
 using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.GitHub;
+using ObtainiumPC.Sources.Codeberg;
 using ObtainiumPC.Sources.GitLab;
 
 namespace ObtainiumPC.Sources;
@@ -22,6 +23,10 @@ public static class SourceCatalog
         if (host == "gitlab.com" || host == "www.gitlab.com")
             return new GitLabSource(new GitLabSourceConfig(
                 PersonalAccessToken: settings.GitLabPersonalAccessToken,
+                GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "codeberg.org" || host == "www.codeberg.org")
+            return new CodebergSource(new CodebergSourceConfig(
+                ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
         throw new InvalidUrlException(host.Length > 0 ? host : url);
     }
