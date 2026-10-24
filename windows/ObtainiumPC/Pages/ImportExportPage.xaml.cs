@@ -157,7 +157,7 @@ namespace ObtainiumPC.Pages
             var file = await picker.PickSingleFileAsync();
             if (file == null) return;
             var contents = await FileIO.ReadTextAsync(file);
-            var urls = System.Text.RegularExpressions.Regex.Matches(contents, "https?://[^\s\"]+")
+            var urls = System.Text.RegularExpressions.Regex.Matches(contents, @"https?://[^\s""]+")
                 .Select(m => m.Value)
                 .Distinct()
                 .Where(u => Sources.SourceCatalog.TryResolve(u, App.Settings, out _))
