@@ -487,6 +487,51 @@ jobs:
           Shot '24-groups-expanded'
           'group collapse verified'
 
+          # Dialog theme + language round-trip: in-session changes must reach
+          # newly created dialogs (ThemedContentDialog reads the saved theme at
+          # construction; localization applies at dialog creation).
+          ClickNamedIn 'Settings' $win3
+          Start-Sleep 3
+          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[0].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[0].Current.Name $win3 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'Light' $root | Out-Null
+          Start-Sleep 2
+          $dlJson2 = '{"id":"deeplink-smoke-2","url":"https://github.com/ImranR98/Obtainium","author":"ImranR98","name":"Obtainium","additionalSettings":"{}"}'
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson2))
+          Start-Sleep 4
+          $dlgCond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgCond2) -eq $null) { Shot 'dialog-light-missing'; throw 'import dialog missing after light switch' }
+          Shot '25-dialog-light'
+          $cancel2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cancelCond)
+          if ($cancel2 -ne $null) { try { $cancel2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+
+          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'العربية' $root | Out-Null
+          Start-Sleep 4
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson2))
+          Start-Sleep 4
+          $dlgAr = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'استيراد تطبيق')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgAr) -eq $null) { Shot 'dialog-arabic-missing'; throw 'Arabic import dialog missing after language switch' }
+          Shot '26-dialog-arabic-rtl'
+          $cancelAr = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'إلغاء')
+          $cancelArBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cancelAr)
+          if ($cancelArBtn -ne $null) { try { $cancelArBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+
+          ClickNamedIn 'الإعدادات' $win3
+          Start-Sleep 3
+          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'English' $root | Out-Null
+          Start-Sleep 4
+          AssertAlive 'dialog-roundtrip-done'
+          'dialog theme+language round-trip verified'
+
           # Every launch above went through the single-instance redirect.
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "ObtainiumPC processes after deep links: $($procs.Count)"
