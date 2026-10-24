@@ -112,7 +112,7 @@ namespace ObtainiumPC.Pages
             foreach (var checkbox in items)
             {
                 if (checkbox.IsChecked != true || checkbox.Tag is not Services.BulkImport.GitHubStarsService.StarredRepo repo) continue;
-                var url = App.Updater is null ? repo.Url : repo.Url; // standardized on first update check
+                // The URL is standardized and resolved on the first update check.
                 var app = new Models.TrackedApp
                 {
                     Id = Services.Updates.AppUpdateService.GenerateTempId(repo.Url),
