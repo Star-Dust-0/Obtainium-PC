@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using ObtainiumPC.Models;
+using ObtainiumPC.Sources;
 using ObtainiumPC.Services.Download;
 
 namespace ObtainiumPC.Pages
@@ -83,8 +84,14 @@ namespace ObtainiumPC.Pages
                         DownloadText.Text = $"{p.Received / 1048576.0:F1} MB";
                     }
                 });
+                var downloadUrl = asset.Value;
+                if (SourceCatalog.TryResolve(_app.Url, App.Settings, out var dlSource) && dlSource != null)
+                    downloadUrl = dlSource.AssetUrlPrefetchModifier(downloadUrl, _app.Url, _app.AdditionalSettings);
+                // The GitHub PAT is only attached to GitHub asset requests.
+                var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
+                    ? App.Settings.GitHubPersonalAccessToken : null;
                 var path = await new DownloadService().DownloadAsync(
-                    asset.Value, asset.Key, progress, App.Settings.GitHubPersonalAccessToken);
+                    downloadUrl, asset.Key, progress, gitHubPat);
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
                 DownloadService.OpenInstaller(path);

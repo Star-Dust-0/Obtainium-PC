@@ -31,6 +31,11 @@ public sealed class NoReleasesException : ObtainiumSourceException
     public NoReleasesException() : base("No releases found") { }
 }
 
+public sealed class NoAppAssetException : ObtainiumSourceException
+{
+    public NoAppAssetException() : base("No installable asset found for this app") { }
+}
+
 public sealed class RepositoryRenamedException : ObtainiumSourceException
 {
     public string OldUrl { get; }
@@ -79,6 +84,20 @@ public abstract class AppSourceBase
         string standardUrl,
         IReadOnlyDictionary<string, JsonElement> additionalSettings,
         CancellationToken cancellationToken = default);
+
+    /// Original: changeLogPageFromStandardUrl (null = no separate changelog page).
+    public virtual string? ChangeLogPageFromStandardUrl(string standardUrl) => null;
+
+    /// Original: assetUrlPrefetchModifier. Applied at download time, never stored.
+    public virtual string AssetUrlPrefetchModifier(
+        string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => assetUrl;
+
+    /// Original: isReleaseTooYoung from lib/utils/min_update_age.dart.
+    protected static bool IsReleaseTooYoung(DateTimeOffset? releaseDate, int minAgeDays)
+    {
+        if (minAgeDays <= 0 || releaseDate == null) return false;
+        return (DateTimeOffset.UtcNow - releaseDate.Value).TotalDays < minAgeDays;
+    }
 
     /// Builds a regex alternation from hostnames, escaping dots.
     protected static string GetSourceRegex(IReadOnlyList<string> hosts) =>

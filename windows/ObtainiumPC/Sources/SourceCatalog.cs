@@ -1,5 +1,6 @@
 using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.GitHub;
+using ObtainiumPC.Sources.GitLab;
 
 namespace ObtainiumPC.Sources;
 
@@ -17,6 +18,10 @@ public static class SourceCatalog
                 PersonalAccessToken: settings.GitHubPersonalAccessToken,
                 GhReqPrefix: settings.GitHubReqPrefix,
                 CheckRepoRename: settings.GitHubCheckRepoRename,
+                GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "gitlab.com" || host == "www.gitlab.com")
+            return new GitLabSource(new GitLabSourceConfig(
+                PersonalAccessToken: settings.GitLabPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
         throw new InvalidUrlException(host.Length > 0 ? host : url);
     }

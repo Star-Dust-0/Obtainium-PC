@@ -22,6 +22,7 @@ public sealed class AppSettings
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;
     public string? GitHubReqPrefix { get; set; }
+    public string? GitLabPersonalAccessToken { get; set; }
 
     private static string Dir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ObtainiumPC");

@@ -74,6 +74,8 @@ public sealed class GitHubSource : AppSourceBase
     public override string Name => "GitHub";
     public override IReadOnlyList<string> Hosts => new[] { "github.com" };
 
+    public override string? ChangeLogPageFromStandardUrl(string standardUrl) => standardUrl + "/releases";
+
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false) =>
         StandardizeUrlWithRegex(url, subdomainPrefix: @"(www\.)?", pathPattern: @"/[^/]+/[^/]+");
 

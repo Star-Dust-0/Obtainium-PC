@@ -13,11 +13,6 @@ public sealed class MinUpdateAgeException : Exception
         : base($"Latest release is younger than the minimum update age ({minAgeDays} days)") { }
 }
 
-public sealed class NoAppAssetException : Exception
-{
-    public NoAppAssetException() : base("No installable asset found for this app") { }
-}
-
 /// <summary>
 /// Ports the add/update pipeline from lib/providers/source_provider.dart (getApp)
 /// and the update pass from apps_provider_updates.dart: source resolution,
@@ -121,7 +116,7 @@ public sealed class AppUpdateService
         app.OtherAssetUrls = details.AllAssetUrls;
         app.ReleaseDateUs = details.ReleaseDate is { } rd2 ? TrackedApp.ToMicroseconds(rd2) : null;
         app.ChangeLog = details.ChangeLog;
-        app.ReleaseUrl = standardUrl + "/releases";
+        app.ReleaseUrl = source.ChangeLogPageFromStandardUrl(standardUrl) ?? standardUrl + "/releases";
         app.IsArchived = details.IsArchived;
         app.NewerReleasesFilteredOut = details.NewerReleasesFilteredOut;
         app.LastUpdateCheckUs = TrackedApp.ToMicroseconds(DateTimeOffset.Now);
