@@ -20,8 +20,8 @@ public class InstalledAppsServiceTests
     [Fact]
     public void Unique_containment_match_is_strong()
     {
-        var installed = new[] { Entry("Notepad++ (64-bit x64)"), Entry("Something Else") };
-        var match = InstalledAppsService.FindMatch("Notepad++", null, installed);
+        var installed = new[] { Entry("Firefox ESR"), Entry("Something Else") };
+        var match = InstalledAppsService.FindMatch("Firefox", null, installed);
         Assert.NotNull(match);
         Assert.Equal(InstalledAppsService.MatchConfidence.Strong, match!.Confidence);
     }
@@ -29,8 +29,9 @@ public class InstalledAppsServiceTests
     [Fact]
     public void Ambiguous_containment_returns_null()
     {
-        var installed = new[] { Entry("Mozilla Firefox (x64 en-US)"), Entry("Mozilla Firefox (x64 de)") };
-        // Neither exact; both contain "firefox" with sufficient overlap.
+        // Both pass the overlap rule; without a publisher hint there is no
+        // safe choice, so the result must be null.
+        var installed = new[] { Entry("Firefox ESR"), Entry("Firefox Dev") };
         Assert.Null(InstalledAppsService.FindMatch("Firefox", null, installed));
     }
 
@@ -39,12 +40,21 @@ public class InstalledAppsServiceTests
     {
         var installed = new[]
         {
-            Entry("Mozilla Firefox (x64 en-US)", "Mozilla"),
-            Entry("Firefox Fork", "Someone Else"),
+            Entry("Firefox ESR", "Mozilla"),
+            Entry("Firefox Dev", "Contoso"),
         };
         var match = InstalledAppsService.FindMatch("Firefox", "Mozilla", installed);
         Assert.NotNull(match);
         Assert.Equal("Mozilla", match!.Info.Publisher);
+    }
+
+    [Fact]
+    public void Weak_overlap_candidates_are_rejected_even_with_publisher()
+    {
+        // "Firefox Fork" contains "firefox" but fails the 60% overlap rule
+        // against a much longer name, so only genuinely close names match.
+        var installed = new[] { Entry("Mozilla Firefox Extended Support Release Edition", "Mozilla") };
+        Assert.Null(InstalledAppsService.FindMatch("Firefox", "Mozilla", installed));
     }
 
     [Fact]

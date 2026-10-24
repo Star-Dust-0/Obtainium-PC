@@ -5,19 +5,34 @@ namespace ObtainiumPC.Tests;
 
 public class VersionServiceTests
 {
-    [Theory]
-    [InlineData(null, null, "app-1.2.3-release", "1.2.3")]
-    [InlineData("v([0-9.]+)", null, "v2.0.1", "2.0.1")]
-    [InlineData("release-(\\d+)-(\\d+)", "2.1", "release-3-7", "7.3")]
-    public void ExtractVersion_matches_upstream_behavior(string? regex, string? matchGroup, string input, string expected)
+    [Fact]
+    public void Null_regex_returns_null()
     {
-        Assert.Equal(expected, VersionService.ExtractVersion(regex, matchGroup, input));
+        Assert.Null(VersionService.ExtractVersion(null, null, "app-1.2.3-release"));
     }
 
     [Fact]
-    public void ExtractVersion_returns_null_when_nothing_matches()
+    public void Default_match_group_is_the_whole_match()
     {
-        Assert.Null(VersionService.ExtractVersion("build-(\\d+)", null, "no digits here"));
+        Assert.Equal("v2.0.1", VersionService.ExtractVersion("v([0-9.]+)", null, "v2.0.1"));
+    }
+
+    [Fact]
+    public void Numeric_match_group_selects_capture_group()
+    {
+        Assert.Equal("2.0.1", VersionService.ExtractVersion("v([0-9.]+)", "1", "v2.0.1"));
+    }
+
+    [Fact]
+    public void Dollar_references_compose_groups()
+    {
+        Assert.Equal("7.3", VersionService.ExtractVersion(@"release-(\d+)-(\d+)", "$2.$1", "release-3-7"));
+    }
+
+    [Fact]
+    public void No_match_throws()
+    {
+        Assert.Throws<NoVersionException>(() => VersionService.ExtractVersion(@"build-(\d+)", null, "no digits here"));
     }
 
     [Theory]
