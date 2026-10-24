@@ -209,8 +209,63 @@ jobs:
           AssertAlive 'download'; Shot '11-download-complete'
           if (-not $file) { throw 'download did not produce a file' }
           "downloaded: $($file.FullName) ($($file.Length) bytes)"
-          # The app opens the installer after download; close it so later shots are clean.
-          Get-Process | Where-Object { $_.Name -like 'npp*' -and $_.Id -ne $p.Id } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+          # Real install: drive the npp NSIS wizard to completion (interactive
+          # clicks on the disposable runner), then verify the app detects the
+          # installed version from the registry instead of relying on the
+          # manual Mark-as-updated fallback.
+          function ClickAnyOf($names, $timeoutSec) {
+            $deadline = (Get-Date).AddSeconds($timeoutSec)
+            while ((Get-Date) -lt $deadline) {
+              $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              foreach ($el in $all) {
+                if ($el.Current.ControlType -ne [System.Windows.Automation.ControlType]::Button) { continue }
+                foreach ($n in $names) {
+                  if ($el.Current.Name -eq $n) {
+                    $r = $el.Current.BoundingRectangle
+                    if ($r.Width -gt 5 -and $r.Height -gt 5) {
+                      [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                      Start-Sleep -Milliseconds 400
+                      [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                      "clicked installer button: $n"
+                      return $true
+                    }
+                  }
+                }
+              }
+              Start-Sleep 1
+            }
+            return $false
+          }
+          # Installer Language -> OK, then the setup wizard.
+          if (-not (ClickAnyOf @('OK') 30)) { Shot 'installer-no-language'; throw 'installer language dialog did not appear' }
+          Start-Sleep 2
+          if (-not (ClickAnyOf @('Next >') 30)) { Shot 'installer-no-welcome'; throw 'installer welcome page not found' }
+          Start-Sleep 1
+          if (-not (ClickAnyOf @('I Agree') 30)) { Shot 'installer-no-license'; throw 'installer license page not found' }
+          Start-Sleep 1
+          ClickAnyOf @('Next >') 15 | Out-Null   # components page (npp 8.x)
+          Start-Sleep 1
+          if (-not (ClickAnyOf @('Install') 30)) { Shot 'installer-no-install'; throw 'installer install page not found' }
+          Start-Sleep 2
+          if (-not (ClickAnyOf @('Finish') 120)) { Shot 'installer-no-finish'; throw 'installer did not finish' }
+          Start-Sleep 3
+          Shot '11a-installer-finished'
+          # Registry entry must now exist and the app must detect it.
+          $reg = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++' -ErrorAction SilentlyContinue
+          if ($reg -eq $null) { throw 'Notepad++ not present in registry Uninstall after installer completed' }
+          "registry DisplayVersion: $($reg.DisplayVersion)"
+          ClickNamed 'Detect installed version now'
+          Start-Sleep 3
+          AssertAlive 'detect'; Shot '11b-detected-installed'
+          $installedText = $null
+          $allEls2 = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+          foreach ($el in $allEls2) {
+            if ($el.Current.Name -like 'Installed: *') { $installedText = $el.Current.Name; break }
+          }
+          "installed text: $installedText"
+          if ($installedText -notlike '*8.9.8.1*') { throw "detection did not surface the installed version (got: $installedText)" }
+          Get-Process | Where-Object { $_.Name -like 'notepad++*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep 2
 
           # Per-app options page (last detail-page stop; verified nav).
