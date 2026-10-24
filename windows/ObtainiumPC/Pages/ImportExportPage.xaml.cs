@@ -269,10 +269,14 @@ namespace ObtainiumPC.Pages
             InitPicker(picker);
             var file = await picker.PickSingleFileAsync();
             if (file == null) return;
+            await ImportJsonAsync(await FileIO.ReadTextAsync(file));
+        }
 
+        private async Task ImportJsonAsync(string json)
+        {
+            await App.InitAsync();
             try
             {
-                var json = await FileIO.ReadTextAsync(file);
                 var (apps, hasSettings, _) = Services.Store.AppStore.Import(json);
                 var added = 0;
                 var replaced = 0;
@@ -297,6 +301,49 @@ namespace ObtainiumPC.Pages
             {
                 ShowResult(InfoBarSeverity.Error, "Import failed", ex.Message);
             }
+        }
+
+        // lib/pages/import_export.dart _runDownloadsImport: lists the export
+        // files in the app's downloads folder and imports the one picked.
+        private async void ImportDownloads_Click(object sender, RoutedEventArgs e)
+        {
+            var dir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads", "ObtainiumPC");
+            List<System.IO.FileInfo> candidates;
+            try
+            {
+                candidates = System.IO.Directory.Exists(dir)
+                    ? new System.IO.DirectoryInfo(dir).GetFiles("*.json")
+                        .OrderByDescending(f => f.LastWriteTime).Take(20).ToList()
+                    : new List<System.IO.FileInfo>();
+            }
+            catch (Exception ex)
+            {
+                ShowResult(InfoBarSeverity.Error, "Import failed", ex.Message);
+                return;
+            }
+            if (candidates.Count == 0)
+            {
+                ShowResult(InfoBarSeverity.Informational, "Nothing to import",
+                    "No export files found in " + dir + ".");
+                return;
+            }
+            var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 360 };
+            foreach (var f in candidates)
+                list.Items.Add(f.Name + "  (" + f.LastWriteTime.ToString("yyyy-MM-dd HH:mm") + ")");
+            list.SelectedIndex = 0;
+            var dialog = new ContentDialog
+            {
+                Title = "Import from downloads",
+                Content = list,
+                PrimaryButtonText = "Import",
+                CloseButtonText = "Cancel",
+                XamlRoot = XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            var chosen = candidates[list.SelectedIndex >= 0 ? list.SelectedIndex : 0];
+            await ImportJsonAsync(await System.IO.File.ReadAllTextAsync(chosen.FullName));
         }
     }
 }

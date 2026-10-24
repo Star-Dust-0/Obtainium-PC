@@ -32,7 +32,10 @@
                 <TextBlock Text="Import" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
                 <TextBlock Text="Reads an Obtainium export file (schema v2 and legacy formats). Apps with an existing ID are replaced; new apps are added."
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Button Content="Import from file..." Click="Import_Click" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Import from file..." Click="Import_Click"/>
+                    <Button Content="Import from downloads..." Click="ImportDownloads_Click"/>
+                </StackPanel>
 
                 <TextBlock Text="Import from URL list" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
                 <TextBlock Text="One app source URL per line. Each is checked and added; failures are reported per URL."
