@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using ObtainiumPC.Models;
 using ObtainiumPC.Services.Settings;
-using ObtainiumPC.Services.Store;
 using ObtainiumPC.Services.Updates;
 
 namespace ObtainiumPC.Pages;
@@ -11,7 +10,6 @@ namespace ObtainiumPC.Pages;
 public sealed partial class UpdateHealthPage : Page
 {
     private readonly AppSettings _settings = App.Settings;
-    private readonly TrackedAppStore _store = App.Store;
 
     public UpdateHealthPage()
     {
@@ -72,7 +70,7 @@ public sealed partial class UpdateHealthPage : Page
 
     private void RefreshLists()
     {
-        var apps = _store.GetAll().OrderBy(a => a.FinalName, StringComparer.OrdinalIgnoreCase).ToList();
+        var apps = App.TrackedApps.OrderBy(a => a.FinalName, StringComparer.OrdinalIgnoreCase).ToList();
         var flagged = apps.Where(a => UpdateHealthService.HasIssues(a, _settings)).ToList();
         var ignored = apps.Where(UpdateHealthService.IsIgnored).ToList();
 
@@ -89,17 +87,17 @@ public sealed partial class UpdateHealthPage : Page
 
         var menu = new MenuFlyout();
         var ignoreVersion = new MenuFlyoutItem { Text = "Ignore for this version" };
-        ignoreVersion.Click += (s, e) =>
+        ignoreVersion.Click += async (s, e) =>
         {
             app.UpdateHealthDismissedVersion = app.LatestVersion;
-            _store.Upsert(app);
+            await App.SaveAppsAsync();
             RefreshLists();
         };
         var ignoreAlways = new MenuFlyoutItem { Text = "Ignore permanently" };
-        ignoreAlways.Click += (s, e) =>
+        ignoreAlways.Click += async (s, e) =>
         {
             app.UpdateHealthEnabled = false;
-            _store.Upsert(app);
+            await App.SaveAppsAsync();
             RefreshLists();
         };
         menu.Items.Add(ignoreVersion);
@@ -136,11 +134,11 @@ public sealed partial class UpdateHealthPage : Page
     private UIElement BuildIgnoredRow(TrackedApp app)
     {
         var restore = new Button { Content = "Restore", Padding = new Thickness(10, 4) };
-        restore.Click += (s, e) =>
+        restore.Click += async (s, e) =>
         {
             app.UpdateHealthEnabled = true;
             app.UpdateHealthDismissedVersion = null;
-            _store.Upsert(app);
+            await App.SaveAppsAsync();
             RefreshLists();
         };
         var row = new Grid { ColumnSpacing = 12 };
