@@ -103,7 +103,7 @@ public sealed partial class UpdateHealthPage : Page
         menu.Items.Add(ignoreVersion);
         menu.Items.Add(ignoreAlways);
 
-        var moreButton = new Button { Content = "…", Padding = new Thickness(10, 4) };
+        var moreButton = new Button { Content = "…", Padding = new Thickness(10, 4, 10, 4) };
         moreButton.Click += (s, e) => menu.ShowAt(moreButton);
 
         var row = new Grid { ColumnSpacing = 12 };
@@ -133,7 +133,7 @@ public sealed partial class UpdateHealthPage : Page
 
     private UIElement BuildIgnoredRow(TrackedApp app)
     {
-        var restore = new Button { Content = "Restore", Padding = new Thickness(10, 4) };
+        var restore = new Button { Content = "Restore", Padding = new Thickness(10, 4, 10, 4) };
         restore.Click += async (s, e) =>
         {
             app.UpdateHealthEnabled = true;
