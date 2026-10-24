@@ -133,7 +133,7 @@ namespace ObtainiumPC.Pages
                 panel.Children.Add(radio);
             }
             radios[Math.Clamp(preselect, 0, radios.Count - 1)].IsChecked = true;
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = Services.Localization.Loc.T("Choose a file"),
                 Content = new ScrollViewer { Content = panel, MaxHeight = 420 },
@@ -354,7 +354,7 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
                     Content = Services.MarkdownRenderer.Render(changeLog),
                 });
             }
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = "Changes - " + _app.LatestVersion,
                 Content = panel,
@@ -417,7 +417,7 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
         private async void Remove_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = string.Format(Services.Localization.Loc.T("Remove {0}?"), _app.FinalName),
                 Content = Services.Localization.Loc.T("The app itself is not uninstalled; Obtainium-PC just stops tracking it."),

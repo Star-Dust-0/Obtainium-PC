@@ -96,7 +96,7 @@ public sealed partial class LogsPage : Page
 
     private async void Clear_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ContentDialog
+        var dialog = new ThemedContentDialog
         {
             Title = "Clear logs",
             Content = "Delete all stored logs?",

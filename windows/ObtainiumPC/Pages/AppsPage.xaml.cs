@@ -288,7 +288,7 @@ base.OnNavigatedTo(e);
                 }
                 var asset = assets[picked];
                 var bar = new ProgressBar { Minimum = 0, Maximum = 100, Width = 320 };
-                var progDlg = new ContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
+                var progDlg = new ThemedContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
                 var showOp = progDlg.ShowAsync();
                 try
                 {
@@ -321,7 +321,7 @@ base.OnNavigatedTo(e);
             await App.SaveAppsAsync();
             ReloadRows();
             ExitSelection();
-            var summary = new ContentDialog
+            var summary = new ThemedContentDialog
             {
                 Title = "Downloads",
                 Content = new ScrollViewer
@@ -349,7 +349,7 @@ base.OnNavigatedTo(e);
                 panel.Children.Add(radio);
             }
             radios[Math.Clamp(preselect, 0, radios.Count - 1)].IsChecked = true;
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = "Choose a file - " + appName,
                 Content = new ScrollViewer { Content = panel, MaxHeight = 420 },
@@ -421,7 +421,7 @@ base.OnNavigatedTo(e);
             }
             var newBox = new TextBox { PlaceholderText = "New category", Margin = new Thickness(0, 8, 0, 0) };
             panel.Children.Add(newBox);
-            var dlg = new ContentDialog
+            var dlg = new ThemedContentDialog
             {
                 Title = sel.Count == 1 ? "Categorize 1 app" : $"Categorize {sel.Count} apps",
                 Content = new ScrollViewer { MaxHeight = 360, Content = panel },
@@ -498,7 +498,7 @@ base.OnNavigatedTo(e);
         {
             var sel = SelectedApps();
             if (sel.Count == 0) return;
-            var confirm = new ContentDialog
+            var confirm = new ThemedContentDialog
             {
                 Title = sel.Count == 1 ? "Mark 1 selected app as updated?" : $"Mark {sel.Count} selected apps as updated?",
                 Content = "This only works for apps without standard version detection (track-only, release-date-as-version, or sources that disallow version detection).",
@@ -544,7 +544,7 @@ base.OnNavigatedTo(e);
         {
             var sel = SelectedApps();
             if (sel.Count == 0) return;
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = sel.Count == 1 ? "Remove 1 app?" : $"Remove {sel.Count} apps?",
                 Content = "The apps themselves are not uninstalled; Obtainium-PC just stops tracking them.",

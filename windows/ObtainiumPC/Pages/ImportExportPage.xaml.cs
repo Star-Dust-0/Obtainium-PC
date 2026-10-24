@@ -66,7 +66,7 @@ namespace ObtainiumPC.Pages
             var json = Services.Store.AppStore.Export(toExport, settings, level, "0.1.0");
             await FileIO.WriteTextAsync(file, json);
             ShowResult(InfoBarSeverity.Success, "Export complete",
-                $"{App.TrackedApps.Count} app(s) written to {file.Name}.");
+                string.Format(Services.Localization.Loc.T("{0} apps written to {1}."), App.TrackedApps.Count, file.Name));
         }
 
         private async void ImportStars_Click(object sender, RoutedEventArgs e)
@@ -109,7 +109,7 @@ namespace ObtainiumPC.Pages
                 };
             }).ToList();
             var listView = new ListView { ItemsSource = items, SelectionMode = ListViewSelectionMode.None, MaxHeight = 420 };
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = $"Starred repos of {username} ({repos.Count})",
                 Content = new ScrollViewer { Content = listView },
@@ -136,7 +136,7 @@ namespace ObtainiumPC.Pages
             }
             await App.SaveAppsAsync();
             ShowResult(InfoBarSeverity.Success, "Starred repos added",
-                $"Added {added} app(s). They resolve their first version on the next update check.");
+                string.Format(Services.Localization.Loc.T("Added {0} apps. They resolve their first version on the next update check."), added));
         }
 
         // lib/pages/import_export.dart: URL-list import -> addAppsByURL with a
@@ -236,12 +236,12 @@ namespace ObtainiumPC.Pages
                 if (added > 0) await App.SaveAppsAsync();
                 if (errors.Count == 0)
                 {
-                    ShowResult(InfoBarSeverity.Success, "Imported", $"Imported {added} app(s).");
+                    ShowResult(InfoBarSeverity.Success, "Imported", string.Format(Services.Localization.Loc.T("Imported {0} apps."), added));
                     UrlListBox.Text = "";
                 }
                 else
                 {
-                    var dlg = new ContentDialog
+                    var dlg = new ThemedContentDialog
                     {
                         Title = $"Imported {added} of {urls.Count}",
                         Content = new ScrollViewer
@@ -292,7 +292,7 @@ namespace ObtainiumPC.Pages
                     ? " The file also contains settings; applying them lands with the settings import step."
                     : "";
                 ShowResult(InfoBarSeverity.Success, "Import complete",
-                    $"{added} app(s) added, {replaced} replaced.{settingsNote}");
+                    string.Format(Services.Localization.Loc.T("Added: {0}; replaced: {1}."), added, replaced) + settingsNote);
             }
             catch (Services.Store.ObtainiumImportException ex)
             {
@@ -319,7 +319,7 @@ namespace ObtainiumPC.Pages
                 PlaceholderText = "{\"apps\": [ ... ]} or a single app object",
                 FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
             };
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = Services.Localization.Loc.T("Paste raw JSON"),
                 Content = new ScrollViewer { Content = box, MaxHeight = 320, Width = 480 },
@@ -377,7 +377,7 @@ namespace ObtainiumPC.Pages
             foreach (var f in candidates)
                 list.Items.Add(f.Name + "  (" + f.LastWriteTime.ToString("yyyy-MM-dd HH:mm") + ")");
             list.SelectedIndex = 0;
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = "Import from downloads",
                 Content = list,

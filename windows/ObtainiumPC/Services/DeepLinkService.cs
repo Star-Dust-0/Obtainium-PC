@@ -125,7 +125,7 @@ public static class DeepLinkService
 
     private static async Task ShowErrorAsync(MainWindow mw, string title, string message)
     {
-        var dialog = new ContentDialog
+        var dialog = new ThemedContentDialog
         {
             Title = title,
             Content = message,
@@ -229,14 +229,14 @@ public static class DeepLinkService
                 };
                 var summary = new TextBlock
                 {
-                    Text = $"{apps.Count} app(s); {replaceCount} will replace existing entries.",
+                    Text = string.Format(Loc.T("Apps to import: {0}. Will replace existing entries: {1}."), apps.Count, replaceCount),
                     Margin = new Thickness(0, 0, 0, 8),
                     TextWrapping = TextWrapping.Wrap,
                 };
                 var panel = new StackPanel();
                 panel.Children.Add(summary);
                 panel.Children.Add(expander);
-                var dialog = new ContentDialog
+                var dialog = new ThemedContentDialog
                 {
                     Title = Loc.T(action == "app" ? "Import app" : "Import apps"),
                     Content = new ScrollViewer { Content = panel, MaxHeight = 360, Width = 560 },
@@ -258,10 +258,10 @@ public static class DeepLinkService
                     else { App.TrackedApps.Add(app); added++; }
                 }
                 await App.SaveAppsAsync();
-                var done = new ContentDialog
+                var done = new ThemedContentDialog
                 {
                     Title = Loc.T("Import complete"),
-                    Content = $"{added} app(s) added, {replaced} replaced.",
+                    Content = string.Format(Loc.T("Added: {0}; replaced: {1}."), added, replaced),
                     CloseButtonText = Loc.T("Close"),
                     XamlRoot = mw.Content.XamlRoot,
                 };

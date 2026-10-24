@@ -36,7 +36,7 @@ namespace ObtainiumPC.Pages
                 else chip.IsEnabled = false;
                 panel.Children.Add(chip);
             }
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = Services.Localization.Loc.T("Supported sources"),
                 Content = new ScrollViewer { Content = panel, MaxHeight = 480 },
@@ -91,7 +91,7 @@ namespace ObtainiumPC.Pages
                 {
                     // lib/pages/add_app.dart: on an unexpected failure, offer to
                     // add a placeholder app (sourceProvider.buildPlaceholderApp).
-                    var proceed = new ContentDialog
+                    var proceed = new ThemedContentDialog
                     {
                         Title = "Add without checking?",
                         Content = "Fetching the latest version failed (" + checkEx.Message + "). The app can be added anyway and checked later.",
@@ -230,7 +230,7 @@ namespace ObtainiumPC.Pages
                 minStarsBox = new TextBox { Header = "Minimum star count", Text = "0" };
                 panel.Children.Add(minStarsBox);
             }
-            var dialog = new ContentDialog
+            var dialog = new ThemedContentDialog
             {
                 Title = "Search " + source.Name,
                 Content = panel,
