@@ -42,6 +42,11 @@ namespace ObtainiumPC.Pages
             ReleaseDateText.Text = _app.ReleaseDate is { } rd ? "Released: " + rd.ToString("yyyy-MM-dd") : "";
             ReleaseLink.Visibility = !string.IsNullOrEmpty(_app.ReleaseUrl) ? Visibility.Visible : Visibility.Collapsed;
             TrackButton.Label = _app.Disabled ? "Enable tracking" : "Disable tracking";
+            // lib/pages/app.dart: reset is offered only when the recorded
+            // install matches the latest version.
+            ResetInstallButton.Visibility = _app.InstalledVersion != null
+                && _app.InstalledVersion == _app.LatestVersion
+                ? Visibility.Visible : Visibility.Collapsed;
             // lib/pages/app.dart hasAction + Install/Update label.
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
@@ -176,6 +181,15 @@ namespace ObtainiumPC.Pages
         private void OsSettings_Click(object sender, RoutedEventArgs e)
         {
             // Reserved for packaged (MSIX) installs: ms-settings:appsfeatures-app?<PFN>.
+        }
+
+        private async void ResetInstall_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            // lib/pages/app.dart resetInstallStatus.
+            _app.InstalledVersion = null;
+            await App.SaveAppsAsync();
+            Render();
         }
 
         private async void Track_Click(object sender, RoutedEventArgs e)

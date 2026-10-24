@@ -25,6 +25,10 @@
                                   ToolTipService.ToolTip="Windows app settings (packaged installs only)">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
                     </AppBarButton>
+                    <AppBarButton x:Name="ResetInstallButton" Label="Reset install status" Click="ResetInstall_Click"
+                                  ToolTipService.ToolTip="Forget the recorded install so the app can be installed again">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE777;"/></AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton x:Name="TrackButton" Label="Disable tracking" Click="Track_Click">
                         <AppBarButton.Icon><FontIcon Glyph="&#xF140;"/></AppBarButton.Icon>
                     </AppBarButton>
