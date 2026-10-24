@@ -31,7 +31,7 @@ WinUI 3 port. Statuses:
 | APKMirror | pending | Android packages - proposed track-only |
 | APKPure | pending | Android packages - proposed track-only |
 | APKCombo | pending | Android packages - proposed track-only |
-| APK4Free | pending | Android packages - proposed track-only |
+| Apk4Free | track-only | two-page scrape with title cleaning and version fallbacks; install disabled with label |
 | LiteAPKs | track-only | WordPress API, Referer header + time-based CDN token at download; install disabled with label |
 | Aptoide | track-only | page-scraped app ID + ws2 API; install disabled with label |
 | Uptodown | pending | Android packages - proposed track-only |

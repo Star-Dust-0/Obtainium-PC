@@ -1,4 +1,5 @@
 using ObtainiumPC.Services.Settings;
+using ObtainiumPC.Sources.Apk4Free;
 using ObtainiumPC.Sources.Aptoide;
 using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
@@ -27,7 +28,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -49,6 +50,7 @@ public static class SourceCatalog
         "Farsroid" => new FarsroidSource(),
         "Vivo App Store" => new VivoAppStoreSource(),
         "LiteAPKs" => new LiteApksSource(),
+        "Apk4Free" => new Apk4FreeSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -72,6 +74,8 @@ public static class SourceCatalog
             return new CodebergSource(new CodebergSourceConfig(
                 ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "apk4free.net" || host == "www.apk4free.net")
+            return new Apk4FreeSource();
         if (host == "liteapks.com" || host == "www.liteapks.com")
             return new LiteApksSource();
         if (host == "farsroid.com" || host == "www.farsroid.com")
