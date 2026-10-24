@@ -14,7 +14,7 @@ public sealed class OptionFormItem
     public required string Key { get; init; }
     public required string Label { get; init; }
     public required OptionFormItemKind Kind { get; init; }
-    public bool DefaultBool { get; init; }
+    public bool DefaultBool { get; set; }
     public string? DefaultString { get; init; }
     public IReadOnlyList<KeyValuePair<string, string>> Options { get; init; } = Array.Empty<KeyValuePair<string, string>>();
     public string? Hint { get; init; }
