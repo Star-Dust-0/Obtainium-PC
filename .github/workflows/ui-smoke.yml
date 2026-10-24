@@ -296,6 +296,55 @@ jobs:
           if ($savedSettings -notmatch '"Theme"\s*:\s*"dark"') { throw 'theme not persisted to settings.json' }
           'theme persisted in settings.json'
 
+          # Arabic RTL: switch language via the Settings Language combo, verify
+          # translated chrome + persistence, then switch back (reversibility).
+          $wcond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
+          if ($win2 -eq $null) { throw 'main window not found after relaunch' }
+          function ClickNamedIn($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            if ($el -eq $null) { throw "element '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+              $r = $el.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            }
+          }
+          ClickNamedIn 'Settings' $win2
+          Start-Sleep 3
+          $combos = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          if ($combos.Count -lt 2) { throw 'language combo not found on Settings page' }
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win2 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'العربية' $root | Out-Null
+          Start-Sleep 4
+          AssertAlive 'arabic-switch'
+          if ((FindNamed 'التطبيقات' $win2) -eq $null) { Shot 'arabic-missing'; throw 'Arabic nav label not found after language switch' }
+          Shot '15-arabic-rtl-settings'
+          $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
+          if ($savedSettings -notmatch '"Language"\s*:\s*"ar"') { throw 'language not persisted to settings.json' }
+          'language persisted as ar'
+          ClickNamedIn 'التطبيقات' $win2
+          Start-Sleep 3
+          AssertAlive 'arabic-apps'; Shot '16-arabic-rtl-apps'
+          ClickNamedIn 'الإعدادات' $win2
+          Start-Sleep 3
+          $combos = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win2 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'English' $root | Out-Null
+          Start-Sleep 4
+          AssertAlive 'english-switch'
+          if ((FindNamed 'Apps' $win2) -eq $null) { Shot 'english-missing'; throw 'English nav label not found after switching back' }
+          Shot '17-back-to-english'
+          $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
+          if ($savedSettings -notmatch '"Language"\s*:\s*"en"') { throw 'language not persisted back to en' }
+          'language reverted to en'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 3
+
           # Smaller window: resize and validate the layout survives.
           $wcond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
           $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
