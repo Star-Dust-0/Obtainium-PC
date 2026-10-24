@@ -19,7 +19,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -31,6 +31,7 @@ public static class SourceCatalog
         "NeutronCode" => new NeutronCodeSource(),
         "itch.io" => new ItchIoSource(),
         "F-Droid" => new FDroidSource(),
+        "F-Droid Third-Party Repo" => new FDroidRepoSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),

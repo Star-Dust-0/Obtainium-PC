@@ -26,7 +26,7 @@ WinUI 3 port. Statuses:
 | GitHub Stars (githubstars) | pending | portable - GitHub API only |
 | Jenkins | pending | portable - arbitrary binaries, can install on Windows |
 | F-Droid (fdroid) | track-only | ported pipeline; install disabled with label; ABI nativecode filtering not ported (Android-only) |
-| F-Droid third-party repo (fdroidrepo) | pending | Android packages - proposed track-only |
+| F-Droid third-party repo (fdroidrepo) | track-only | index-v2.json + legacy index.xml; stable-channel preference; install disabled with label |
 | IzzyOnDroid | pending | Android packages - proposed track-only |
 | APKMirror | pending | Android packages - proposed track-only |
 | APKPure | pending | Android packages - proposed track-only |
