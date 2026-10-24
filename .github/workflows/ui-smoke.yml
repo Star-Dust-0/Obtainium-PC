@@ -53,11 +53,24 @@ jobs:
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           New-Item -ItemType Directory -Force shots | Out-Null
+          # Screenshots capture the app window's actual bounds (set
+          # $script:shotWin) so no console or desktop bleeds in; full screen
+          # only when no window is tracked (e.g. the external installer).
+          $script:shotWin = $null
           function Shot($name) {
             $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-            $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $x=$b.X; $y=$b.Y; $w=$b.Width; $h=$b.Height
+            if ($script:shotWin -ne $null) {
+              try {
+                $r=$script:shotWin.Current.BoundingRectangle
+                if ($r.Width -gt 50 -and $r.Height -gt 50) {
+                  $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height
+                }
+              } catch {}
+            }
+            $bmp=New-Object System.Drawing.Bitmap $w,$h
             $g=[System.Drawing.Graphics]::FromImage($bmp)
-            $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x,$y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $w,$h))
             $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
           }
           $exe = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe'
@@ -85,6 +98,7 @@ jobs:
           $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
           $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
           if ($win -eq $null) { throw 'main window not found for walkthrough' }
+          $script:shotWin = $win
           function ClickNamed($name, $verifyName) {
             # Invoke/click, then (when a verification element is given) confirm
             # it appears, retrying the click - one stray click must not derail
@@ -219,6 +233,7 @@ jobs:
           $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++'
           $setupWin = FindNamed 'Notepad++ v8.9.8.1 Setup' $root
           if ($setupWin -eq $null) { $setupWin = FindNamed 'Installer Language' $root }
+          $script:shotWin = $null  # capture the external installer full-screen
           if ($setupWin -eq $null) { Shot 'installer-never-launched'; throw 'app did not launch the installer interactively' }
           'interactive installer window confirmed'
           Shot '11a-installer-launched'
@@ -229,6 +244,7 @@ jobs:
           if ($reg -eq $null) { Shot 'silent-install-failed'; throw 'silent install did not create the registry entry' }
           "registry DisplayVersion: $($reg.DisplayVersion)"
           Shot '11b-install-finished'
+          $script:shotWin = $win
           # The app must now detect the installed version via registry.
           ClickNamed 'Detect installed version now'
           Start-Sleep 3
@@ -289,6 +305,7 @@ jobs:
           $wcond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
           $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
           if ($win2 -eq $null) { throw 'main window not found after relaunch' }
+          $script:shotWin = $win2
           function ClickNamedIn($name, $scope) {
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
             $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
