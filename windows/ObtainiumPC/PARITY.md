@@ -43,7 +43,7 @@ WinUI 3 port. Statuses:
 | Samsung Galaxy Store | pending | Android packages - proposed track-only |
 | Vivo App Store | pending | Android packages - proposed track-only |
 | Tencent App Store | pending | Android packages - proposed track-only |
-| Telegram App | pending | Android packages - proposed track-only |
+| Telegram App | track-only | channel-page version scrape, fixed download URL; install disabled with label |
 
 "Proposed track-only" means: port the version/link pipeline fully, disable
 the install action with a visible "Android package - cannot install on
