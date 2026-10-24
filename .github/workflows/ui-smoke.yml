@@ -168,7 +168,37 @@ jobs:
 
           # Download safe completion: Update downloads the asset; poll for the file.
           # First install: the detail action button reads 'Install' (upstream lib/pages/app.dart).
-          ClickNamed 'Install' 'Download progress'
+          # Upstream always shows the asset picker on manual download
+          # (confirmAppFileUrl evenIfSingleChoice: true).
+          ClickNamed 'Install'
+          Start-Sleep 3
+          $dlg = FindNamed 'Choose a file' $root
+          if ($dlg -eq $null) { Shot 'no-asset-picker'; throw 'asset picker dialog did not appear after Install' }
+          $picked = $false
+          foreach ($want in @('Installer.x64.exe', 'Installer.exe')) {
+            $all = $dlg.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              if ($el.Current.Name -like "*$want*" -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::RadioButton) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                "picked asset: $($el.Current.Name)"
+                $picked = $true
+                break
+              }
+            }
+            if ($picked) { break }
+          }
+          if (-not $picked) { Shot 'asset-not-found'; throw 'installer asset not found in picker' }
+          Start-Sleep 1
+          ClickNamed 'Download'
+          # Progress panel may flash by on a fast runner; the downloaded file
+          # below is the hard check, the panel sighting is logged best-effort.
+          foreach ($i in 1..5) {
+            Start-Sleep 1
+            if ((FindNamed 'Download progress' $root) -ne $null) { "progress panel seen"; break }
+          }
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           $file = $null
           foreach ($i in 1..40) {

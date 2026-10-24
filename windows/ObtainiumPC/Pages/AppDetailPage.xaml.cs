@@ -81,7 +81,7 @@ namespace ObtainiumPC.Pages
             }
         }
 
-        private async Task<int> PickAssetAsync(IReadOnlyList<KeyValuePair<string, string>> assets)
+        private async Task<int> PickAssetAsync(IReadOnlyList<KeyValuePair<string, string>> assets, int preselect = 0)
         {
             var selected = -1;
             var panel = new StackPanel { Spacing = 4 };
@@ -94,7 +94,7 @@ namespace ObtainiumPC.Pages
                 radios.Add(radio);
                 panel.Children.Add(radio);
             }
-            radios[0].IsChecked = true;
+            radios[Math.Clamp(preselect, 0, radios.Count - 1)].IsChecked = true;
             var dialog = new ContentDialog
             {
                 Title = "Choose a file",
@@ -109,22 +109,34 @@ namespace ObtainiumPC.Pages
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
-            var assets = _app.AssetUrls;
+            // Upstream confirmAppFileUrl(pickAnyAsset: true) offers
+            // apkUrls + otherAssetUrls.
+            var assets = _app.AssetUrls.Concat(_app.OtherAssetUrls).ToList();
             if (assets.Count == 0)
             {
                 Show(InfoBarSeverity.Warning, "No downloadable asset on the latest release.");
                 return;
             }
+            // Upstream confirmAppFileUrl(pickAnyAsset: true, evenIfSingleChoice:
+            // true): a manual download always opens the asset picker. The
+            // preferred index is preselected; when the app has an asset filter
+            // regex, the first matching asset is preselected instead.
             var index = _app.PreferredAssetIndex >= 0 && _app.PreferredAssetIndex < assets.Count ? _app.PreferredAssetIndex : 0;
-            // Upstream neverAutoSelect: the user picks the asset every time.
-            SourceCatalog.TryResolve(_app.Url, App.Settings, out var preSource);
-            if (preSource?.NeverAutoSelect == true && assets.Count > 1)
+            var filterRe = _app.AdditionalSettings.TryGetValue("apkFilterRegEx", out var fr)
+                && fr.ValueKind == System.Text.Json.JsonValueKind.String ? fr.GetString() : null;
+            if (!string.IsNullOrEmpty(filterRe))
             {
-                var picked = await PickAssetAsync(assets);
-                if (picked < 0) return;
-                index = picked;
+                try
+                {
+                    var rx = new System.Text.RegularExpressions.Regex(filterRe);
+                    var matchIdx = assets.FindIndex(a => rx.IsMatch(a.Key));
+                    if (matchIdx >= 0) index = matchIdx;
+                }
+                catch { /* invalid regex: keep default preselection */ }
             }
-            var asset = assets[index];
+            var picked = await PickAssetAsync(assets, index);
+            if (picked < 0) return;
+            var asset = assets[picked];
             UpdateButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
             try
