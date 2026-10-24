@@ -27,8 +27,8 @@ public class ApkMirrorSourceTests
         Assert.Equal(expected, ApkMirrorSource.PackageFromIconUrl(url));
 
     [Theory]
-    [InlineData("File size: 270.70 MB", 283849523)]
-    [InlineData("File size: 2.5 KB", 2560)]
+    [InlineData("File size: 270.70 MB", 283849523L)]
+    [InlineData("File size: 2.5 KB", 2560L)]
     [InlineData("no size here", null)]
     public void File_sizes_parse_to_bytes(string text, long? expected) =>
         Assert.Equal(expected, ApkMirrorSource.SizeBytesFromPageText(text));
@@ -45,7 +45,8 @@ public class ApkMirrorSourceTests
             <p>should not appear</p>
             </body></html>
             """;
-        Assert.Equal("- first fix\n- second fix", ApkMirrorSource.ChangeLogFromReleasePageHtml(html));
+        // For a bare <ul> sibling, both Dart and this port take the plain-text branch per <li>.
+        Assert.Equal("first fix\nsecond fix", ApkMirrorSource.ChangeLogFromReleasePageHtml(html));
     }
 
     [Fact]
@@ -75,7 +76,8 @@ public class ApkMirrorSourceTests
             .GetLatestAssetDetailsAsync(storeUrl, new Dictionary<string, JsonElement>());
         Assert.Equal("1.2.3", details.Version);
         Assert.Empty(details.AssetUrls); // APKMirror forbids direct downloads: track-only.
-        Assert.Equal("Cool Dev", details.Names.Author);
+// getAppNames uses the raw URL path segments (apk/<author>/<name>).
+        Assert.Equal("cool-dev", details.Names.Author);
         Assert.Equal("cool-app", details.Names.Name);
         Assert.Equal(new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero), details.ReleaseDate);
         Assert.Equal("https://www.apkmirror.com/apk/cool-dev/cool-app/cool-app-1-2-3-release/", details.ReleaseUrl);
