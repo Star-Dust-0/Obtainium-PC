@@ -378,13 +378,42 @@ base.OnNavigatedTo(e);
             ReloadRows();
         }
 
-        // lib/pages/apps.dart showMassMarkDialog (simplified: mark as updated
-        // only; the extra "mark even without update" option is not ported).
+        // lib/pages/apps.dart showMassMarkDialog: confirm first, and only mark
+        // apps that are installed AND lack standard version detection
+        // (isVersionDetectionPossible == false).
         private async void BatchMark_Click(object sender, RoutedEventArgs e)
         {
-            var sel = SelectedApps().Where(a => a.InstalledVersion != a.LatestVersion).ToList();
+            var sel = SelectedApps();
             if (sel.Count == 0) return;
-            foreach (var a in sel) a.InstalledVersion = a.LatestVersion;
+            var confirm = new ContentDialog
+            {
+                Title = sel.Count == 1 ? "Mark 1 selected app as updated?" : $"Mark {sel.Count} selected apps as updated?",
+                Content = "This only works for apps without standard version detection (track-only, release-date-as-version, or sources that disallow version detection).",
+                PrimaryButtonText = "Mark updated",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot,
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            var marked = 0;
+            foreach (var a in sel)
+            {
+                if (a.InstalledVersion == null) continue;
+                var trackOnly = a.AdditionalSettings.TryGetValue("trackOnly", out var to)
+                    && to.ValueKind == System.Text.Json.JsonValueKind.True;
+                var rdAsVersion = a.AdditionalSettings.TryGetValue("releaseDateAsVersion", out var rd)
+                    && rd.ValueKind == System.Text.Json.JsonValueKind.True;
+                SourceCatalog.TryResolve(a.Url, App.Settings, out var src);
+                var disallowed = src?.VersionDetectionDisallowed == true;
+                var htmlNoDetection = src?.Name == "HTML"
+                    && !(a.AdditionalSettings.TryGetValue("versionExtractionRegEx", out var ve)
+                        && ve.ValueKind == System.Text.Json.JsonValueKind.String
+                        && !string.IsNullOrEmpty(ve.GetString()));
+                if (trackOnly || rdAsVersion || disallowed || htmlNoDetection)
+                {
+                    a.InstalledVersion = a.LatestVersion;
+                    marked++;
+                }
+            }
             await App.SaveAppsAsync();
             ReloadRows();
             ExitSelection();
