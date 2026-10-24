@@ -49,9 +49,11 @@ public class RuStoreSourceTests
     {
         var handler = new FixtureHttpHandler()
             .Respond(AppInfoUrl, AppInfo)
-            .Respond(DownloadLinkUrl, """{"downloadUrls":[
+            .Respond(DownloadLinkUrl, """
+            {"downloadUrls":[
                 {"url":"https://dl.rustore.ru/x/base.apk"},
-                {"url":"https://dl.rustore.ru/x/config.arm64.apk"}]}""");
+                {"url":"https://dl.rustore.ru/x/config.arm64.apk"}]}
+            """);
         var details = await Source(handler).GetLatestAssetDetailsAsync(StoreUrl, new Dictionary<string, JsonElement>());
         var asset = Assert.Single(details.AssetUrls);
         Assert.Equal("base.apk", asset.Key);
