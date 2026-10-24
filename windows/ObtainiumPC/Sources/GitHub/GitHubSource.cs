@@ -39,6 +39,38 @@ public sealed class GitHubSource : AppSourceBase
         return client;
     }
 
+    public override bool ShowReleaseDateAsVersionToggle => true;
+    public override bool AllowIncludeZips => true;
+    public override bool AllowIncludeTarballs => true;
+
+    /// Port of github.dart additionalSourceAppSpecificSettingFormItems (release options).
+    public override IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems { get; } =
+        new IReadOnlyList<Forms.OptionFormItem>[]
+        {
+            new Forms.OptionFormItem[] { new() { Key = "", Label = "Release options", Kind = Forms.OptionFormItemKind.Header } },
+            new Forms.OptionFormItem[] { new() { Key = "includePrereleases", Label = "Include prereleases", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new() { Key = "fallbackToOlderReleases", Label = "Fallback to older releases", Kind = Forms.OptionFormItemKind.Switch, DefaultBool = true } },
+            new Forms.OptionFormItem[] { new() { Key = "filterReleaseTitlesByRegEx", Label = "Filter release titles by regular expression", Kind = Forms.OptionFormItemKind.Text, ValidateRegex = true } },
+            new Forms.OptionFormItem[] { new() { Key = "invertReleaseTitlesFilter", Label = "Invert regular expression (Filter release titles by regular expression)", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new() { Key = "filterReleaseNotesByRegEx", Label = "Filter release notes by regular expression", Kind = Forms.OptionFormItemKind.Text, ValidateRegex = true } },
+            new Forms.OptionFormItem[] { new() { Key = "invertReleaseNotesFilter", Label = "Invert regular expression (Filter release notes by regular expression)", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new() { Key = "verifyLatestTag", Label = "Verify the 'latest' tag", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new()
+            {
+                Key = "sortMethodChoice", Label = "Sort method", Kind = Forms.OptionFormItemKind.ChoiceList, DefaultString = "date",
+                Options = new KeyValuePair<string, string>[]
+                {
+                    new("date", "Release date"),
+                    new("smartname", "Name (smart)"),
+                    new("none", "None"),
+                    new("smartname-datefallback", "Name (smart) x Release date"),
+                    new("name", "Name"),
+                }
+            } },
+            new Forms.OptionFormItem[] { new() { Key = "useLatestAssetDateAsReleaseDate", Label = "Use latest asset upload as release date", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new() { Key = "releaseTitleAsVersion", Label = "Use release title as version string", Kind = Forms.OptionFormItemKind.Switch } },
+        };
+
     public override string Name => "GitHub";
     public override IReadOnlyList<string> Hosts => new[] { "github.com" };
 

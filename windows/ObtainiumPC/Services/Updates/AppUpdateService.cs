@@ -34,17 +34,7 @@ public sealed class AppUpdateService
         _settings = settings;
     }
 
-    private AppSourceBase ResolveSource(string url)
-    {
-        var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host.ToLowerInvariant() : "";
-        if (host == "github.com" || host == "www.github.com")
-            return new GitHubSource(new GitHubSourceConfig(
-                PersonalAccessToken: _settings.GitHubPersonalAccessToken,
-                GhReqPrefix: _settings.GitHubReqPrefix,
-                CheckRepoRename: _settings.GitHubCheckRepoRename,
-                GlobalMinimumUpdateAgeDays: _settings.MinimumUpdateAgeDays));
-        throw new InvalidUrlException(host.Length > 0 ? host : url);
-    }
+    private AppSourceBase ResolveSource(string url) => SourceCatalog.Resolve(url, _settings);
 
     private static string? ExtractVersionWithGlobalDefault(
         IReadOnlyDictionary<string, JsonElement> additionalSettings,

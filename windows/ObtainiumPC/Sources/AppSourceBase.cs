@@ -57,6 +57,24 @@ public abstract class AppSourceBase
 
     public abstract string SourceSpecificStandardizeUrl(string url, bool forSelection = false);
 
+    /// Per-source additional form items (e.g. GitHub's sort method). Rows of items,
+    /// matching the original's List<List<GeneratedFormItem>>.
+    public virtual IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems =>
+        Array.Empty<IReadOnlyList<Forms.OptionFormItem>>();
+
+    /// Original: showReleaseDateAsVersionToggle (GitHub sets it true).
+    public virtual bool ShowReleaseDateAsVersionToggle => false;
+
+    /// Original: allowIncludeZips / allowIncludeTarballs.
+    public virtual bool AllowIncludeZips => false;
+    public virtual bool AllowIncludeTarballs => false;
+
+    /// Original: versionDetectionDisallowed.
+    public virtual bool VersionDetectionDisallowed => false;
+
+    /// Original: excludeCommonSettingKeys.
+    public virtual IReadOnlyList<string> ExcludeCommonSettingKeys => Array.Empty<string>();
+
     public abstract Task<AssetDetails> GetLatestAssetDetailsAsync(
         string standardUrl,
         IReadOnlyDictionary<string, JsonElement> additionalSettings,
