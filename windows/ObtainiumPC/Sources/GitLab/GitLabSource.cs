@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace ObtainiumPC.Sources.GitLab;
@@ -34,6 +35,29 @@ public sealed class GitLabSource : AppSourceBase
 
     public override string Name => "GitLab";
     public override IReadOnlyList<string> Hosts => new[] { "gitlab.com" };
+
+    // lib/app_sources/gitlab.dart search
+    public override bool CanSearch => true;
+
+    public override async Task<Dictionary<string, (string Name, string Description)>> SearchAsync(
+        string query, CancellationToken ct = default)
+    {
+        var url = $"https://{Hosts[0]}/api/v4/projects?search=" + Uri.EscapeDataString(query);
+        var res = await _http.GetAsync(url, ct);
+        res.EnsureSuccessStatusCode();
+        var results = new Dictionary<string, (string, string)>();
+        var arr = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?.AsArray();
+        if (arr == null) return results;
+        foreach (var e in arr)
+        {
+            var path = e?["path_with_namespace"]?.GetValue<string>();
+            if (path == null) continue;
+            var name = e?["name_with_namespace"]?.GetValue<string>() ?? path;
+            var desc = e?["description"]?.GetValue<string>() ?? "No description";
+            results[$"https://{Hosts[0]}/" + path] = (name, desc);
+        }
+        return results;
+    }
     public override bool ShowReleaseDateAsVersionToggle => true;
 
     /// Fallback-to-older-releases is GitLab's only per-app release option upstream.

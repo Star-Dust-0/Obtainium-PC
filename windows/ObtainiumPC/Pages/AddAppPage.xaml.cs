@@ -107,6 +107,62 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        private sealed class SearchResultItem
+        {
+            public string Url { get; set; } = "";
+            public string Name { get; set; } = "";
+            public string Description { get; set; } = "";
+        }
+
+        // lib/pages/add_app.dart runSearch: query every searchable source,
+        // collect per-source errors without failing the whole search.
+        private async void Search_Click(object sender, RoutedEventArgs e)
+        {
+            var query = (SearchBox.Text ?? "").Trim();
+            if (query.Length == 0) return;
+            SearchButton.IsEnabled = false;
+            SearchRing.IsActive = true;
+            try
+            {
+                var items = new List<SearchResultItem>();
+                var errors = new List<string>();
+                // Searchable sources ported so far: GitHub, GitLab (PARITY.md).
+                var searchable = new[] { "GitHub", "GitLab" }
+                    .Select(n => SourceCatalog.ResolveByName(n, App.Settings))
+                    .Where(src => src.CanSearch);
+                foreach (var source in searchable)
+                {
+                    try
+                    {
+                        var res = await source.SearchAsync(query);
+                        foreach (var (url, v) in res)
+                            items.Add(new SearchResultItem { Url = url, Name = v.Name, Description = v.Description });
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(source.Name + ": " + ex.Message);
+                    }
+                }
+                SearchResults.ItemsSource = items;
+                SearchResults.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                if (items.Count == 0 && errors.Count == 0)
+                    Show(InfoBarSeverity.Informational, "No results.");
+                else if (errors.Count > 0)
+                    Show(InfoBarSeverity.Warning, "Some sources failed: " + string.Join("; ", errors));
+            }
+            finally
+            {
+                SearchRing.IsActive = false;
+                SearchButton.IsEnabled = true;
+            }
+        }
+
+        private void SearchResults_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is SearchResultItem item)
+                UrlBox.Text = item.Url;
+        }
+
         private void Show(InfoBarSeverity severity, string message)
         {
             ResultBar.Severity = severity;

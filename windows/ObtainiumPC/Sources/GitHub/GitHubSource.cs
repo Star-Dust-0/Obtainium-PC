@@ -167,6 +167,30 @@ public sealed class GitHubSource : AppSourceBase
     private string ConvertStandardUrlToApiUrl(string standardUrl) =>
         _config.ApiHost + "/repos" + new Uri(standardUrl).AbsolutePath;
 
+    // lib/app_sources/github.dart search + searchCommon
+    public override bool CanSearch => true;
+
+    public override async Task<Dictionary<string, (string Name, string Description)>> SearchAsync(
+        string query, CancellationToken ct = default)
+    {
+        var url = _config.ApiHost + "/search/repositories?q=" + Uri.EscapeDataString(query) + "&per_page=100";
+        var res = await SourceRequestWithAuthFallback(url, new Dictionary<string, JsonElement>(), ct);
+        res.EnsureSuccessStatusCode();
+        var results = new Dictionary<string, (string, string)>();
+        var items = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?["items"]?.AsArray();
+        if (items == null) return results;
+        foreach (var e in items)
+        {
+            var htmlUrl = e?["html_url"]?.GetValue<string>();
+            var fullName = e?["full_name"]?.GetValue<string>();
+            if (htmlUrl == null || fullName == null) continue;
+            var archived = e?["archived"]?.GetValue<bool>() == true;
+            var desc = e?["description"]?.GetValue<string>() ?? "No description";
+            results[htmlUrl] = (fullName, (archived ? "[ARCHIVED] " : "") + desc);
+        }
+        return results;
+    }
+
     // ------------------------------------------------------------------
     // Repo rename / archive state
     // ------------------------------------------------------------------
