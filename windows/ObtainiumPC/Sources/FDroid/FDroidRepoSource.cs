@@ -42,14 +42,22 @@ public sealed class FDroidRepoSource : AppSourceBase
     public override IReadOnlyList<string> Hosts => Array.Empty<string>();
     public override bool SupportsInstall => false;
 
+    private static Dictionary<string, string> ParseQuery(string query) =>
+        query.TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(
+                parts => Uri.UnescapeDataString(parts[0]),
+                parts => Uri.UnescapeDataString(parts[1]));
+
     private static string RemoveQueryParamsFromUrl(string url, params string[] keep)
     {
         var uri = new Uri(url);
-        var kept = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        var result = System.Web.HttpUtility.ParseQueryString("");
-        foreach (var key in keep)
-            if (kept[key] is { } value) result[key] = value;
-        var query = result.ToString();
+        var kept = ParseQuery(uri.Query);
+        var query = string.Join("&", keep
+            .Where(kept.ContainsKey)
+            .Select(k => $"{Uri.EscapeDataString(k)}={Uri.EscapeDataString(kept[k])}"));
         var builder = new UriBuilder(uri) { Query = query };
         return builder.Uri.ToString().TrimEnd('?');
     }
@@ -250,7 +258,7 @@ public sealed class FDroidRepoSource : AppSourceBase
         CancellationToken cancellationToken = default)
     {
         string? appIdOrName = SettingString(additionalSettings, "appIdOrName");
-        var appIdParam = System.Web.HttpUtility.ParseQueryString(new Uri(standardUrl).Query)["appId"];
+        var appIdParam = ParseQuery(new Uri(standardUrl).Query).GetValueOrDefault("appId");
         if (appIdParam != null) appIdOrName = appIdParam;
         standardUrl = RemoveQueryParamsFromUrl(standardUrl);
         if (appIdOrName == null) throw new NoReleasesException();
