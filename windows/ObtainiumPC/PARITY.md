@@ -36,12 +36,12 @@ WinUI 3 port. Statuses:
 | Aptoide | track-only | page-scraped app ID + ws2 API; install disabled with label |
 | Uptodown | pending | Android packages - proposed track-only |
 | CoolApk | pending | Android packages - proposed track-only |
-| Farsroid | pending | Android packages - proposed track-only |
+| Farsroid | track-only | download-box API + shared HTML link grabber; install disabled with label |
 | RockMods | track-only | JSON-LD version tracking only (track-only upstream too, PR #2966) |
 | RuStore | pending | Android packages - proposed track-only |
 | Huawei AppGallery | pending | Android packages - proposed track-only |
 | Samsung Galaxy Store | pending | Android packages - proposed track-only |
-| Vivo App Store | pending | Android packages - proposed track-only |
+| Vivo App Store | track-only | h5 detail API; install disabled with label |
 | Tencent App Store | track-only | simple.jsp embedded-JSON scrape; install disabled with label |
 | Telegram App | track-only | channel-page version scrape, fixed download URL; install disabled with label |
 
