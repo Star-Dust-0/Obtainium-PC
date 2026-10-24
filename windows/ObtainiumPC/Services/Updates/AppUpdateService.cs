@@ -52,8 +52,9 @@ public sealed class AppUpdateService
         }
     }
 
-    private static bool SettingBool(IReadOnlyDictionary<string, JsonElement> s, string key) =>
-        s.TryGetValue(key, out var v) && v.ValueKind == JsonValueKind.True;
+    private static bool SettingBool(IReadOnlyDictionary<string, JsonElement> s, string key, bool fallback = false) =>
+        s.TryGetValue(key, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? v.ValueKind == JsonValueKind.True : fallback;
 
     private static string? SettingString(IReadOnlyDictionary<string, JsonElement> s, string key) =>
         s.TryGetValue(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
@@ -107,6 +108,16 @@ public sealed class AppUpdateService
         {
             assetUrls = AssetFilterService.FilterAssetsByArch(assetUrls, CurrentArches());
             if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
+        }
+
+        // Reconcile with the OS-detected installed version (upstream:
+        // PackageManager; Windows: registry Uninstall entries, name heuristic).
+        // Skipped for track-only apps and when version detection is off.
+        if (currentApp != null && !trackOnly && SettingBool(settings, "versionDetection", fallback: true))
+        {
+            var detected = Detection.InstalledAppsService.FindBestMatch(currentApp.FinalName);
+            if (detected?.DisplayVersion is { } osVersion && osVersion.Length > 0)
+                currentApp.InstalledVersion = osVersion;
         }
 
         var app = currentApp ?? new TrackedApp();
