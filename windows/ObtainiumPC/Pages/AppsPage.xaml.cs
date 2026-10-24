@@ -130,6 +130,26 @@ base.OnNavigatedTo(e);
             if (CategoryCombo.SelectedItem == null) CategoryCombo.SelectedIndex = 0;
         }
 
+        // lib/pages/apps.dart shareExport: an Obtainium export of the selected
+        // apps only (apps-only level; written to a file the user picks).
+        private async void BatchExport_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var picker = new Windows.Storage.Pickers.FileSavePicker
+            {
+                SuggestedFileName = "obtainium-export-selected",
+                DefaultFileExtension = ".json",
+            };
+            picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return;
+            var json = Services.Store.AppStore.Export(sel, null, 0, "0.1.0");
+            await Windows.Storage.FileIO.WriteTextAsync(file, json);
+        }
+
         // lib/pages/apps.dart shareConfigLinks: obtainium:// deep links wrapped
         // in the redirect URL (clipboard; share sheet disclosed in PARITY).
         private void BatchCopyConfigs_Click(object sender, RoutedEventArgs e)

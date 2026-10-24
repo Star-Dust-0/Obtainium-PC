@@ -44,6 +44,7 @@
             <AppBarButton x:Name="BatchDisableButton" Label="Disable" Click="BatchDisable_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE71A;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchMarkButton" Label="Mark updated" Click="BatchMark_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchCopyUrlsButton" Label="Copy URLs" Click="BatchCopyUrls_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE8C8;"/></AppBarButton.Icon></AppBarButton>
+            <AppBarButton x:Name="BatchExportButton" Label="Export" Click="BatchExport_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE74E;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchCopyConfigsButton" Label="Copy config links" Click="BatchCopyConfigs_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE71B;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchCategorizeButton" Label="Categorize" Click="BatchCategorize_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE8EC;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchRemoveButton" Label="Remove" Click="BatchRemove_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE74D;"/></AppBarButton.Icon></AppBarButton>
