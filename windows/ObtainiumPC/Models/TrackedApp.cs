@@ -27,6 +27,7 @@ public sealed class TrackedApp
 
     [JsonPropertyName("lastUpdateCheck")] public long? LastUpdateCheckUs { get; set; }
     [JsonPropertyName("pinned")] public bool Pinned { get; set; }
+    [JsonPropertyName("categories")] public System.Collections.Generic.List<string> Categories { get; set; } = new();
     [JsonPropertyName("disabled")] public bool Disabled { get; set; }
     [JsonPropertyName("categories")] public List<string> Categories { get; set; } = new();
     [JsonPropertyName("releaseDate")] public long? ReleaseDateUs { get; set; }

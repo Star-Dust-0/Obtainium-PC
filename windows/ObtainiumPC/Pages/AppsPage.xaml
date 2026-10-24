@@ -17,6 +17,7 @@
             <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
             <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" Width="260" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center"/>
             <ToggleButton x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
+            <ComboBox x:Name="CategoryCombo" Header="Category" MinWidth="140" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
             <ToggleButton x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </StackPanel>
         <ListView x:Name="AppsList" Grid.Row="1" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="28,4,28,20">
@@ -43,6 +44,7 @@
             <AppBarButton x:Name="BatchDisableButton" Label="Disable" Click="BatchDisable_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE71A;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchMarkButton" Label="Mark updated" Click="BatchMark_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchCopyUrlsButton" Label="Copy URLs" Click="BatchCopyUrls_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE8C8;"/></AppBarButton.Icon></AppBarButton>
+            <AppBarButton x:Name="BatchCategorizeButton" Label="Categorize" Click="BatchCategorize_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE8EC;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchRemoveButton" Label="Remove" Click="BatchRemove_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE74D;"/></AppBarButton.Icon></AppBarButton>
         </CommandBar>
     </Grid>

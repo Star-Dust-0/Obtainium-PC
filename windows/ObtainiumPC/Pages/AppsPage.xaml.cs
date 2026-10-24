@@ -62,7 +62,8 @@ namespace ObtainiumPC.Pages
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
-            base.OnNavigatedTo(e);
+                        ReloadCategoryCombo();
+base.OnNavigatedTo(e);
             await App.InitAsync();
             Services.Updates.BackgroundUpdateService.Instance.AppsUpdated += OnAppsUpdated;
             ReloadRows();
@@ -95,6 +96,9 @@ namespace ObtainiumPC.Pages
             {
                 var hasUpdate = App.Updater.IsAppUpdateable(app);
                 if (updatesOnly && !hasUpdate) continue;
+                if (CategoryCombo.SelectedIndex > 0
+                    && CategoryCombo.SelectedItem is string cat
+                    && !app.Categories.Contains(cat)) continue;
                 if (query.Length > 0
                     && !app.FinalName.Contains(query, StringComparison.OrdinalIgnoreCase)
                     && !app.FinalAuthor.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -112,6 +116,55 @@ namespace ObtainiumPC.Pages
         }
 
         private void FilterChanged(object sender, RoutedEventArgs e) => ReloadRows();
+
+        private void CategoryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) => ReloadRows();
+
+        private void ReloadCategoryCombo()
+        {
+            var keep = CategoryCombo.SelectedItem as string;
+            CategoryCombo.Items.Clear();
+            CategoryCombo.Items.Add("All");
+            foreach (var c in App.TrackedApps.SelectMany(a => a.Categories).Distinct().OrderBy(c => c))
+                CategoryCombo.Items.Add(c);
+            CategoryCombo.SelectedItem = keep != null && CategoryCombo.Items.Contains(keep) ? keep : "All";
+            if (CategoryCombo.SelectedItem == null) CategoryCombo.SelectedIndex = 0;
+        }
+
+        // lib/pages/apps.dart categorize batch action (SelectionModal ->
+        // checkboxes here; upstream color management not ported).
+        private async void BatchCategorize_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var all = App.TrackedApps.SelectMany(a => a.Categories).Distinct().OrderBy(c => c).ToList();
+            var preChecked = sel.SelectMany(a => a.Categories).ToHashSet();
+            var panel = new StackPanel { Spacing = 6 };
+            var boxes = new List<CheckBox>();
+            foreach (var c in all)
+            {
+                var box = new CheckBox { Content = c, IsChecked = preChecked.Contains(c) };
+                boxes.Add(box);
+                panel.Children.Add(box);
+            }
+            var newBox = new TextBox { PlaceholderText = "New category", Margin = new Thickness(0, 8, 0, 0) };
+            panel.Children.Add(newBox);
+            var dlg = new ContentDialog
+            {
+                Title = sel.Count == 1 ? "Categorize 1 app" : $"Categorize {sel.Count} apps",
+                Content = new ScrollViewer { MaxHeight = 360, Content = panel },
+                PrimaryButtonText = "Apply",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot,
+            };
+            if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+            var chosen = boxes.Where(b => b.IsChecked == true).Select(b => (string)b.Content).ToList();
+            var newCat = (newBox.Text ?? "").Trim();
+            if (newCat.Length > 0 && !chosen.Contains(newCat)) chosen.Add(newCat);
+            foreach (var a in sel) a.Categories = chosen.ToList();
+            await App.SaveAppsAsync();
+            ReloadCategoryCombo();
+            ReloadRows();
+        }
 
         // lib/pages/apps.dart selection mode + bottom-sheet batch actions.
         private void SelectToggle_Changed(object sender, RoutedEventArgs e)
