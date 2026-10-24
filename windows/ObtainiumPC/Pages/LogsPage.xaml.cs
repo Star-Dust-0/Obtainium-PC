@@ -12,6 +12,7 @@ public sealed partial class LogsPage : Page
     public LogsPage()
     {
         InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

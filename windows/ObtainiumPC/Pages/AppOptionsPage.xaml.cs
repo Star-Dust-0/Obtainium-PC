@@ -26,6 +26,7 @@ namespace ObtainiumPC.Pages
         public AppOptionsPage()
         {
             this.InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)

@@ -13,6 +13,7 @@
             <StackPanel Spacing="6" MaxWidth="720">
                 <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
                 <ComboBox x:Name="ThemeCombo" Header="Theme" MinWidth="260" SelectionChanged="ThemeCombo_SelectionChanged"/>
+                <ComboBox x:Name="LanguageCombo" Header="Language" MinWidth="260" SelectionChanged="LanguageCombo_SelectionChanged"/>
                 <ComboBox x:Name="SortByCombo" Header="Sort apps by" MinWidth="260" SelectionChanged="SortByCombo_SelectionChanged"/>
                 <ComboBox x:Name="SortOrderCombo" Header="Sort order" MinWidth="260" SelectionChanged="SortOrderCombo_SelectionChanged"/>
                 <ComboBox x:Name="DensityCombo" Header="App list density" MinWidth="260" SelectionChanged="DensityCombo_SelectionChanged"/>

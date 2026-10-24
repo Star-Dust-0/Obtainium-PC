@@ -14,6 +14,9 @@ namespace ObtainiumPC.Pages
         private static readonly (string Label, string Value)[] ThemeOptions =
             { ("System default", "system"), ("Light", "light"), ("Dark", "dark") };
 
+        private static readonly (string Label, string Value)[] LanguageOptions =
+            { ("English", "en"), ("العربية", "ar") };
+
         private static readonly (string Label, int Minutes)[] IntervalOptions =
             { ("15 minutes", 15), ("30 minutes", 30), ("1 hour", 60), ("6 hours", 360), ("12 hours", 720), ("1 day", 1440) };
 
@@ -22,6 +25,7 @@ namespace ObtainiumPC.Pages
         public SettingsPage()
         {
             this.InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
             LoadValues();
         }
 
@@ -48,6 +52,8 @@ namespace ObtainiumPC.Pages
             DensityCombo.Items.Add("Dense");
             DensityCombo.SelectedIndex = App.Settings.ListDensity == "dense" ? 2 : App.Settings.ListDensity == "compact" ? 1 : 0;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
+            foreach (var (label, value) in LanguageOptions) LanguageCombo.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+            LanguageCombo.SelectedIndex = App.Settings.Language == "ar" ? 1 : 0;
 
             foreach (var (label, minutes) in IntervalOptions) UpdateIntervalCombo.Items.Add(new ComboBoxItem { Content = label, Tag = minutes });
             var ii = Array.FindIndex(IntervalOptions, o => o.Minutes == s.UpdateIntervalMinutes);
@@ -82,6 +88,16 @@ namespace ObtainiumPC.Pages
         private void SortOrderCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (SortOrderCombo.SelectedIndex >= 0) { App.Settings.SortOrder = SortOrderCombo.SelectedIndex; Save(); }
+        }
+
+        private void LanguageCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loading || LanguageCombo.SelectedItem is not ComboBoxItem item) return;
+            var lang = (string)item.Tag;
+            if (App.Settings.Language == lang) return;
+            App.Settings.Language = lang;
+            Save();
+            Services.Localization.Loc.SetLanguage(lang);
         }
 
         private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

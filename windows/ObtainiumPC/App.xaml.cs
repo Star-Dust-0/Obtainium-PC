@@ -36,6 +36,14 @@ namespace ObtainiumPC
         {
             if (Initialized) return;
             Settings = AppSettings.Load();
+            Services.Localization.Loc.Language = Settings.Language;
+            Services.Localization.Loc.Changed += () =>
+            {
+                Settings.Language = Services.Localization.Loc.Language;
+                Settings.Save();
+                if (MainWindowInstance is MainWindow mw)
+                    mw.DispatcherQueue.TryEnqueue(() => mw.ApplyLocalization());
+            };
             Store = new AppStore();
             Updater = new AppUpdateService(Settings);
             Services.Logging.AppLogger.PurgeOld();

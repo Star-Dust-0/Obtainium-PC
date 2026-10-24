@@ -16,6 +16,7 @@ namespace ObtainiumPC.Pages
         public AppDetailPage()
         {
             this.InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -37,9 +38,9 @@ namespace ObtainiumPC.Pages
             if (_app == null) return;
             NameText.Text = _app.FinalName;
             AuthorText.Text = _app.FinalAuthor;
-            InstalledText.Text = "Installed: " + (_app.InstalledVersion ?? "not installed");
-            LatestText.Text = "Latest: " + (_app.LatestVersion ?? "unknown");
-            ReleaseDateText.Text = _app.ReleaseDate is { } rd ? "Released: " + rd.ToString("yyyy-MM-dd") : "";
+            InstalledText.Text = Services.Localization.Loc.T("Installed: ") + (_app.InstalledVersion ?? Services.Localization.Loc.T("not installed"));
+            LatestText.Text = Services.Localization.Loc.T("Latest: ") + (_app.LatestVersion ?? Services.Localization.Loc.T("unknown"));
+            ReleaseDateText.Text = _app.ReleaseDate is { } rd ? Services.Localization.Loc.T("Released: ") + rd.ToString("yyyy-MM-dd") : "";
             // lib/pages/app.dart + app_list_tile.dart getChangeLogFn: the release
             // date becomes a tappable "changes" link when a changelog or release
             // URL exists.
@@ -130,10 +131,10 @@ namespace ObtainiumPC.Pages
             radios[Math.Clamp(preselect, 0, radios.Count - 1)].IsChecked = true;
             var dialog = new ContentDialog
             {
-                Title = "Choose a file",
+                Title = Services.Localization.Loc.T("Choose a file"),
                 Content = new ScrollViewer { Content = panel, MaxHeight = 420 },
-                PrimaryButtonText = "Download",
-                CloseButtonText = "Cancel",
+                PrimaryButtonText = Services.Localization.Loc.T("Download"),
+                CloseButtonText = Services.Localization.Loc.T("Cancel"),
                 XamlRoot = XamlRoot,
             };
             return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
@@ -147,7 +148,7 @@ namespace ObtainiumPC.Pages
             var assets = _app.AssetUrls.Concat(_app.OtherAssetUrls).ToList();
             if (assets.Count == 0)
             {
-                Show(InfoBarSeverity.Warning, "No downloadable asset on the latest release.");
+                Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No downloadable asset on the latest release."));
                 return;
             }
             // Upstream confirmAppFileUrl(pickAnyAsset: true, evenIfSingleChoice:
@@ -201,24 +202,21 @@ namespace ObtainiumPC.Pages
                 if (installable)
                 {
                     DownloadService.OpenInstaller(path);
-                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key} and opened the installer.");
+                    Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0} and opened the installer."), asset.Key));
                     if (CanDetectInstalled())
                     {
-                        PostDownloadNote.Text =
-                            "Once the installer finishes, the installed version is detected automatically (registry, also on every update check). " +
-                            "Use Detect installed version now to reconcile immediately; Mark as updated is the manual fallback when detection cannot find the app.";
+PostDownloadNote.Text = Services.Localization.Loc.T("Once the installer finishes, the installed version is detected automatically (registry, also on every update check). Use Detect installed version now to reconcile immediately; Mark as updated is the manual fallback when detection cannot find the app.");
                         DetectNowButton.Visibility = Visibility.Visible;
                     }
                     else
                     {
-                        PostDownloadNote.Text =
-                            "Automatic installed-version detection is not available for this app. After installing, use Mark as updated.";
+PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version detection is not available for this app. After installing, use Mark as updated.");
                         DetectNowButton.Visibility = Visibility.Collapsed;
                     }
                 }
                 else
                 {
-                    Show(InfoBarSeverity.Success, $"Downloaded {asset.Key}. Android package - cannot install on Windows; the file is saved for manual transfer.");
+                    Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0}. Android package - cannot install on Windows; the file is saved for manual transfer."), asset.Key));
                     PostDownloadNote.Text = "";
                     DetectNowButton.Visibility = Visibility.Collapsed;
                 }
@@ -226,7 +224,7 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, "Download failed: " + ex.Message);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + ex.Message);
             }
             finally
             {
@@ -280,14 +278,13 @@ namespace ObtainiumPC.Pages
             {
                 if (await TryDetectInstalledAsync())
                 {
-                    Show(InfoBarSeverity.Success, "Detected installed version " + _app.InstalledVersion + ".");
+                    Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Installed version detected: {0}"), _app.InstalledVersion));
                     PostDownloadPanel.Visibility = Visibility.Collapsed;
                     Render();
                 }
                 else
                 {
-                    Show(InfoBarSeverity.Warning,
-                        "No matching installed app was found. If the installer has not finished yet, complete it and try again; otherwise use Mark as updated.");
+Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version could be detected. If the installer has finished, try again in a moment; otherwise install the app first."));
                 }
             }
             finally
@@ -376,7 +373,7 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, "Update check failed on the new URL: " + ex.Message);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Update check failed on the new URL: ") + ex.Message);
             }
             Render();
         }
@@ -403,10 +400,10 @@ namespace ObtainiumPC.Pages
             if (_app == null) return;
             var dialog = new ContentDialog
             {
-                Title = "Remove " + _app.FinalName + "?",
-                Content = "The app itself is not uninstalled; Obtainium-PC just stops tracking it.",
-                PrimaryButtonText = "Remove",
-                CloseButtonText = "Cancel",
+                Title = string.Format(Services.Localization.Loc.T("Remove {0}?"), _app.FinalName),
+                Content = Services.Localization.Loc.T("The app itself is not uninstalled; Obtainium-PC just stops tracking it."),
+                PrimaryButtonText = Services.Localization.Loc.T("Remove"),
+                CloseButtonText = Services.Localization.Loc.T("Cancel"),
                 XamlRoot = this.XamlRoot,
             };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)

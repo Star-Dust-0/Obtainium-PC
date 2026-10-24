@@ -14,6 +14,7 @@ public sealed partial class UpdateHealthPage : Page
     public UpdateHealthPage()
     {
         InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
         PopulateThresholds();
     }
 

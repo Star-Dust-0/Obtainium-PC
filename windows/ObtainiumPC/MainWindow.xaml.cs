@@ -13,6 +13,7 @@ namespace ObtainiumPC
         public MainWindow()
         {
             this.InitializeComponent();
+            Loaded += (_, _) => ApplyLocalization();
             Title = "Obtainium-PC";
             SystemBackdrop = new MicaBackdrop();
             Activated += MainWindow_Activated;
@@ -23,6 +24,8 @@ namespace ObtainiumPC
             if (_backgroundStarted) return;
             _backgroundStarted = true;
             await App.InitAsync();
+            // The saved language is only known after InitAsync; re-apply now.
+            ApplyLocalization();
             // Apply the saved theme: SettingsPage only sets RequestedTheme when
             // the user changes the combo, so without this a saved "dark" came
             // back light after every restart.
@@ -34,6 +37,26 @@ namespace ObtainiumPC
                     _ => ElementTheme.Default,
                 };
             Services.Updates.BackgroundUpdateService.Instance.Start();
+        }
+
+        // Re-applies translations and flow direction after a language switch;
+        // pages are recreated from their XAML literals by re-navigation.
+        public void ApplyLocalization()
+        {
+            Services.Localization.Localizer.Apply(NavView);
+            var current = NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem;
+            var pageType = current?.Tag switch
+            {
+                "apps" => typeof(AppsPage),
+                "addapp" => typeof(AddAppPage),
+                "updatehealth" => typeof(UpdateHealthPage),
+                "importexport" => typeof(ImportExportPage),
+                "logs" => typeof(LogsPage),
+                "settings" => typeof(SettingsPage),
+                _ => null
+            };
+            if (pageType != null)
+                ContentFrame.Navigate(pageType);
         }
 
         private void NavView_Loaded(object sender, RoutedEventArgs e)

@@ -14,6 +14,7 @@ namespace ObtainiumPC.Pages
         public ImportExportPage()
         {
             this.InitializeComponent();
+            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
             Loaded += (s2, e2) =>
             {
                 InstalledOnlyToggle.IsOn = App.Settings.ExportInstalledOnly;
