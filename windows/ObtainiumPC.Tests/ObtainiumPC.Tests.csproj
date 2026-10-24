@@ -17,6 +17,7 @@
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\ObtainiumPC\Models\TrackedApp.cs" Link="Models\TrackedApp.cs" />
@@ -33,6 +34,7 @@
     <Compile Include="..\ObtainiumPC\Services\Store\AppStore.cs" Link="Services\AppStore.cs" />
     <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\CoolApk\CoolApkSource.cs" Link="Sources\CoolApkSource.cs" />
     <Compile Include="..\ObtainiumPC\Pages\ThemeLookupCore.cs" Link="Pages\ThemeLookupCore.cs" />
   </ItemGroup>
 </Project>

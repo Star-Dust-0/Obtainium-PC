@@ -4,6 +4,7 @@ using ObtainiumPC.Sources.ApkCombo;
 using ObtainiumPC.Sources.Aptoide;
 using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
+using ObtainiumPC.Sources.CoolApk;
 using ObtainiumPC.Sources.DirectLink;
 using ObtainiumPC.Sources.Farsroid;
 using ObtainiumPC.Sources.FDroid;
@@ -92,6 +93,8 @@ public static class SourceCatalog
             return new RockModsSource();
         if (host == "sj.qq.com")
             return new TencentSource();
+        if (host == "coolapk.com" || host.EndsWith(".coolapk.com"))
+            return new CoolApkSource();
         if (host == "android.izzysoft.de" || host == "apt.izzysoft.de" || host == "izzysoft.de" || host == "www.izzysoft.de")
             return new IzzyOnDroidSource();
         if (host == "telegram.org" || host == "www.telegram.org")
