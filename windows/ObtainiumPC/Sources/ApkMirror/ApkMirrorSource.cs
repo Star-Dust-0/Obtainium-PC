@@ -468,8 +468,10 @@ public sealed class ApkMirrorSource : AppSourceBase
         var dotIndex = fileName.LastIndexOf('.');
         var stem = dotIndex > 0 ? fileName.Substring(0, dotIndex) : fileName;
         var unsizedStem = Regex.Replace(stem, @"-\d+x\d+$", "");
-        foreach (var segment in unsizedStem.Split('_').Reverse())
+        var unsizedSegments = unsizedStem.Split('_');
+        for (var i = unsizedSegments.Length - 1; i >= 0; i--)
         {
+            var segment = unsizedSegments[i];
             if (!PackagePattern.IsMatch(segment)) continue;
             if (segment.Contains("apkmirror", StringComparison.OrdinalIgnoreCase)) continue;
             return segment;
