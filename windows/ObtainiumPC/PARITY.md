@@ -25,7 +25,7 @@ WinUI 3 port. Statuses:
 | itch.io | mapped | selects Windows uploads (icon-windows8); itch.io's own "no thanks" free-download path; signed Cloudflare R2 URLs resolved at download time, never persisted |
 | GitHub Stars (githubstars) | pending | portable - GitHub API only |
 | Jenkins | pending | portable - arbitrary binaries, can install on Windows |
-| F-Droid (fdroid) | pending | Android packages - proposed track-only |
+| F-Droid (fdroid) | track-only | ported pipeline; install disabled with label; ABI nativecode filtering not ported (Android-only) |
 | F-Droid third-party repo (fdroidrepo) | pending | Android packages - proposed track-only |
 | IzzyOnDroid | pending | Android packages - proposed track-only |
 | APKMirror | pending | Android packages - proposed track-only |
