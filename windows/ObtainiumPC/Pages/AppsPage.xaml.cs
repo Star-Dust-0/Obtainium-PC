@@ -50,6 +50,12 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        public string CategoriesText =>
+            App.Categories.Count > 0 ? string.Join("  -  ", App.Categories) : "";
+
+        public Visibility CategoriesVisibility =>
+            App.Categories.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
         public string Status
         {
             get
@@ -331,6 +337,17 @@ base.OnNavigatedTo(e);
             var chosen = boxes.Where(b => b.IsChecked == true).Select(b => (string)b.Content).ToList();
             var newCat = (newBox.Text ?? "").Trim();
             if (newCat.Length > 0 && !chosen.Contains(newCat)) chosen.Add(newCat);
+            // lib/components/category_editor.dart: new categories join the
+            // registry with a random light color.
+            foreach (var c in chosen)
+            {
+                if (!App.Settings.CategoryColors.ContainsKey(c))
+                    App.Settings.CategoryColors[c] = (int)(0xFF000000
+                        | (uint)(150 + Random.Shared.Next(105)) << 16
+                        | (uint)(150 + Random.Shared.Next(105)) << 8
+                        | (uint)(150 + Random.Shared.Next(105)));
+            }
+            App.Settings.Save();
             foreach (var a in sel) a.Categories = chosen.ToList();
             await App.SaveAppsAsync();
             ReloadCategoryCombo();

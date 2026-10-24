@@ -33,6 +33,8 @@ public sealed class AppSettings
     public string? AutoExportPath { get; set; }
     // lib/providers/settings_provider.dart exportInstalledOnly
     public bool ExportInstalledOnly { get; set; }
+    // lib/providers/settings_provider.dart categories: name -> ARGB color int.
+    public System.Collections.Generic.Dictionary<string, int> CategoryColors { get; set; } = new();
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;

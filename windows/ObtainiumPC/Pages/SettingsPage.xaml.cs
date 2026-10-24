@@ -27,6 +27,7 @@ namespace ObtainiumPC.Pages
 
         private void LoadValues()
         {
+            ReloadCategoryList();
             _loading = true;
             var s = App.Settings;
 
@@ -115,6 +116,37 @@ namespace ObtainiumPC.Pages
         private void NotifyToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.NotifyUpdates = NotifyToggle.IsOn; Save(); }
         private void HideDowngradesToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideDowngrades = HideDowngradesToggle.IsOn; Save(); }
         private void AddWithoutCheckToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.AllowAddingAppsWithoutCheck = AddWithoutCheckToggle.IsOn; Save(); }
+        public sealed class CategoryRow
+        {
+            public string Name { get; set; } = "";
+            public Microsoft.UI.Xaml.Media.Brush Swatch { get; set; } = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+        }
+
+        private void ReloadCategoryList()
+        {
+            CategoryList.ItemsSource = App.Settings.CategoryColors
+                .OrderBy(kv => kv.Key)
+                .Select(kv => new CategoryRow
+                {
+                    Name = kv.Key,
+                    Swatch = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                        Windows.UI.Color.FromArgb(255, (byte)(kv.Value >> 16), (byte)(kv.Value >> 8), (byte)kv.Value)),
+                })
+                .ToList();
+        }
+
+        // lib/providers/settings_provider.dart setCategories: deleting a
+        // category also removes it from every app.
+        private async void DeleteCategory_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as Button)?.Tag is not string name) return;
+            App.Settings.CategoryColors.Remove(name);
+            App.Settings.Save();
+            foreach (var a in App.TrackedApps.Where(a => a.Categories.Remove(name))) { }
+            await App.SaveAppsAsync();
+            ReloadCategoryList();
+        }
+
         private void DensityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             App.Settings.ListDensity = DensityCombo.SelectedIndex == 2 ? "dense" : DensityCombo.SelectedIndex == 1 ? "compact" : "standard";
