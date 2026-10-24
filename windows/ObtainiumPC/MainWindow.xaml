@@ -25,6 +25,9 @@
             <muxc:NavigationViewItem Content="Import / Export" Tag="importexport">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8CB;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
+            <muxc:NavigationViewItem Content="Logs" Tag="logs">
+                <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8A5;"/></muxc:NavigationViewItem.Icon>
+            </muxc:NavigationViewItem>
             <muxc:NavigationViewItem Content="Settings" Tag="settings">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>

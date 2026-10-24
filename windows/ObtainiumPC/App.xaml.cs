@@ -38,6 +38,7 @@ namespace ObtainiumPC
             Settings = AppSettings.Load();
             Store = new AppStore();
             Updater = new AppUpdateService(Settings);
+            Services.Logging.AppLogger.PurgeOld();
             TrackedApps = await Store.LoadAsync();
             Initialized = true;
         }

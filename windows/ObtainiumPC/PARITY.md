@@ -65,7 +65,7 @@ nothing is silently omitted.
 | Import / Export | ported | upstream schema v2, three credential levels, same-ID replace |
 | Apps list search/filter | mapped | name/author/URL query + updates-only toggle; categories pending | |
 | Apps list categories/groups | pending | |
-| Logs page | pending | needs a log store first |
+| Logs page | ported | JSONL store, 7-day retention, day filter, copy, clear |
 | Crowdsourced app configs | pending | source presets from the community repo |
 | Localization infra | pending | English default + language picker |
 | APK installer actions | blocked | Android-only; install stays interactive-only on Windows |
