@@ -58,6 +58,16 @@ namespace ObtainiumPC.Pages
                 && _app.InstalledVersion != null
                 && _app.InstalledVersion == _app.LatestVersion
                 ? Visibility.Visible : Visibility.Collapsed;
+            // lib/pages/app.dart _buildRepoRenameSection.
+            if (_app.HasPendingRepoRename)
+            {
+                RenameUrlText.Text = _app.PendingRepoRenameUrl;
+                RenameBar.IsOpen = true;
+            }
+            else
+            {
+                RenameBar.IsOpen = false;
+            }
             // lib/pages/app.dart hasAction + Install/Update label.
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
@@ -247,6 +257,34 @@ namespace ObtainiumPC.Pages
                 XamlRoot = this.XamlRoot,
             };
             await dialog.ShowAsync();
+        }
+
+        // lib/providers/apps_provider_install.dart updatePendingRepoRename(id, null)
+        private async void RenameDismiss_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            _app.PendingRepoRenameUrl = null;
+            await App.SaveAppsAsync();
+            Render();
+        }
+
+        // lib/providers/apps_provider_install.dart acceptRepoRename + getUpdate
+        private async void RenameAccept_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app?.PendingRepoRenameUrl is not { } newUrl) return;
+            _app.Url = newUrl;
+            _app.PendingRepoRenameUrl = null;
+            await App.SaveAppsAsync();
+            try
+            {
+                await App.Updater.CheckAppAsync(_app.Url, _app.AdditionalSettings, _app);
+                await App.SaveAppsAsync();
+            }
+            catch (Exception ex)
+            {
+                Show(InfoBarSeverity.Error, "Update check failed on the new URL: " + ex.Message);
+            }
+            Render();
         }
 
         private async void ResetInstall_Click(object sender, RoutedEventArgs e)

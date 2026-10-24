@@ -61,6 +61,13 @@ public sealed class BackgroundUpdateService
                 {
                     await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
                 }
+                // lib/providers/apps_provider_updates.dart: a detected repo
+                // rename is not an error; flag it and leave the app unchanged.
+                catch (Sources.RepositoryRenamedException rre)
+                {
+                    app.PendingRepoRenameUrl = rre.NewUrl;
+                    Logging.AppLogger.Info($"Repo rename detected for {app.FinalName}: {rre.NewUrl}");
+                }
                 catch (Exception e)
                 {
                     app.ConsecutiveFailedChecks++;

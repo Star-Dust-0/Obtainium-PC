@@ -39,6 +39,18 @@
 
                 <InfoBar x:Name="MessageBar" IsOpen="False" IsClosable="True" Message=""/>
 
+                <!-- lib/pages/app.dart _buildRepoRenameSection -->
+                <InfoBar x:Name="RenameBar" IsOpen="False" Severity="Warning" Title="Repository renamed" IsClosable="False">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="The source reports this repository moved. Review the new URL, then update or dismiss." TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RenameUrlText" TextWrapping="Wrap" FontWeight="SemiBold" IsTextSelectionEnabled="True"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Update URL" Click="RenameAccept_Click"/>
+                            <Button Content="Dismiss" Click="RenameDismiss_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </InfoBar>
+
                 <StackPanel Spacing="4">
                     <TextBlock x:Name="InstalledText" TextWrapping="Wrap"/>
                     <TextBlock x:Name="LatestText" TextWrapping="Wrap"/>
