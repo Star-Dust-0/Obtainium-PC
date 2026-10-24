@@ -7,7 +7,9 @@
     xmlns:local="using:ObtainiumPC">
     <muxc:NavigationView
         x:Name="NavView"
-        PaneDisplayMode="Left"
+        PaneDisplayMode="LeftCompact"
+        CompactModeThresholdWidth="640"
+        ExpandedModeThresholdWidth="1100"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         SelectionChanged="NavView_SelectionChanged"
