@@ -87,6 +87,10 @@ namespace ObtainiumPC.Pages
             // (sortColumn/sortOrder).
             var sorted = Services.Store.AppSort.Sort(App.TrackedApps,
                 App.Settings.SortColumn, App.Settings.SortOrder);
+            // lib/components/app_list_tile.dart AppListBuilder.reorder
+            sorted = Services.Store.AppSort.Reorder(sorted,
+                App.Settings.PinUpdates, App.Settings.BuryNonInstalled,
+                App.Updater.IsAppUpdateable);
             foreach (var app in sorted)
             {
                 var hasUpdate = App.Updater.IsAppUpdateable(app);

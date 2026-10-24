@@ -47,5 +47,22 @@ namespace ObtainiumPC.Services.Store
                 .Select(t => t.a)
                 .ToList();
         }
+
+        // lib/components/app_list_tile.dart AppListBuilder.reorder
+        public static List<TrackedApp> Reorder(
+            IReadOnlyList<TrackedApp> apps, bool pinUpdates, bool buryNonInstalled,
+            Func<TrackedApp, bool> hasUpdate)
+        {
+            IEnumerable<TrackedApp> result = apps;
+            if (pinUpdates)
+                result = result.OrderBy(a => hasUpdate(a) ? 0 : 1);
+            if (buryNonInstalled)
+                result = result.OrderBy(a => a.InstalledVersion == null ? 1 : 0);
+            // renamed first, then pinned, then normal, disabled last; stable
+            // within each bucket (upstream preserves encounter order).
+            return result
+                .OrderBy(a => a.Disabled ? 3 : a.HasPendingRepoRename ? 0 : a.Pinned ? 1 : 2)
+                .ToList();
+        }
     }
 }

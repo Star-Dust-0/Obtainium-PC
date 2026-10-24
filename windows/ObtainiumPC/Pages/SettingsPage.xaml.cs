@@ -39,6 +39,8 @@ namespace ObtainiumPC.Pages
             SortOrderCombo.Items.Add("Ascending");
             SortOrderCombo.Items.Add("Descending");
             SortOrderCombo.SelectedIndex = App.Settings.SortOrder == 1 ? 1 : 0;
+            PinUpdatesToggle.IsOn = App.Settings.PinUpdates;
+            BuryNonInstalledToggle.IsOn = App.Settings.BuryNonInstalled;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
 
             foreach (var (label, minutes) in IntervalOptions) UpdateIntervalCombo.Items.Add(new ComboBoxItem { Content = label, Tag = minutes });
@@ -62,6 +64,9 @@ namespace ObtainiumPC.Pages
         }
 
         private void Save() { if (!_loading) App.Settings.Save(); }
+
+        private void PinUpdatesToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.PinUpdates = PinUpdatesToggle.IsOn; Save(); }
+        private void BuryNonInstalledToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.BuryNonInstalled = BuryNonInstalledToggle.IsOn; Save(); }
 
         private void SortByCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

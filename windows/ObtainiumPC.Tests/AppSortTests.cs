@@ -53,5 +53,34 @@ namespace ObtainiumPC.Tests
             Assert.Equal(new[] { "old", "new", "noDate" }, Names(AppSort.Sort(apps, 3, 0)));
             Assert.Equal(new[] { "new", "old", "noDate" }, Names(AppSort.Sort(apps, 3, 1)));
         }
+
+        [Fact]
+        public void Reorder_PinUpdates_PutsUpdatesFirst()
+        {
+            var apps = new List<TrackedApp> { Mk("plain", "a"), Mk("upd", "a") };
+            var r = AppSort.Reorder(apps, true, false, a => a.FinalName == "upd");
+            Assert.Equal(new[] { "upd", "plain" }, Names(r));
+        }
+
+        [Fact]
+        public void Reorder_BuryNonInstalled_MovesThemLast()
+        {
+            var notInstalled = Mk("fresh", "a");
+            var installed = Mk("have", "a");
+            installed.InstalledVersion = "1.0";
+            var r = AppSort.Reorder(new List<TrackedApp> { notInstalled, installed }, false, true, _ => false);
+            Assert.Equal(new[] { "have", "fresh" }, Names(r));
+        }
+
+        [Fact]
+        public void Reorder_Buckets_RenamedPinnedNormalDisabled()
+        {
+            var disabled = Mk("off", "a"); disabled.Disabled = true;
+            var pinned = Mk("pin", "a"); pinned.Pinned = true;
+            var renamed = Mk("rn", "a"); renamed.PendingRepoRenameUrl = "https://example.com/new";
+            var normal = Mk("mid", "a");
+            var r = AppSort.Reorder(new List<TrackedApp> { normal, disabled, pinned, renamed }, false, false, _ => false);
+            Assert.Equal(new[] { "rn", "pin", "mid", "off" }, Names(r));
+        }
     }
 }

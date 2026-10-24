@@ -22,6 +22,8 @@ public sealed class AppSettings
     // sortColumn 0=added 1=nameAuthor 2=authorName 3=releaseDate; sortOrder 0=asc 1=desc.
     public int SortColumn { get; set; } = 1;
     public int SortOrder { get; set; }
+    public bool PinUpdates { get; set; } = true;
+    public bool BuryNonInstalled { get; set; }
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;
