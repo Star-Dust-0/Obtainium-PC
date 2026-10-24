@@ -120,6 +120,8 @@ public static class Loc
         ["No source"] = "بلا مصدر",
         ["{0} app"] = "تطبيق واحد",
         ["{0} apps"] = "{0} تطبيقات",
+        ["Update available"] = "التحديث متاح",
+        ["All"] = "الكل",
 
         // Settings labels
         ["Theme"] = "السمة",

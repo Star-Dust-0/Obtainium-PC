@@ -90,7 +90,7 @@ namespace ObtainiumPC.Pages
             {
                 if (App.Disabled) return "Tracking disabled";
                 if (HealthFlagged) return "Update-health issue";
-                if (HasUpdate) return "Update available";
+                if (HasUpdate) return Services.Localization.Loc.T("Update available");
                 if (App.ConsecutiveFailedChecks > 0) return $"Last check failed ({App.ConsecutiveFailedChecks}x)";
                 return "";
             }
@@ -244,10 +244,10 @@ base.OnNavigatedTo(e);
         {
             var keep = CategoryCombo.SelectedItem as string;
             CategoryCombo.Items.Clear();
-            CategoryCombo.Items.Add("All");
+            CategoryCombo.Items.Add(Services.Localization.Loc.T("All"));
             foreach (var c in App.TrackedApps.SelectMany(a => a.Categories).Distinct().OrderBy(c => c))
                 CategoryCombo.Items.Add(c);
-            CategoryCombo.SelectedItem = keep != null && CategoryCombo.Items.Contains(keep) ? keep : "All";
+            CategoryCombo.SelectedItem = keep != null && CategoryCombo.Items.Contains(keep) ? keep : Services.Localization.Loc.T("All");
             if (CategoryCombo.SelectedItem == null) CategoryCombo.SelectedIndex = 0;
         }
 
