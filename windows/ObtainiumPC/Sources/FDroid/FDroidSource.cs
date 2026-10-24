@@ -28,6 +28,15 @@ public class FDroidSource : AppSourceBase
     }
 
     public override string Name => "F-Droid";
+
+    public override IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems { get; } =
+        new IReadOnlyList<Forms.OptionFormItem>[]
+        {
+            new Forms.OptionFormItem[] { new() { Key = "", Label = "Version selection", Kind = Forms.OptionFormItemKind.Header } },
+            new Forms.OptionFormItem[] { new() { Key = "filterVersionsByRegEx", Label = "Filter versions by regular expression", Kind = Forms.OptionFormItemKind.Text, ValidateRegex = true } },
+            new Forms.OptionFormItem[] { new() { Key = "trySelectingSuggestedVersionCode", Label = "Try selecting suggested versionCode APK", Kind = Forms.OptionFormItemKind.Switch, DefaultBool = true } },
+            new Forms.OptionFormItem[] { new() { Key = "autoSelectHighestVersionCode", Label = "Auto-select highest versionCode APK", Kind = Forms.OptionFormItemKind.Switch } },
+        };
     public override IReadOnlyList<string> Hosts => new[] { "f-droid.org" };
     public override bool NaiveStandardVersionDetection => true;
     public override bool SupportsInstall => false;

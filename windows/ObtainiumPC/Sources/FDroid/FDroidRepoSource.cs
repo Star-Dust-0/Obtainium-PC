@@ -39,6 +39,15 @@ public sealed class FDroidRepoSource : AppSourceBase
     }
 
     public override string Name => "F-Droid Third-Party Repo";
+
+    public override IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems { get; } =
+        new IReadOnlyList<Forms.OptionFormItem>[]
+        {
+            new Forms.OptionFormItem[] { new() { Key = "appIdOrName", Label = "App ID or name", Kind = Forms.OptionFormItemKind.Text, Hint = "Repos may contain multiple apps" } },
+            new Forms.OptionFormItem[] { new() { Key = "", Label = "Version selection", Kind = Forms.OptionFormItemKind.Header } },
+            new Forms.OptionFormItem[] { new() { Key = "pickHighestVersionCode", Label = "Auto-select highest version code APK", Kind = Forms.OptionFormItemKind.Switch } },
+            new Forms.OptionFormItem[] { new() { Key = "trySelectingSuggestedVersionCode", Label = "Try selecting suggested versionCode APK", Kind = Forms.OptionFormItemKind.Switch, DefaultBool = true } },
+        };
     public override IReadOnlyList<string> Hosts => Array.Empty<string>();
     public override bool SupportsInstall => false;
 

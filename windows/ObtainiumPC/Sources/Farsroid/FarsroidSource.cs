@@ -25,6 +25,13 @@ public sealed class FarsroidSource : AppSourceBase
     public override IReadOnlyList<string> Hosts => new[] { "farsroid.com" };
     public override bool SupportsInstall => false;
 
+    public override IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems { get; } =
+        new IReadOnlyList<Forms.OptionFormItem>[]
+        {
+            new Forms.OptionFormItem[] { new() { Key = "useFirstApkOfVersion", Label = "Auto-select first of multiple APKs", Kind = Forms.OptionFormItemKind.Switch, DefaultBool = true } },
+            new Forms.OptionFormItem[] { new() { Key = "releaseTitleAsVersion", Label = "Use release title as version string", Kind = Forms.OptionFormItemKind.Switch } },
+        };
+
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false) =>
         StandardizeUrlWithRegex(url, subdomainPrefix: @"([^\.]+\.)", pathPattern: @"/[^/]+");
 
