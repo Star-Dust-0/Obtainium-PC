@@ -386,6 +386,70 @@ jobs:
           [W]::SetWindowPos([IntPtr]$win2.Current.NativeWindowHandle, [IntPtr]::Zero, 100, 60, 700, 480, 0x4) | Out-Null
           Start-Sleep 3
           AssertAlive 'small-window'; Shot '14-small-window'
+
+          # ---- obtainium:// deep links (single-instance redirect + interpretLink) ----
+          # Registration was applied on startup; HKCU on the disposable runner only.
+          $dlCmd = (Get-ItemProperty 'HKCU:\Software\Classes\obtainium\shell\open\command' -ErrorAction SilentlyContinue).'(default)'
+          "deeplink command: $dlCmd"
+          if ($dlCmd -notlike '*ObtainiumPC*') { Shot 'deeplink-not-registered'; throw 'obtainium:// not registered by the app' }
+
+          # 1) add -> existing app: the tracked npp repo opens its detail page.
+          Start-Process $exe -ArgumentList 'obtainium://add?url=https%3A%2F%2Fgithub.com%2Fnotepad-plus-plus%2Fnotepad-plus-plus'
+          Start-Sleep 5
+          AssertAlive 'deeplink-add-existing'
+          $nppCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Notepad++')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppCond) -eq $null) { Shot 'deeplink-add-existing-missing'; throw 'deep-link add did not open the existing app detail page' }
+          Shot '18-deeplink-add-existing'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+
+          # 2) add -> new URL: Add App opens prefilled.
+          Start-Process $exe -ArgumentList 'obtainium://add?url=https%3A%2F%2Fgithub.com%2FImranR98%2FObtainium'
+          Start-Sleep 4
+          AssertAlive 'deeplink-add-prefill'
+          $editCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+          $prefilled = $false
+          foreach ($e in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $editCond)) {
+            try { if ($e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -like '*ImranR98/Obtainium*') { $prefilled = $true } } catch {}
+          }
+          if (-not $prefilled) { Shot 'deeplink-prefill-missing'; throw 'deep-link add did not prefill Add App' }
+          Shot '19-deeplink-add-prefill'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+
+          # 3) app payload: confirmation dialog appears (then cancel; no import).
+          $dlJson = '{"id":"deeplink-smoke-1","url":"https://github.com/ImranR98/Obtainium","author":"ImranR98","name":"Obtainium","additionalSettings":"{}"}'
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson))
+          Start-Sleep 4
+          $dlgCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgCond) -eq $null) { Shot 'deeplink-import-missing'; throw 'deep-link app payload did not show the import confirmation' }
+          Shot '20-deeplink-import-dialog'
+          $cancelCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Cancel')
+          $cancelBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cancelCond)
+          if ($cancelBtn -ne $null) { try { $cancelBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+
+          # 4) malformed payload: error dialog, never an import.
+          Start-Process $exe -ArgumentList 'obtainium://app/not-json'
+          Start-Sleep 4
+          $errCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import failed')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $errCond) -eq $null) { Shot 'deeplink-invalid-missing'; throw 'malformed deep-link did not show the error dialog' }
+          Shot '21-deeplink-invalid'
+          $closeCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Close')
+          $closeBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $closeCond)
+          if ($closeBtn -ne $null) { try { $closeBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+
+          # 5) refresh: triggers an update check, app stays healthy.
+          Start-Process $exe -ArgumentList 'obtainium://refresh'
+          Start-Sleep 4
+          AssertAlive 'deeplink-refresh'
+
+          # Every launch above went through the single-instance redirect.
+          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+          "ObtainiumPC processes after deep links: $($procs.Count)"
+          if ($procs.Count -ne 1) { Shot 'deeplink-instance-count'; throw "expected 1 ObtainiumPC process, found $($procs.Count)" }
+          'deep links verified'
           Stop-Process -Id $p.Id -Force
       - uses: actions/upload-artifact@v4
         if: always()

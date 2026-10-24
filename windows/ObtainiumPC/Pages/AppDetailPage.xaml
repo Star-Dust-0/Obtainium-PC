@@ -16,7 +16,10 @@
 
                 <CommandBar x:Name="DetailCommandBar" DefaultLabelPosition="Right" Background="Transparent">
                     <AppBarButton x:Name="UpdateButton" Label="Update" Click="Update_Click">
-                        <AppBarButton.Icon><FontIcon Glyph="&#xE896;"/></AppBarButton.Icon>
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE777;"/></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="InstallButton" Label="Install" Click="Update_Click" Visibility="Collapsed">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE8B5;"/></AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton Label="Options" Click="Options_Click" ToolTipService.ToolTip="Per-app options">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE70F;"/></AppBarButton.Icon>

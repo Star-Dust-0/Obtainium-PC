@@ -92,32 +92,19 @@ namespace ObtainiumPC.Pages
             {
                 HealthLink.Visibility = Visibility.Collapsed;
             }
-            // lib/pages/app.dart hasAction + Install/Update label.
+            // lib/pages/app.dart hasAction + Install/Update label. Two
+            // pre-templated buttons swapped by Visibility: a programmatic
+            // Label change on an already-templated AppBarButton renders stale
+            // text once the button has been disabled (ui-smoke 40139280718:
+            // UIA name "Update", pixels "Install" - persisting even across
+            // visibility toggles and remove/reinsert). Baked-in labels cannot
+            // go stale; both buttons share Update_Click.
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
             UpdateButton.IsEnabled = actionEnabled;
-            // Upstream labels from installed==null regardless of enabled state:
-            // a disabled button at version parity reads "Update", not "Install".
-            var actionLabel = Services.Localization.Loc.T(firstInstall ? "Install" : "Update");
-            if (UpdateButton.Label != actionLabel)
-            {
-                UpdateButton.Label = actionLabel;
-                // WinUI 3 AppBarButton: a programmatic Label change on an
-                // already-templated button does not reliably re-render the
-                // text (ui-smoke 40138881409: UIA name said "Update" while
-                // pixels still rendered "Install", even across a visibility
-                // toggle). Removing and re-inserting the element forces a
-                // fresh template application, so pixels match the property.
-                var commands = DetailCommandBar.PrimaryCommands;
-                var idx = commands.IndexOf(UpdateButton);
-                if (idx >= 0)
-                {
-                    commands.RemoveAt(idx);
-                    commands.Insert(idx, UpdateButton);
-                }
-            }
-            ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph =
-                firstInstall ? "\uE8B5" : "\uE777";
+            InstallButton.IsEnabled = actionEnabled;
+            UpdateButton.Visibility = firstInstall ? Visibility.Collapsed : Visibility.Visible;
+            InstallButton.Visibility = firstInstall ? Visibility.Visible : Visibility.Collapsed;
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
@@ -189,6 +176,7 @@ namespace ObtainiumPC.Pages
             if (picked < 0) return;
             var asset = assets[picked];
             UpdateButton.IsEnabled = false;
+            InstallButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
             try
             {
@@ -248,8 +236,10 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 DownloadPanel.Visibility = Visibility.Collapsed;
                 // Recompute instead of blindly re-enabling: if detection already
                 // reconciled installed == latest, the action stays disabled.
-                UpdateButton.IsEnabled = Services.Versioning.VersionService
+                var postEnabled = Services.Versioning.VersionService
                     .DetailAction(_app.InstalledVersion, _app.LatestVersion).Enabled;
+                UpdateButton.IsEnabled = postEnabled;
+                InstallButton.IsEnabled = postEnabled;
             }
         }
 
