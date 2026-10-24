@@ -100,7 +100,7 @@ public sealed class ApkPureSource : AppSourceBase
         var v = versionVariants[0];
         var version = v.TryGetProperty("version_name", out var vn) ? vn.ToString() : null;
         if (string.IsNullOrEmpty(version)) throw new FDroid.NoVersionException();
-        var author = v.TryGetProperty("developer", out var dev) ? dev.ToString() : Name;
+        var author = v.TryGetProperty("developer", out var dev) ? dev.ToString() : "APKPure";
         var appName = v.TryGetProperty("title", out var title) ? title.ToString() : "App";
         DateTimeOffset? releaseDate = null;
         if (v.TryGetProperty("update_date", out var ud)
