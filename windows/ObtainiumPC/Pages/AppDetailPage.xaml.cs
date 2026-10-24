@@ -69,6 +69,17 @@ namespace ObtainiumPC.Pages
                 RenameBar.IsOpen = false;
             }
             // lib/pages/app.dart: update-health note linking to the health page.
+            // lib/models/app.dart isVersionPseudo + app.dart detail notes.
+            var trackOnlyApp = _app.AdditionalSettings.TryGetValue("trackOnly", out var toe)
+                && toe.ValueKind == System.Text.Json.JsonValueKind.True;
+            var versionDetection = !_app.AdditionalSettings.TryGetValue("versionDetection", out var vde)
+                || vde.ValueKind != System.Text.Json.JsonValueKind.False;
+            var pseudo = trackOnlyApp || (_app.InstalledVersion != null && !versionDetection);
+            var notes = new System.Collections.Generic.List<string>();
+            if (trackOnlyApp) notes.Add("This app is track-only.");
+            if (pseudo) notes.Add("Pseudo-versioning is in use for this app.");
+            VersionNoteText.Text = string.Join("\n", notes);
+            VersionNoteText.Visibility = notes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             var healthIgnored = Services.Updates.UpdateHealthService.IsIgnored(_app);
             var healthIssues = Services.Updates.UpdateHealthService.HasIssues(_app, App.Settings);
             if (healthIssues || healthIgnored)

@@ -52,6 +52,7 @@
                 </InfoBar>
 
                 <StackPanel Spacing="4">
+                    <TextBlock x:Name="VersionNoteText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontStyle="Italic" Visibility="Collapsed"/>
                     <TextBlock x:Name="InstalledText" TextWrapping="Wrap"/>
                     <TextBlock x:Name="LatestText" TextWrapping="Wrap"/>
                     <HyperlinkButton x:Name="ReleaseDateLink" Click="ReleaseDate_Click" Visibility="Collapsed" Padding="0">
