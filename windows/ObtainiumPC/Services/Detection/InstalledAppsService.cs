@@ -59,22 +59,61 @@ public static class InstalledAppsService
         catch { /* hive unavailable - skip */ }
     }
 
-    /// Best match for a tracked app name: exact normalized match first, then
-    /// containment either way (longest candidate wins).
-    public static InstalledAppInfo? FindBestMatch(string appName, IReadOnlyList<InstalledAppInfo>? installed = null)
+    public enum MatchConfidence { None, Weak, Strong, Exact }
+
+    public sealed record MatchResult(InstalledAppInfo Info, MatchConfidence Confidence);
+
+    /// <summary>
+    /// Matches a tracked app to an installed program with explicit confidence.
+    /// Windows has no package ID for Win32 apps, so identity must be
+    /// conservative: only Exact and Strong matches may drive anything
+    /// user-visible; Weak/Ambiguous results are returned as null so a wrong
+    /// match can never drive an action. Order of attempts:
+    /// 1. Exact normalized display-name match (publisher disambiguates ties).
+    /// 2. Unique containment match with at least 60% length overlap and a
+    ///    minimum normalized length of 4, publisher disambiguates ties.
+    /// Anything ambiguous returns null.
+    /// </summary>
+    public static InstalledAppInfo? FindBestMatch(string appName, string? publisherHint = null, IReadOnlyList<InstalledAppInfo>? installed = null)
+        => FindMatch(appName, publisherHint, installed)?.Info;
+
+    public static MatchResult? FindMatch(string appName, string? publisherHint = null, IReadOnlyList<InstalledAppInfo>? installed = null)
     {
         installed ??= ListInstalledApps();
         var needle = Normalize(appName);
         if (needle.Length == 0) return null;
-        var exact = installed.FirstOrDefault(a => Normalize(a.DisplayName) == needle);
-        if (exact != null) return exact;
-        return installed
+        var publisher = string.IsNullOrWhiteSpace(publisherHint) ? null : Normalize(publisherHint);
+
+        InstalledAppInfo? Disambiguate(List<InstalledAppInfo> candidates)
+        {
+            if (candidates.Count == 1) return candidates[0];
+            if (publisher != null)
+            {
+                var byPublisher = candidates
+                    .Where(c => c.Publisher != null && Normalize(c.Publisher).Contains(publisher))
+                    .ToList();
+                if (byPublisher.Count == 1) return byPublisher[0];
+            }
+            return null; // ambiguous - never guess
+        }
+
+        var exact = installed.Where(a => Normalize(a.DisplayName) == needle).ToList();
+        var exactMatch = Disambiguate(exact);
+        if (exactMatch != null) return new MatchResult(exactMatch, MatchConfidence.Exact);
+
+        if (needle.Length < 4) return null; // too short to contain-match safely
+
+        var containment = installed
             .Where(a =>
             {
                 var hay = Normalize(a.DisplayName);
-                return hay.Length > 0 && (hay.Contains(needle) || needle.Contains(hay));
+                if (hay.Length == 0 || !(hay.Contains(needle) || needle.Contains(hay))) return false;
+                var shorter = Math.Min(hay.Length, needle.Length);
+                var longer = Math.Max(hay.Length, needle.Length);
+                return shorter >= 4 && shorter * 5 >= longer * 3; // >= 60% overlap
             })
-            .OrderByDescending(a => Normalize(a.DisplayName).Length)
-            .FirstOrDefault();
+            .ToList();
+        var containmentMatch = Disambiguate(containment);
+        return containmentMatch != null ? new MatchResult(containmentMatch, MatchConfidence.Strong) : null;
     }
 }

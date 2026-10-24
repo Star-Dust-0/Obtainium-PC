@@ -111,12 +111,15 @@ public sealed class AppUpdateService
         }
 
         // Reconcile with the OS-detected installed version (upstream:
-        // PackageManager; Windows: registry Uninstall entries, name heuristic).
-        // Skipped for track-only apps and when version detection is off.
+        // PackageManager; Windows: registry Uninstall entries). The matcher is
+        // conservative: only exact or uniquely-strong name matches (publisher
+        // disambiguated) are used; ambiguous results leave the stored version
+        // untouched so a wrong match never drives an action.
         if (currentApp != null && !trackOnly && SettingBool(settings, "versionDetection", fallback: true))
         {
-            var detected = Detection.InstalledAppsService.FindBestMatch(currentApp.FinalName);
-            if (detected?.DisplayVersion is { } osVersion && osVersion.Length > 0)
+            var detected = Detection.InstalledAppsService.FindMatch(currentApp.FinalName, currentApp.Author);
+            if (detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
+                && detected.Info.DisplayVersion is { Length: > 0 } osVersion)
                 currentApp.InstalledVersion = osVersion;
         }
 
