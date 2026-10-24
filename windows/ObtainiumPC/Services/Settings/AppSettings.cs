@@ -16,6 +16,9 @@ public sealed class AppSettings
     public int MinimumUpdateAgeDays { get; set; }
     public int UpdateIntervalMinutes { get; set; } = 360;
     public bool CheckOnStart { get; set; } = true;
+    // Register obtainium:// under HKCU\Software\Classes so Obtainium links
+    // open in Obtainium-PC (upstream declares the scheme in its manifest).
+    public bool HandleObtainiumLinks { get; set; } = true;
     public bool NotifyUpdates { get; set; } = true;
     public string Theme { get; set; } = "system";
     // Upstream stores these as enum indices (settings_provider.dart):

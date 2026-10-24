@@ -20,16 +20,49 @@ namespace ObtainiumPC
         public static List<TrackedApp> TrackedApps { get; private set; } = new();
         public static bool Initialized { get; private set; }
 
+        /// An obtainium:// link delivered before the shell finished init.
+        public static string? PendingDeepLink { get; set; }
+
         public App()
         {
             this.InitializeComponent();
         }
 
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            // Single instance (upstream Android is inherently single-instance):
+            // a second launch - including an obtainium:// shell open - hands
+            // its activation to the running instance and exits, so two
+            // processes never race the apps/settings stores.
+            var keyInstance = Microsoft.Windows.AppLifecycle.AppInstance.FindOrRegisterForKey("ObtainiumPC");
+            if (!keyInstance.IsCurrent)
+            {
+                var activation = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+                await keyInstance.RedirectActivationToAsync(activation);
+                System.Diagnostics.Process.GetCurrentProcess().Kill();
+                return;
+            }
+            Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().Activated += (_, a) =>
+            {
+                if (a.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch
+                    && a.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch)
+                    EnqueueDeepLink(launch.Arguments);
+            };
+            EnqueueDeepLink(args.Arguments);
             _window = new MainWindow();
             MainWindowInstance = _window;
             _window.Activate();
+        }
+
+        /// Routes an obtainium:// link from a command line to the shell once
+        /// init has finished; stashes it as pending otherwise.
+        public static void EnqueueDeepLink(string? commandLine)
+        {
+            if (!Services.DeepLinkService.TryExtractLink(commandLine, out var link)) return;
+            if (MainWindowInstance is MainWindow mw && Initialized)
+                mw.DispatcherQueue.TryEnqueue(() => _ = mw.HandleDeepLinkAsync(link));
+            else
+                PendingDeepLink = link;
         }
 
         public static async Task InitAsync()

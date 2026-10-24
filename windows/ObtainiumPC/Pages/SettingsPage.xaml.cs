@@ -69,6 +69,7 @@ namespace ObtainiumPC.Pages
             MinAgeCombo.SelectedIndex = mi >= 0 ? mi : 0;
 
             CheckOnStartToggle.IsOn = s.CheckOnStart;
+            HandleLinksToggle.IsOn = s.HandleObtainiumLinks;
             NotifyToggle.IsOn = s.NotifyUpdates;
             HideDowngradesToggle.IsOn = s.HideDowngrades;
             GlobalVersionRegexBox.Text = s.GlobalVersionExtractionRegEx ?? "";
@@ -142,6 +143,12 @@ namespace ObtainiumPC.Pages
         }
 
         private void CheckOnStartToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CheckOnStart = CheckOnStartToggle.IsOn; Save(); }
+        private void HandleLinksToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            App.Settings.HandleObtainiumLinks = HandleLinksToggle.IsOn;
+            Save();
+            Services.DeepLinkService.ApplyRegistrationSetting();
+        }
         private void NotifyToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.NotifyUpdates = NotifyToggle.IsOn; Save(); }
         private void HideDowngradesToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideDowngrades = HideDowngradesToggle.IsOn; Save(); }
         private void AddWithoutCheckToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.AllowAddingAppsWithoutCheck = AddWithoutCheckToggle.IsOn; Save(); }

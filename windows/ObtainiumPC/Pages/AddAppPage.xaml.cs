@@ -60,6 +60,9 @@ namespace ObtainiumPC.Pages
             foreach (var name in SourceCatalog.OverrideSourceNames)
                 OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = name, Tag = (string?)name });
             OverrideSourceCombo.SelectedIndex = 0;
+            // home.dart pushAddApp(initialUrl: data): obtainium://add prefills.
+            if (e.Parameter is string prefill && prefill.Length > 0)
+                UrlBox.Text = prefill;
         }
 
         private async void Add_Click(object sender, RoutedEventArgs e)

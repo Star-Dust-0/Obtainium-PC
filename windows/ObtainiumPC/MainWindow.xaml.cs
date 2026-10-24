@@ -36,6 +36,40 @@ namespace ObtainiumPC
                     _ => ElementTheme.Default,
                 };
             Services.Updates.BackgroundUpdateService.Instance.Start();
+            // obtainium:// protocol registration follows the setting (HKCU,
+            // no admin, reversible from Settings).
+            Services.DeepLinkService.ApplyRegistrationSetting();
+            if (App.PendingDeepLink is { } link)
+            {
+                App.PendingDeepLink = null;
+                _ = HandleDeepLinkAsync(link);
+            }
+        }
+
+        public async System.Threading.Tasks.Task HandleDeepLinkAsync(string link)
+        {
+            await Services.DeepLinkService.InterpretAsync(link, this);
+        }
+
+        public void NavigateToApps()
+        {
+            NavView.SelectedItem = NavView.MenuItems[0];
+            if (ContentFrame.CurrentSourcePageType != typeof(AppsPage))
+                ContentFrame.Navigate(typeof(AppsPage));
+        }
+
+        // home.dart goToExistingApp.
+        public void NavigateToApp(string appId)
+        {
+            NavigateToApps();
+            ContentFrame.Navigate(typeof(AppDetailPage), appId);
+        }
+
+        // home.dart goToAddApp(initialUrl: data).
+        public void NavigateToAddApp(string prefillUrl)
+        {
+            NavView.SelectedItem = NavView.MenuItems[1];
+            ContentFrame.Navigate(typeof(AddAppPage), prefillUrl);
         }
 
         // Re-applies translations and flow direction after a language switch;
