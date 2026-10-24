@@ -15,6 +15,7 @@ using ObtainiumPC.Sources.Jenkins;
 using ObtainiumPC.Sources.LiteApks;
 using ObtainiumPC.Sources.NeutronCode;
 using ObtainiumPC.Sources.RockMods;
+using ObtainiumPC.Sources.RuStore;
 using ObtainiumPC.Sources.SourceHut;
 using ObtainiumPC.Sources.TelegramApp;
 using ObtainiumPC.Sources.Tencent;
@@ -32,7 +33,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "Uptodown", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKPure", "Uptodown", "RuStore", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -58,6 +59,7 @@ public static class SourceCatalog
         "APKCombo" => new ApkComboSource(),
         "APKPure" => new ApkPureSource(),
         "Uptodown" => new UptodownSource(),
+        "RuStore" => new RuStoreSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -87,6 +89,8 @@ public static class SourceCatalog
             return new ApkPureSource();
         if (host == "uptodown.com" || host.EndsWith(".uptodown.com"))
             return new UptodownSource();
+        if (host == "rustore.ru" || host.EndsWith(".rustore.ru"))
+            return new RuStoreSource();
         if (host == "apk4free.net" || host == "www.apk4free.net")
             return new Apk4FreeSource();
         if (host == "liteapks.com" || host == "www.liteapks.com")

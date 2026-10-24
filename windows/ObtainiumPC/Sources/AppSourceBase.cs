@@ -21,6 +21,11 @@ public class ObtainiumSourceException : Exception
     public ObtainiumSourceException(string message) : base(message) { }
 }
 
+public sealed class ObtainiumException : ObtainiumSourceException
+{
+    public ObtainiumException(string message) : base(message) { }
+}
+
 public sealed class InvalidUrlException : ObtainiumSourceException
 {
     public InvalidUrlException(string source) : base($"Invalid URL for source {source}") { }
