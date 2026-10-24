@@ -250,12 +250,6 @@ public sealed class GitHubSource : AppSourceBase
     private static DateTimeOffset? GetReleaseDateFromRelease(JsonNode? rel, bool useAssetDate) =>
         !useAssetDate ? GetPublishDateFromRelease(rel) : NewestAssetDateFromRelease(rel);
 
-    private static bool IsReleaseTooYoung(DateTimeOffset? releaseDate, int minAgeDays)
-    {
-        if (releaseDate == null || minAgeDays <= 0) return false;
-        return DateTimeOffset.Now - releaseDate < TimeSpan.FromDays(minAgeDays);
-    }
-
     // ------------------------------------------------------------------
     // Sorting
     // ------------------------------------------------------------------

@@ -48,7 +48,10 @@ public sealed class SourceHutSource : AppSourceBase
         CancellationToken cancellationToken = default)
     {
         if (standardUrl.EndsWith("/refs"))
-            standardUrl = string.Join('/', standardUrl.Split('/').Reverse().Skip(1).Reverse());
+        {
+            var urlParts = standardUrl.Split('/');
+            standardUrl = string.Join('/', urlParts.Take(urlParts.Length - 1));
+        }
         var standardUri = new Uri(standardUrl);
         var appName = standardUri.Segments[^1].TrimEnd('/');
         var fallbackToOlderReleases = GetBool(additionalSettings, "fallbackToOlderReleases");
