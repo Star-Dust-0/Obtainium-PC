@@ -9,6 +9,7 @@ using ObtainiumPC.Sources.Jenkins;
 using ObtainiumPC.Sources.NeutronCode;
 using ObtainiumPC.Sources.SourceHut;
 using ObtainiumPC.Sources.TelegramApp;
+using ObtainiumPC.Sources.Tencent;
 using ObtainiumPC.Sources.SourceForge;
 
 namespace ObtainiumPC.Sources;
@@ -21,7 +22,7 @@ public static class SourceCatalog
 {
     /// All sources that can be picked as an explicit override (upstream's
     /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "HTML", "Direct File Link" };
+    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "HTML", "Direct File Link" };
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {
@@ -36,6 +37,8 @@ public static class SourceCatalog
         "F-Droid Third-Party Repo" => new FDroidRepoSource(),
         "Jenkins" => new JenkinsSource(),
         "Telegram App" => new TelegramAppSource(),
+        "IzzyOnDroid" => new IzzyOnDroidSource(),
+        "Tencent App Store" => new TencentSource(),
         "HTML" => new Html.HtmlSource(),
         "Direct File Link" => new DirectFileLinkSource(),
         _ => throw new InvalidUrlException(name),
@@ -59,6 +62,10 @@ public static class SourceCatalog
             return new CodebergSource(new CodebergSourceConfig(
                 ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "sj.qq.com")
+            return new TencentSource();
+        if (host == "android.izzysoft.de" || host == "apt.izzysoft.de" || host == "izzysoft.de" || host == "www.izzysoft.de")
+            return new IzzyOnDroidSource();
         if (host == "telegram.org" || host == "www.telegram.org")
             return new TelegramAppSource();
         if (host == "f-droid.org" || host == "www.f-droid.org")

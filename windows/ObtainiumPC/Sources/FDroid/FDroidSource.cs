@@ -31,7 +31,13 @@ public class FDroidSource : AppSourceBase
     public override IReadOnlyList<string> Hosts => new[] { "f-droid.org" };
     public override bool NaiveStandardVersionDetection => true;
     public override bool SupportsInstall => false;
-    public virtual string ApiHost => "f-droid.org";
+
+    /// API endpoint for the package JSON (IzzyOnDroid overrides both this and
+    /// the APK URL prefix with its own hosts).
+    public virtual string GetApiUrl(string appId) => $"https://f-droid.org/api/v1/packages/{appId}";
+    public virtual string GetApkUrlPrefix(string appId) => $"https://f-droid.org/repo/{appId}";
+
+    /// Only the official repo has fdroiddata metadata (author/changelog).
     public virtual bool IsOfficialHost => true;
 
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false)
@@ -61,10 +67,9 @@ public class FDroidSource : AppSourceBase
         CancellationToken cancellationToken = default)
     {
         var appId = new Uri(standardUrl).AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
-        var host = new Uri(standardUrl).Host;
 
-        using var doc = await GetJson($"https://{host}/api/v1/packages/{appId}", cancellationToken);
-        var details = ParsePackagesApiResponse(doc.RootElement, $"https://{host}/repo/{appId}", standardUrl, additionalSettings);
+        using var doc = await GetJson(GetApiUrl(appId), cancellationToken);
+        var details = ParsePackagesApiResponse(doc.RootElement, GetApkUrlPrefix(appId), standardUrl, additionalSettings);
 
         if (IsOfficialHost)
         {

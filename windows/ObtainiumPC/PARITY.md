@@ -27,7 +27,7 @@ WinUI 3 port. Statuses:
 | Jenkins | ported | last successful build artifacts, build number as version, neverAutoSelect picker |
 | F-Droid (fdroid) | track-only | ported pipeline; install disabled with label; ABI nativecode filtering not ported (Android-only) |
 | F-Droid third-party repo (fdroidrepo) | track-only | index-v2.json + legacy index.xml; stable-channel preference; install disabled with label |
-| IzzyOnDroid | pending | Android packages - proposed track-only |
+| IzzyOnDroid | track-only | F-Droid-compatible API on Izzy hosts; install disabled with label |
 | APKMirror | pending | Android packages - proposed track-only |
 | APKPure | pending | Android packages - proposed track-only |
 | APKCombo | pending | Android packages - proposed track-only |
@@ -42,7 +42,7 @@ WinUI 3 port. Statuses:
 | Huawei AppGallery | pending | Android packages - proposed track-only |
 | Samsung Galaxy Store | pending | Android packages - proposed track-only |
 | Vivo App Store | pending | Android packages - proposed track-only |
-| Tencent App Store | pending | Android packages - proposed track-only |
+| Tencent App Store | track-only | simple.jsp embedded-JSON scrape; install disabled with label |
 | Telegram App | track-only | channel-page version scrape, fixed download URL; install disabled with label |
 
 "Proposed track-only" means: port the version/link pipeline fully, disable
