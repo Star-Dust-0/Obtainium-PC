@@ -51,6 +51,11 @@ namespace ObtainiumPC.Pages
             DensityCombo.Items.Add("Compact");
             DensityCombo.Items.Add("Dense");
             DensityCombo.SelectedIndex = App.Settings.ListDensity == "dense" ? 2 : App.Settings.ListDensity == "compact" ? 1 : 0;
+            GroupByCombo.Items.Add("None");
+            GroupByCombo.Items.Add("Category");
+            GroupByCombo.Items.Add("Source");
+            GroupByCombo.SelectedIndex = App.Settings.GroupBy == "category" ? 1 : App.Settings.GroupBy == "source" ? 2 : 0;
+            CollapseGroupsToggle.IsOn = App.Settings.CollapseGroupsOnStartup;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
             foreach (var (label, value) in LanguageOptions) LanguageCombo.Items.Add(new ComboBoxItem { Content = label, Tag = value });
             LanguageCombo.SelectedIndex = App.Settings.Language == "ar" ? 1 : 0;
@@ -84,6 +89,14 @@ namespace ObtainiumPC.Pages
         {
             if (SortByCombo.SelectedIndex >= 0) { App.Settings.SortColumn = SortByCombo.SelectedIndex; Save(); }
         }
+
+        private void GroupByCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            App.Settings.GroupBy = GroupByCombo.SelectedIndex == 1 ? "category" : GroupByCombo.SelectedIndex == 2 ? "source" : "none";
+            Save();
+        }
+
+        private void CollapseGroupsToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CollapseGroupsOnStartup = CollapseGroupsToggle.IsOn; Save(); }
 
         private void SortOrderCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

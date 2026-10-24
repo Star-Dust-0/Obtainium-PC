@@ -112,6 +112,14 @@ public static class Loc
         ["14 days"] = "14 يومًا",
         ["30 days"] = "30 يومًا",
         ["None"] = "بلا",
+        ["Group apps by"] = "تجميع التطبيقات حسب",
+        ["Collapse all groups on app start"] = "طيّ كل المجموعات عند بدء التشغيل",
+        ["Category"] = "الفئة",
+        ["Source"] = "المصدر",
+        ["No category"] = "بلا فئة",
+        ["No source"] = "بلا مصدر",
+        ["{0} app"] = "تطبيق واحد",
+        ["{0} apps"] = "{0} تطبيقات",
 
         // Settings labels
         ["Theme"] = "السمة",

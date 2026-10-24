@@ -36,6 +36,9 @@ public sealed class AppSettings
     // lib/providers/settings_provider.dart categories: name -> ARGB color int.
     public System.Collections.Generic.Dictionary<string, int> CategoryColors { get; set; } = new();
     public string Language { get; set; } = "en";
+    // lib/providers/settings_provider.dart groupBy: none | category | source.
+    public string GroupBy { get; set; } = "none";
+    public bool CollapseGroupsOnStartup { get; set; }
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;
     public string? GitHubReqPrefix { get; set; }

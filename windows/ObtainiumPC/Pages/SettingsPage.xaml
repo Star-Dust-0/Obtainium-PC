@@ -19,6 +19,8 @@
                 <ComboBox x:Name="DensityCombo" Header="App list density" MinWidth="260" SelectionChanged="DensityCombo_SelectionChanged"/>
                 <ToggleSwitch x:Name="PinUpdatesToggle" Header="Pin apps with updates to the top" Toggled="PinUpdatesToggle_Toggled"/>
                 <ToggleSwitch x:Name="BuryNonInstalledToggle" Header="Move apps not yet installed to the bottom" Toggled="BuryNonInstalledToggle_Toggled"/>
+                <ComboBox x:Name="GroupByCombo" Header="Group apps by" MinWidth="260" SelectionChanged="GroupByCombo_SelectionChanged"/>
+                <ToggleSwitch x:Name="CollapseGroupsToggle" Header="Collapse all groups on app start" Toggled="CollapseGroupsToggle_Toggled"/>
 
                 <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
                 <ComboBox x:Name="UpdateIntervalCombo" Header="Background update interval" MinWidth="260" SelectionChanged="UpdateIntervalCombo_SelectionChanged"/>

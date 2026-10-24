@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -12,6 +13,33 @@ using ObtainiumPC.Services.Download;
 
 namespace ObtainiumPC.Pages
 {
+    /// lib/pages/apps.dart _getGroupCollapsibleTile: header row for a
+    /// category/source group; click toggles collapse (per-session state).
+    public sealed class GroupHeaderRow
+    {
+        public GroupHeaderRow(string? key, string title, int count, bool expanded)
+        {
+            Key = key; Title = title; Count = count; Expanded = expanded;
+        }
+
+        public string? Key { get; }
+        public string Title { get; }
+        public int Count { get; }
+        public bool Expanded { get; }
+        public string CountText => Count == 1
+            ? string.Format(Services.Localization.Loc.T("{0} app"), Count)
+            : string.Format(Services.Localization.Loc.T("{0} apps"), Count);
+        public string ChevronGlyph => Expanded ? "\uE70D" : "\uE76C";
+    }
+
+    public sealed class AppsRowTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate? AppTemplate { get; set; }
+        public DataTemplate? GroupTemplate { get; set; }
+        protected override DataTemplate? SelectTemplateCore(object item) =>
+            item is GroupHeaderRow ? GroupTemplate : AppTemplate;
+    }
+
     public sealed class AppRow
     {
         public AppRow(TrackedApp app, bool hasUpdate, bool healthFlagged)
@@ -74,7 +102,9 @@ namespace ObtainiumPC.Pages
 
     public sealed partial class AppsPage : Page
     {
-        public ObservableCollection<AppRow> Rows { get; } = new();
+        public ObservableCollection<object> Rows { get; } = new();
+        private readonly HashSet<string?> _collapsedGroups = new();
+        private bool _collapseInitDone;
 
         public AppsPage()
         {
@@ -106,6 +136,7 @@ base.OnNavigatedTo(e);
             var showHealth = App.Settings.ShowUpdateHealthIndicator;
 
             Rows.Clear();
+            var filtered = new List<AppRow>();
             // lib/components/app_list_tile.dart AppListBuilder.sort via Settings
             // (sortColumn/sortOrder).
             var sorted = Services.Store.AppSort.Sort(App.TrackedApps,
@@ -129,7 +160,67 @@ base.OnNavigatedTo(e);
                 var healthFlagged = showHealth && Services.Updates.UpdateHealthService.HasIssues(app, App.Settings);
                 var row = new AppRow(app, hasUpdate, healthFlagged);
                 row.ApplyDensity(App.Settings.ListDensity);
-                Rows.Add(row);
+                filtered.Add(row);
+            }
+
+            // lib/pages/apps.dart _buildGroups + _getGroupCollapsibleTile:
+            // category/source grouping with collapsible headers. An app with
+            // several categories appears in each of its groups; the
+            // uncategorized group sorts last; collapse state is per-session.
+            var groupBy = App.Settings.GroupBy;
+            if (groupBy == "none")
+            {
+                foreach (var row in filtered) Rows.Add(row);
+            }
+            else
+            {
+                var groups = new Dictionary<string?, List<AppRow>>();
+                foreach (var row in filtered)
+                {
+                    if (groupBy == "category")
+                    {
+                        if (row.App.Categories.Count == 0)
+                        {
+                            if (!groups.TryGetValue(null, out var l)) groups[null] = l = new List<AppRow>();
+                            l.Add(row);
+                        }
+                        else
+                        {
+                            foreach (var cat in row.App.Categories)
+                            {
+                                if (!groups.TryGetValue(cat, out var l)) groups[cat] = l = new List<AppRow>();
+                                l.Add(row);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string? label = null;
+                        if (SourceCatalog.TryResolve(row.App.Url, App.Settings, out var src, row.App.OverrideSource) && src != null)
+                            label = src.Name;
+                        if (!groups.TryGetValue(label, out var l)) groups[label] = l = new List<AppRow>();
+                        l.Add(row);
+                    }
+                }
+                var keys = groups.Keys.ToList();
+                keys.Sort((a, b) => a == null && b == null ? 0 : a == null ? 1 : b == null ? -1
+                    : string.Compare(a, b, StringComparison.OrdinalIgnoreCase));
+                if (!_collapseInitDone)
+                {
+                    _collapseInitDone = true;
+                    if (App.Settings.CollapseGroupsOnStartup)
+                        foreach (var k in keys) _collapsedGroups.Add(k);
+                }
+                foreach (var key in keys)
+                {
+                    var expanded = !_collapsedGroups.Contains(key);
+                    var title = key ?? Services.Localization.Loc.T(groupBy == "category" ? "No category" : "No source");
+                    if (groupBy == "category" && key != null && key.Length > 0)
+                        title = char.ToUpperInvariant(key[0]) + key.Substring(1);
+                    Rows.Add(new GroupHeaderRow(key, title, groups[key].Count, expanded));
+                    if (expanded)
+                        foreach (var row in groups[key]) Rows.Add(row);
+                }
             }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -472,6 +563,12 @@ base.OnNavigatedTo(e);
         {
             if (e.ClickedItem is AppRow row)
                 Frame.Navigate(typeof(AppDetailPage), row.App.Id);
+            else if (e.ClickedItem is GroupHeaderRow header)
+            {
+                // lib/pages/apps.dart toggleGroupCollapse.
+                if (!_collapsedGroups.Remove(header.Key)) _collapsedGroups.Add(header.Key);
+                ReloadRows();
+            }
         }
 
         private async void Refresh_Click(object sender, RoutedEventArgs e)
