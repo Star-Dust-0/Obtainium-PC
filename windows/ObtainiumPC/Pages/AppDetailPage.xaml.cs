@@ -68,6 +68,18 @@ namespace ObtainiumPC.Pages
             {
                 RenameBar.IsOpen = false;
             }
+            // lib/pages/app.dart: update-health note linking to the health page.
+            var healthIgnored = Services.Updates.UpdateHealthService.IsIgnored(_app);
+            var healthIssues = Services.Updates.UpdateHealthService.HasIssues(_app, App.Settings);
+            if (healthIssues || healthIgnored)
+            {
+                HealthLink.Content = healthIgnored ? "Update health checks ignored for this app" : "Update health: view details";
+                HealthLink.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                HealthLink.Visibility = Visibility.Collapsed;
+            }
             // lib/pages/app.dart hasAction + Install/Update label.
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
@@ -260,6 +272,11 @@ namespace ObtainiumPC.Pages
         }
 
         // lib/providers/apps_provider_install.dart updatePendingRepoRename(id, null)
+        private void HealthLink_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(UpdateHealthPage));
+        }
+
         private async void RenameDismiss_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
