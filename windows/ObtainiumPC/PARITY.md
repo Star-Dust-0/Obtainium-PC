@@ -79,3 +79,21 @@ nothing is silently omitted.
 | APK installer actions | blocked | Android-only; install stays interactive-only on Windows |
 | Shizuku/ADB/root install methods | blocked | Android-only |
 | OS app settings (gear) | mapped | packaged apps only (PFN); honestly disabled otherwise |
+
+## UI page parity (mock review vs lib/pages/*.dart)
+
+Reviewed by extracting each upstream page's user-facing features (its localized
+action/label vocabulary) and mapping them to the WinUI pages. Statuses: full /
+partial / gap. Interaction-verified items cite the ui-smoke evidence.
+
+| Page | Status | Present in port | Known gaps vs upstream |
+| --- | --- | --- | --- |
+| Apps (apps.dart) | partial | search box, updates-only toggle, health indicator, refresh, app card -> detail (ui-smoke verified) | multi-select + batch actions (update/install/mark-updated/remove/categorize/share URLs/share configs/export selected), sort options, category filter dialog, pin-to-top, list density |
+| App detail (app.dart) | partial | installed/latest/release date, changelog, update with progress + safe completion (ui-smoke verified), mark as updated, enable/disable tracking, remove, per-app options, release page link, OS gear honestly disabled unpackaged (ui-smoke verified) | repo-rename prompt + update-URL flow, reset install status, copy changelog, share, signer-change warning, pseudo-version note, update-health note dismissal |
+| Add App (add_app.dart) | partial | URL add, override source picker, track-only toggle (ui-smoke verified) | source search, crowdsourced config suggestions, add-without-check option, already-added dedupe prompt |
+| App options (app_additional_options.dart) | partial | combined per-source form items render (ui-smoke verified: GitHub release options) | verify every control kind (choice lists, headers) across sources |
+| Settings (settings.dart) | partial | theme + language picker, update interval, min update age, check-on-start, global version/asset regexes, source PATs, update-health thresholds (ui-smoke verified) | app sort order/density, phone layout, background-update limits explanation, app-verifier sharing, about section links |
+| Import / Export (import_export.dart) | partial | schema v2 export with 3 credential levels, import with same-ID replace (unit-tested roundtrip) | import from URL list / downloads folder, export-installed-only filter, auto-export on changes, export dir picker |
+| Update Health (update_health.dart) | full | thresholds, flagged + ignored lists, ignore-for-version / ignore-permanently / restore (ui-smoke verified render) | none identified |
+| Logs (logs.dart) | full | day-range filter, copy all, clear, JSONL store (ui-smoke verified render) | level filter, share (minor) |
+| Home / navigation (home.dart) | full | nav pane to all pages, welcome -> add-app flow covered by Add App page | raw-JSON add (upstream home dialog, minor) |
