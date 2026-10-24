@@ -32,5 +32,7 @@
     <Compile Include="..\ObtainiumPC\Sources\ApkCombo\ApkComboSource.cs" Link="Sources\ApkComboSource.cs" />
     <Compile Include="..\ObtainiumPC\Services\Store\AppStore.cs" Link="Services\AppStore.cs" />
     <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
+    <Compile Include="..\ObtainiumPC\Pages\ThemeLookup.cs" Link="Pages\ThemeLookup.cs" />
   </ItemGroup>
 </Project>
