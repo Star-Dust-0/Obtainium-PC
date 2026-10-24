@@ -64,6 +64,9 @@ public abstract class AppSourceBase
     /// downloading work, but Windows cannot install them (track-only).
     public virtual bool SupportsInstall => true;
 
+    /// Upstream: neverAutoSelect - the user must pick the asset every time.
+    public virtual bool NeverAutoSelect => false;
+
     /// Upstream: naiveStandardVersionDetection.
     public virtual bool NaiveStandardVersionDetection => false;
 

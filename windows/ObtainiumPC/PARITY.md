@@ -24,7 +24,7 @@ WinUI 3 port. Statuses:
 | NeutronCode | ported | single-file download pages |
 | itch.io | mapped | selects Windows uploads (icon-windows8); itch.io's own "no thanks" free-download path; signed Cloudflare R2 URLs resolved at download time, never persisted |
 | GitHub Stars (githubstars) | ported | bulk import with review picker; 100/page, rate-limit checked, PAT used |
-| Jenkins | pending | portable - arbitrary binaries, can install on Windows |
+| Jenkins | ported | last successful build artifacts, build number as version, neverAutoSelect picker |
 | F-Droid (fdroid) | track-only | ported pipeline; install disabled with label; ABI nativecode filtering not ported (Android-only) |
 | F-Droid third-party repo (fdroidrepo) | track-only | index-v2.json + legacy index.xml; stable-channel preference; install disabled with label |
 | IzzyOnDroid | pending | Android packages - proposed track-only |

@@ -57,6 +57,31 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        private async Task<int> PickAssetAsync(IReadOnlyList<KeyValuePair<string, string>> assets)
+        {
+            var selected = -1;
+            var panel = new StackPanel { Spacing = 4 };
+            var radios = new List<RadioButton>();
+            for (var i = 0; i < assets.Count; i++)
+            {
+                var radio = new RadioButton { Content = assets[i].Key, GroupName = "assetPick" };
+                var captured = i;
+                radio.Checked += (s, e) => selected = captured;
+                radios.Add(radio);
+                panel.Children.Add(radio);
+            }
+            radios[0].IsChecked = true;
+            var dialog = new ContentDialog
+            {
+                Title = "Choose a file",
+                Content = new ScrollViewer { Content = panel, MaxHeight = 420 },
+                PrimaryButtonText = "Download",
+                CloseButtonText = "Cancel",
+                XamlRoot = XamlRoot,
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
+        }
+
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
@@ -67,6 +92,14 @@ namespace ObtainiumPC.Pages
                 return;
             }
             var index = _app.PreferredAssetIndex >= 0 && _app.PreferredAssetIndex < assets.Count ? _app.PreferredAssetIndex : 0;
+            // Upstream neverAutoSelect: the user picks the asset every time.
+            SourceCatalog.TryResolve(_app.Url, App.Settings, out var preSource);
+            if (preSource?.NeverAutoSelect == true && assets.Count > 1)
+            {
+                var picked = await PickAssetAsync(assets);
+                if (picked < 0) return;
+                index = picked;
+            }
             var asset = assets[index];
             UpdateButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
