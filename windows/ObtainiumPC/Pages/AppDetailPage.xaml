@@ -43,7 +43,7 @@
                 </StackPanel>
 
                 <StackPanel x:Name="DownloadPanel" Spacing="6" Visibility="Collapsed">
-                    <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Value="0"/>
+                    <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Value="0" AutomationProperties.Name="Download progress"/>
                     <TextBlock x:Name="DownloadText" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
 

@@ -168,7 +168,7 @@ jobs:
 
           # Download safe completion: Update downloads the asset; poll for the file.
           # First install: the detail action button reads 'Install' (upstream lib/pages/app.dart).
-          ClickNamed 'Install' -verify
+          ClickNamed 'Install' 'Download progress'
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           $file = $null
           foreach ($i in 1..40) {
