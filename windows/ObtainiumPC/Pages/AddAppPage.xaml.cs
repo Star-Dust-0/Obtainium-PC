@@ -19,6 +19,10 @@ namespace ObtainiumPC.Pages
         {
             base.OnNavigatedTo(e);
             await App.InitAsync();
+            OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = "Auto-detect", Tag = (string?)null });
+            foreach (var name in SourceCatalog.OverrideSourceNames)
+                OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = name, Tag = (string?)name });
+            OverrideSourceCombo.SelectedIndex = 0;
         }
 
         private async void Add_Click(object sender, RoutedEventArgs e)
@@ -36,7 +40,8 @@ namespace ObtainiumPC.Pages
                 var settings = new Dictionary<string, JsonElement>();
                 if (TrackOnlyBox.IsChecked == true)
                     settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
-                var app = await App.Updater.CheckAppAsync(url, settings);
+                var overrideSource = (OverrideSourceCombo.SelectedItem as ComboBoxItem)?.Tag as string;
+                var app = await App.Updater.CheckAppAsync(url, settings, overrideSource: overrideSource);
                 App.TrackedApps.Add(app);
                 await App.SaveAppsAsync();
                 Show(InfoBarSeverity.Success, $"Added {app.FinalName} (latest: {app.LatestVersion ?? "unknown"}).");
@@ -44,7 +49,7 @@ namespace ObtainiumPC.Pages
             }
             catch (InvalidUrlException)
             {
-                Show(InfoBarSeverity.Error, "That URL is not a supported source yet. GitHub repository URLs work today.");
+                Show(InfoBarSeverity.Error, "That URL is not a supported source. Pick an override source above for other pages (for example HTML).");
             }
             catch (Exception ex)
             {

@@ -29,7 +29,6 @@ public sealed class AppUpdateService
         _settings = settings;
     }
 
-    private AppSourceBase ResolveSource(string url) => SourceCatalog.Resolve(url, _settings);
 
     private static string? ExtractVersionWithGlobalDefault(
         IReadOnlyDictionary<string, JsonElement> additionalSettings,
@@ -68,13 +67,14 @@ public sealed class AppUpdateService
         IReadOnlyDictionary<string, JsonElement> additionalSettings,
         TrackedApp? currentApp = null,
         bool trackOnlyOverride = false,
+        string? overrideSource = null,
         CancellationToken ct = default)
     {
         var settings = new Dictionary<string, JsonElement>(additionalSettings);
         if (trackOnlyOverride) settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
         var trackOnly = SettingBool(settings, "trackOnly");
 
-        var source = ResolveSource(url);
+        var source = SourceCatalog.Resolve(url, _settings, currentApp?.OverrideSource ?? overrideSource);
         var standardUrl = source.SourceSpecificStandardizeUrl(url);
         var details = await source.GetLatestAssetDetailsAsync(standardUrl, settings, ct);
 
@@ -111,6 +111,7 @@ public sealed class AppUpdateService
 
         var app = currentApp ?? new TrackedApp();
         app.Url = standardUrl;
+        if (overrideSource != null && currentApp == null) app.OverrideSource = overrideSource;
         app.Author = details.Names.Author;
         if (string.IsNullOrWhiteSpace(app.Name)) app.Name = details.Names.Name;
         if (string.IsNullOrEmpty(app.Id)) app.Id = GenerateTempId(standardUrl);

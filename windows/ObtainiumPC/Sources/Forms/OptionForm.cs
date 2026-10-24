@@ -20,6 +20,8 @@ public sealed class OptionFormItem
     public string? Hint { get; init; }
     public bool Disabled { get; set; }
     public bool ValidateRegex { get; init; }
+    /// Custom value codec for structured settings (intermediateLink, requestHeader).
+    public string? SpecialCodec { get; init; }
 }
 
 /// <summary>

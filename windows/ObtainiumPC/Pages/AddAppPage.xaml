@@ -6,8 +6,9 @@
     <Grid Padding="36,24,36,24">
         <StackPanel MaxWidth="560" Spacing="12">
             <TextBlock Text="Add App" Style="{StaticResource TitleTextBlockStyle}"/>
-            <TextBlock Text="Paste the source URL of the app you want to track. GitHub repositories are supported first; more sources are on the way." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock Text="Paste the source URL of the app you want to track. GitHub, GitLab, Codeberg, and SourceForge are detected automatically; pick an override source (for example HTML) for anything else." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBox x:Name="UrlBox" PlaceholderText="https://github.com/owner/repository"/>
+            <ComboBox x:Name="OverrideSourceCombo" Header="Override source (optional)" MinWidth="260" HorizontalAlignment="Left"/>
             <CheckBox x:Name="TrackOnlyBox" Content="Track only (check versions without downloading)"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="AddButton" Content="Add" Style="{StaticResource AccentButtonStyle}" Click="Add_Click"/>

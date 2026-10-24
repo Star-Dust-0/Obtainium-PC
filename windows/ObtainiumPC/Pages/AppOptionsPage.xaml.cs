@@ -45,7 +45,7 @@ namespace ObtainiumPC.Pages
             _building = true;
             FormPanel.Children.Clear();
 
-            if (!SourceCatalog.TryResolve(_app.Url, App.Settings, out var source) || source == null)
+            if (!SourceCatalog.TryResolve(_app.Url, App.Settings, out var source, _app.OverrideSource) || source == null)
             {
                 FormPanel.Children.Add(new TextBlock
                 {
@@ -78,6 +78,8 @@ namespace ObtainiumPC.Pages
                     {
                         var initial = stored.TryGetValue(item.Key, out var sv) && sv.ValueKind is JsonValueKind.True or JsonValueKind.False
                             ? sv.GetBoolean() : item.DefaultBool;
+                        if (item.SpecialCodec == "intermediateLinkAutoArch")
+                            initial = GetIntermediateLinkFieldBool(stored, "autoLinkFilterByArch");
                         if (item.Disabled) initial = false; // disabled items are forced off, as upstream does
                         var toggle = new ToggleSwitch
                         {
@@ -90,7 +92,10 @@ namespace ObtainiumPC.Pages
                         toggle.Toggled += async (_, _) =>
                         {
                             if (_building || _app == null) return;
-                            _app.SetSetting(key, toggle.IsOn);
+                            if (item.SpecialCodec == "intermediateLinkAutoArch")
+                                SetIntermediateLinkField(_app, "autoLinkFilterByArch", toggle.IsOn);
+                            else
+                                _app.SetSetting(key, toggle.IsOn);
                             await App.SaveAppsAsync();
                         };
                         FormPanel.Children.Add(toggle);
@@ -99,14 +104,22 @@ namespace ObtainiumPC.Pages
 
                     case OptionFormItemKind.Text:
                     {
-                        var initial = stored.TryGetValue(item.Key, out var sv) && sv.ValueKind == JsonValueKind.String
-                            ? sv.GetString() ?? "" : item.DefaultString ?? "";
+                        string initial;
+                        if (item.SpecialCodec == "requestHeader")
+                            initial = string.Join("\n", DecodeHeaderLines(stored));
+                        else if (item.SpecialCodec == "intermediateLink")
+                            initial = GetIntermediateLinkField(stored, "customLinkFilterRegex") ?? "";
+                        else
+                            initial = stored.TryGetValue(item.Key, out var sv) && sv.ValueKind == JsonValueKind.String
+                                ? sv.GetString() ?? "" : item.DefaultString ?? "";
                         var box = new TextBox
                         {
                             Header = item.Label,
                             Text = initial,
                             PlaceholderText = item.Hint ?? "",
                             TextWrapping = TextWrapping.Wrap,
+                            AcceptsReturn = item.SpecialCodec == "requestHeader",
+                            MinHeight = item.SpecialCodec == "requestHeader" ? 90 : 0,
                         };
                         var error = new TextBlock
                         {
@@ -132,7 +145,12 @@ namespace ObtainiumPC.Pages
                                 }
                             }
                             error.Visibility = Visibility.Collapsed;
-                            _app.SetSetting(key, value.Length == 0 ? null : value);
+                            if (item.SpecialCodec == "requestHeader")
+                                SaveHeaderLines(_app, box.Text);
+                            else if (item.SpecialCodec == "intermediateLink")
+                                SetIntermediateLinkField(_app, "customLinkFilterRegex", value.Length == 0 ? null : value);
+                            else
+                                _app.SetSetting(key, value.Length == 0 ? null : value);
                             await App.SaveAppsAsync();
                         };
                         FormPanel.Children.Add(box);
@@ -169,6 +187,57 @@ namespace ObtainiumPC.Pages
                 }
             }
             _building = false;
+        }
+
+        // ---- Structured-setting codecs (intermediateLink, requestHeader) ----
+
+        private static List<string> DecodeHeaderLines(Dictionary<string, JsonElement> stored)
+        {
+            var lines = new List<string>();
+            if (stored.TryGetValue("requestHeader", out var rh) && rh.ValueKind == JsonValueKind.Array)
+                foreach (var e in rh.EnumerateArray())
+                    if (e.ValueKind == JsonValueKind.Object
+                        && e.TryGetProperty("requestHeader", out var hv) && hv.ValueKind == JsonValueKind.String)
+                        lines.Add(hv.GetString() ?? "");
+            return lines;
+        }
+
+        private static void SaveHeaderLines(TrackedApp app, string text)
+        {
+            var lines = text.Split('\n').Select(l => l.Trim()).Where(l => l.Contains(':')).ToList();
+            if (lines.Count == 0) { app.SetSetting("requestHeader", null); return; }
+            app.SetSetting("requestHeader",
+                lines.Select(l => new Dictionary<string, string> { ["requestHeader"] = l }).ToList());
+        }
+
+        private static Dictionary<string, JsonElement>? GetIntermediateLinkEntry(Dictionary<string, JsonElement> stored)
+        {
+            if (stored.TryGetValue("intermediateLink", out var il) && il.ValueKind == JsonValueKind.Array)
+                foreach (var e in il.EnumerateArray())
+                    if (e.ValueKind == JsonValueKind.Object)
+                        return e.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
+            return null;
+        }
+
+        private static string? GetIntermediateLinkField(Dictionary<string, JsonElement> stored, string field)
+        {
+            var entry = GetIntermediateLinkEntry(stored);
+            return entry != null && entry.TryGetValue(field, out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString() : null;
+        }
+
+        private static bool GetIntermediateLinkFieldBool(Dictionary<string, JsonElement> stored, string field)
+        {
+            var entry = GetIntermediateLinkEntry(stored);
+            return entry != null && entry.TryGetValue(field, out var v) && v.ValueKind == JsonValueKind.True;
+        }
+
+        private static void SetIntermediateLinkField(TrackedApp app, string field, object? value)
+        {
+            var entry = GetIntermediateLinkEntry(app.AdditionalSettings) ?? new Dictionary<string, JsonElement>();
+            if (value == null) entry.Remove(field);
+            else entry[field] = JsonSerializer.SerializeToElement(value);
+            app.SetSetting("intermediateLink", new List<Dictionary<string, JsonElement>> { entry });
         }
     }
 }
