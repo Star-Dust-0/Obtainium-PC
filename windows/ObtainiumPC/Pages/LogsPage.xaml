@@ -22,6 +22,7 @@
                 <ComboBoxItem Content="Last day" Tag="1"/>
             </ComboBox>
             <Button Content="Copy all" Click="Copy_Click" VerticalAlignment="Center"/>
+            <Button Content="Share" Click="Share_Click" VerticalAlignment="Center"/>
             <Button Content="Clear logs" Click="Clear_Click" VerticalAlignment="Center"/>
             <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
         </StackPanel>

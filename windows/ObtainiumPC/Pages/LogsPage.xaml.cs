@@ -72,6 +72,14 @@ public sealed partial class LogsPage : Page
         }
     }
 
+    // lib/pages/logs.dart _shareLogs: share sheet, clipboard fallback lives in
+    // ShareService (mirrors upstream's copyToClipboard fallback).
+    private void Share_Click(object sender, RoutedEventArgs e)
+    {
+        var logs = AppLogger.GetLogs(DateTimeOffset.Now.AddDays(-_days));
+        Services.ShareService.ShareText("App logs", string.Join("\n\n", logs.Select(l => l.ToString())));
+    }
+
     private async void Clear_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new ContentDialog

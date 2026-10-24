@@ -283,7 +283,7 @@ base.OnNavigatedTo(e);
         }
 
         // lib/pages/apps.dart shareConfigLinks: obtainium:// deep links wrapped
-        // in the redirect URL (clipboard; share sheet disclosed in PARITY).
+        // in the redirect URL, shared through the Windows share sheet.
         private void BatchCopyConfigs_Click(object sender, RoutedEventArgs e)
         {
             var sel = SelectedApps();
@@ -302,9 +302,7 @@ base.OnNavigatedTo(e);
                 });
                 return "https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/" + Uri.EscapeDataString(inner);
             });
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(string.Join("\n", lines));
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            Services.ShareService.ShareText("Obtainium - Apps", string.Join("\n", lines));
         }
 
         // lib/pages/apps.dart categorize batch action (SelectionModal ->
@@ -436,15 +434,12 @@ base.OnNavigatedTo(e);
             ExitSelection();
         }
 
-        // lib/pages/apps.dart shareAppURLs (copied to the clipboard; Windows
-        // share-sheet integration is a disclosed simplification).
+        // lib/pages/apps.dart shareAppURLs through the Windows share sheet.
         private void BatchCopyUrls_Click(object sender, RoutedEventArgs e)
         {
             var sel = SelectedApps();
             if (sel.Count == 0) return;
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(string.Join("\n", sel.Select(a => a.Url)));
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            Services.ShareService.ShareText("Obtainium - Apps", string.Join("\n", sel.Select(a => a.Url)));
         }
 
         private async void BatchRemove_Click(object sender, RoutedEventArgs e)
