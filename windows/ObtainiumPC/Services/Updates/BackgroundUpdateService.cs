@@ -61,9 +61,10 @@ public sealed class BackgroundUpdateService
                 {
                     await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
                 }
-                catch
+                catch (Exception e)
                 {
                     app.ConsecutiveFailedChecks++;
+                    Logging.AppLogger.Warn($"Update check failed for {app.FinalName} ({app.Url})", e);
                 }
             }
             await App.SaveAppsAsync();

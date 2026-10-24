@@ -28,6 +28,8 @@ jobs:
         run: msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
       - name: Seed a tracked app (GitHub source)
         shell: pwsh
+        env:
+          SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
           New-Item -ItemType Directory -Force $dir | Out-Null
@@ -42,7 +44,9 @@ jobs:
           # -InputObject keeps a one-element array a JSON array (pipeline unrolls it).
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
           # Make the first-run state deterministic.
-          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
+          # The runner's per-job token is throwaway and never leaves the runner;
+          # it only raises the GitHub API rate limit for the live check.
+          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Launch and capture
         shell: pwsh
