@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using ObtainiumPC.Models;
+using ObtainiumPC.Sources;
+using ObtainiumPC.Services.Download;
 
 namespace ObtainiumPC.Pages
 {
@@ -128,6 +130,115 @@ base.OnNavigatedTo(e);
                 CategoryCombo.Items.Add(c);
             CategoryCombo.SelectedItem = keep != null && CategoryCombo.Items.Contains(keep) ? keep : "All";
             if (CategoryCombo.SelectedItem == null) CategoryCombo.SelectedIndex = 0;
+        }
+
+        // lib/providers/apps_provider_install.dart downloadAppAssets: each app
+        // gets the asset picker (confirmAppFileUrl evenIfSingleChoice), then a
+        // sequential download; errors are collected per app.
+        private async void BatchDownload_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps().Where(a => App.Updater.IsAppUpdateable(a)).ToList();
+            if (sel.Count == 0) return;
+            var results = new List<string>();
+            foreach (var app in sel)
+            {
+                var assets = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
+                if (assets.Count == 0)
+                {
+                    results.Add(app.FinalName + ": no downloadable asset on the latest release");
+                    continue;
+                }
+                var index = app.PreferredAssetIndex >= 0 && app.PreferredAssetIndex < assets.Count ? app.PreferredAssetIndex : 0;
+                var filterRe = app.AdditionalSettings.TryGetValue("apkFilterRegEx", out var fr)
+                    && fr.ValueKind == System.Text.Json.JsonValueKind.String ? fr.GetString() : null;
+                if (!string.IsNullOrEmpty(filterRe))
+                {
+                    try
+                    {
+                        var rx = new System.Text.RegularExpressions.Regex(filterRe);
+                        var matchIdx = assets.FindIndex(a => rx.IsMatch(a.Key));
+                        if (matchIdx >= 0) index = matchIdx;
+                    }
+                    catch { }
+                }
+                var picked = await PickAssetDialogAsync(app.FinalName, assets, index);
+                if (picked < 0)
+                {
+                    results.Add(app.FinalName + ": skipped");
+                    continue;
+                }
+                var asset = assets[picked];
+                var bar = new ProgressBar { Minimum = 0, Maximum = 100, Width = 320 };
+                var progDlg = new ContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
+                var showOp = progDlg.ShowAsync();
+                try
+                {
+                    var progress = new Progress<(long Received, long? Total)>(pr =>
+                    {
+                        if (pr.Total is > 0) bar.Value = Math.Min(100, (double)pr.Received / pr.Total.Value * 100);
+                    });
+                    var url = asset.Value;
+                    SourceCatalog.TryResolve(app.Url, App.Settings, out var dlSource);
+                    if (dlSource != null)
+                        url = await dlSource.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
+                    var pat = url.Contains("github.com") || url.Contains("githubusercontent.com")
+                        ? App.Settings.GitHubPersonalAccessToken : null;
+                    var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
+                    var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers);
+                    app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
+                    results.Add(app.FinalName + ": downloaded " + asset.Key);
+                    if (dlSource?.SupportsInstall != false) DownloadService.OpenInstaller(path);
+                }
+                catch (Exception ex)
+                {
+                    results.Add(app.FinalName + ": failed - " + ex.Message);
+                }
+                finally
+                {
+                    progDlg.Hide();
+                    try { await showOp; } catch { }
+                }
+            }
+            await App.SaveAppsAsync();
+            ReloadRows();
+            ExitSelection();
+            var summary = new ContentDialog
+            {
+                Title = "Downloads",
+                Content = new ScrollViewer
+                {
+                    MaxHeight = 360,
+                    Content = new TextBlock { Text = string.Join("\n", results), TextWrapping = TextWrapping.Wrap },
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot,
+            };
+            await summary.ShowAsync();
+        }
+
+        private async Task<int> PickAssetDialogAsync(string appName, List<KeyValuePair<string, string>> assets, int preselect)
+        {
+            var selected = -1;
+            var panel = new StackPanel { Spacing = 4 };
+            var radios = new List<RadioButton>();
+            for (var i = 0; i < assets.Count; i++)
+            {
+                var radio = new RadioButton { Content = assets[i].Key, GroupName = "batchPick" };
+                var captured = i;
+                radio.Checked += (s2, e2) => selected = captured;
+                radios.Add(radio);
+                panel.Children.Add(radio);
+            }
+            radios[Math.Clamp(preselect, 0, radios.Count - 1)].IsChecked = true;
+            var dialog = new ContentDialog
+            {
+                Title = "Choose a file - " + appName,
+                Content = new ScrollViewer { Content = panel, MaxHeight = 420 },
+                PrimaryButtonText = "Download",
+                CloseButtonText = "Cancel",
+                XamlRoot = XamlRoot,
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
         }
 
         // lib/pages/apps.dart shareExport: an Obtainium export of the selected
