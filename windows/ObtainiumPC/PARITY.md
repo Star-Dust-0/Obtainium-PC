@@ -63,7 +63,7 @@ nothing is silently omitted.
 | Update Health page | ported | detection thresholds, flagged/ignored lists, ignore actions |
 | Settings page | mapped | theme, interval, min age, global regex, source PATs |
 | Import / Export | ported | upstream schema v2, three credential levels, same-ID replace |
-| Apps list search/filter | pending | |
+| Apps list search/filter | mapped | name/author/URL query + updates-only toggle; categories pending | |
 | Apps list categories/groups | pending | |
 | Logs page | pending | needs a log store first |
 | Crowdsourced app configs | pending | source presets from the community repo |

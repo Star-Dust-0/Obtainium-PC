@@ -15,6 +15,8 @@
                 <FontIcon Glyph="&#xE72C;" FontSize="14"/>
             </Button>
             <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
+            <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" Width="260" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center"/>
+            <ToggleButton x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
         </StackPanel>
         <ListView x:Name="AppsList" Grid.Row="1" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="28,4,28,20">
             <ListView.ItemTemplate>

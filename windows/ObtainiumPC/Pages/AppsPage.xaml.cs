@@ -12,14 +12,16 @@ namespace ObtainiumPC.Pages
 {
     public sealed class AppRow
     {
-        public AppRow(TrackedApp app, bool hasUpdate)
+        public AppRow(TrackedApp app, bool hasUpdate, bool healthFlagged)
         {
             App = app;
             HasUpdate = hasUpdate;
+            HealthFlagged = healthFlagged;
         }
 
         public TrackedApp App { get; }
         public bool HasUpdate { get; }
+        public bool HealthFlagged { get; }
 
         public string Title => App.FinalName;
 
@@ -38,6 +40,7 @@ namespace ObtainiumPC.Pages
             get
             {
                 if (App.Disabled) return "Tracking disabled";
+                if (HealthFlagged) return "Update-health issue";
                 if (HasUpdate) return "Update available";
                 if (App.ConsecutiveFailedChecks > 0) return $"Last check failed ({App.ConsecutiveFailedChecks}x)";
                 return "";
@@ -75,11 +78,32 @@ namespace ObtainiumPC.Pages
 
         private void ReloadRows()
         {
+            var query = SearchBox?.Text?.Trim() ?? "";
+            var updatesOnly = UpdatesOnlyToggle?.IsChecked == true;
+            var showHealth = App.Settings.ShowUpdateHealthIndicator;
+
             Rows.Clear();
             foreach (var app in App.TrackedApps)
-                Rows.Add(new AppRow(app, App.Updater.IsAppUpdateable(app)));
+            {
+                var hasUpdate = App.Updater.IsAppUpdateable(app);
+                if (updatesOnly && !hasUpdate) continue;
+                if (query.Length > 0
+                    && !app.FinalName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    && !app.FinalAuthor.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    && !app.Url.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var healthFlagged = showHealth && Services.Updates.UpdateHealthService.HasIssues(app, App.Settings);
+                Rows.Add(new AppRow(app, hasUpdate, healthFlagged));
+            }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        private void SearchBox_TextChanged(object sender, AutoSuggestBoxTextChangedEventArgs e)
+        {
+            if (e.Reason == AutoSuggestionBoxTextChangeReason.UserInput) ReloadRows();
+        }
+
+        private void FilterChanged(object sender, RoutedEventArgs e) => ReloadRows();
 
         private void AppsList_ItemClick(object sender, ItemClickEventArgs e)
         {
