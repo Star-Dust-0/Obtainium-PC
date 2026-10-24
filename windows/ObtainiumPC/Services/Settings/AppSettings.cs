@@ -26,6 +26,8 @@ public sealed class AppSettings
     public bool BuryNonInstalled { get; set; }
     // lib/providers/settings_provider.dart allowAddingAppsWithoutCheck (default false)
     public bool AllowAddingAppsWithoutCheck { get; set; }
+    // Upstream appListDensity: standard / compact / dense (stored as name).
+    public string ListDensity { get; set; } = "standard";
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;

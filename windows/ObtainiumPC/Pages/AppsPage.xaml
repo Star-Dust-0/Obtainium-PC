@@ -23,12 +23,12 @@
         <ListView x:Name="AppsList" Grid.Row="1" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="28,4,28,20">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:AppRow">
-                    <Grid Padding="12" ColumnSpacing="12">
+                    <Grid Padding="{x:Bind RowPadding}" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xECAA;" FontSize="22" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <FontIcon Glyph="&#xECAA;" FontSize="{x:Bind IconSize}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="{x:Bind Title}" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                             <TextBlock Text="{x:Bind Subtitle}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

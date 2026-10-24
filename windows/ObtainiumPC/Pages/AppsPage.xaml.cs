@@ -21,6 +21,19 @@ namespace ObtainiumPC.Pages
             HealthFlagged = healthFlagged;
         }
 
+        // lib/components/app_list_tile.dart AppTileMetrics: compact trims
+        // vertical padding + icon, dense removes padding.
+        public void ApplyDensity(string density)
+        {
+            RowPadding = density == "dense" ? new Thickness(12, 2, 12, 2)
+                : density == "compact" ? new Thickness(12, 6, 12, 6)
+                : new Thickness(12, 12, 12, 12);
+            IconSize = density == "compact" ? 18 : 22;
+        }
+
+        public Thickness RowPadding { get; private set; } = new Thickness(12);
+        public double IconSize { get; private set; } = 22;
+
         public TrackedApp App { get; }
         public bool HasUpdate { get; }
         public bool HealthFlagged { get; }
@@ -107,7 +120,9 @@ base.OnNavigatedTo(e);
                     && !app.Url.Contains(query, StringComparison.OrdinalIgnoreCase))
                     continue;
                 var healthFlagged = showHealth && Services.Updates.UpdateHealthService.HasIssues(app, App.Settings);
-                Rows.Add(new AppRow(app, hasUpdate, healthFlagged));
+                var row = new AppRow(app, hasUpdate, healthFlagged);
+                row.ApplyDensity(App.Settings.ListDensity);
+                Rows.Add(row);
             }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
