@@ -2,6 +2,7 @@ using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources.GitHub;
 using ObtainiumPC.Sources.Codeberg;
 using ObtainiumPC.Sources.GitLab;
+using ObtainiumPC.Sources.SourceForge;
 
 namespace ObtainiumPC.Sources;
 
@@ -28,6 +29,8 @@ public static class SourceCatalog
             return new CodebergSource(new CodebergSourceConfig(
                 ForgejoPersonalAccessToken: settings.ForgejoPersonalAccessToken,
                 GlobalMinimumUpdateAgeDays: settings.MinimumUpdateAgeDays));
+        if (host == "sourceforge.net" || host == "www.sourceforge.net")
+            return new SourceForgeSource();
         throw new InvalidUrlException(host.Length > 0 ? host : url);
     }
 

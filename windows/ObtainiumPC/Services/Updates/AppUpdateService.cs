@@ -88,8 +88,11 @@ public sealed class AppUpdateService
         }
 
         var version = details.Version;
-        var extracted = ExtractVersionWithGlobalDefault(settings, _settings, version);
-        if (extracted != null) version = extracted;
+        if (!source.SuppressStandardVersionExtraction)
+        {
+            var extracted = ExtractVersionWithGlobalDefault(settings, _settings, version);
+            if (extracted != null) version = extracted;
+        }
 
         if (SettingBool(settings, "releaseDateAsVersion") && details.ReleaseDate is { } releaseDateForVersion)
             version = TrackedApp.ToMicroseconds(releaseDateForVersion).ToString();

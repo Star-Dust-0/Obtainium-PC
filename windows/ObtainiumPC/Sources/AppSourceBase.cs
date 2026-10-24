@@ -67,6 +67,10 @@ public abstract class AppSourceBase
     public virtual IReadOnlyList<IReadOnlyList<Forms.OptionFormItem>> AdditionalSourceAppSpecificSettingFormItems =>
         Array.Empty<IReadOnlyList<Forms.OptionFormItem>>();
 
+    /// Original: suppressStandardVersionExtraction (SourceForge sets it true -
+    /// the source extracts versions itself during release discovery).
+    public virtual bool SuppressStandardVersionExtraction => false;
+
     /// Original: showReleaseDateAsVersionToggle (GitHub sets it true).
     public virtual bool ShowReleaseDateAsVersionToggle => false;
 
