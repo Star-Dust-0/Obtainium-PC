@@ -54,10 +54,15 @@ WinUI 3 port. Statuses:
 | Tencent App Store | track-only | simple.jsp embedded-JSON scrape; install disabled with label |
 | Telegram App | track-only | channel-page version scrape, fixed download URL; install disabled with label |
 
-"Proposed track-only" means: port the version/link pipeline fully, disable
-the install action with a visible "Android package - cannot install on
-Windows" label. Final treatment is the user's decision at the next review;
-nothing is silently omitted.
+Track-only is the final treatment for these 19 sources (decided 2026-10-25):
+the version/link pipeline is ported fully - tracking, update checks,
+notifications, changelogs, per-app options, and downloading the APK to the
+user's downloads folder for manual transfer all work. The install action is
+disabled with a visible "Android package - cannot install on Windows" label.
+These sources only serve Android APK packages through the pipelines upstream
+uses; none offers a Windows binary, so install/run/registry-detection is
+technically impossible on Windows rather than an omitted feature. Nothing is
+silently omitted.
 
 ## Features
 
