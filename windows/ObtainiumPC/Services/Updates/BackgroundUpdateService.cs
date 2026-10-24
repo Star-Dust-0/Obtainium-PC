@@ -1,4 +1,6 @@
 using Microsoft.UI.Dispatching;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 using ObtainiumPC.Models;
 
 namespace ObtainiumPC.Services.Updates;
@@ -48,6 +50,10 @@ public sealed class BackgroundUpdateService
         try
         {
             await App.InitAsync();
+            var updateableBefore = App.TrackedApps
+                .Where(a => App.Updater.IsAppUpdateable(a))
+                .Select(a => a.Id)
+                .ToHashSet();
             foreach (var app in App.TrackedApps.Where(a => !a.Disabled).ToList())
             {
                 if (!manual && app.GetSettingBool("exemptFromBackgroundUpdates")) continue;
@@ -63,11 +69,43 @@ public sealed class BackgroundUpdateService
             await App.SaveAppsAsync();
             LastCheck = DateTimeOffset.Now;
             LastUpdateCount = App.TrackedApps.Count(a => App.Updater.IsAppUpdateable(a));
+            if (!manual && App.Settings.NotifyUpdates)
+            {
+                var newlyUpdateable = App.TrackedApps
+                    .Where(a => !updateableBefore.Contains(a.Id)
+                        && App.Updater.IsAppUpdateable(a)
+                        && !a.GetSettingBool("skipUpdateNotifications"))
+                    .ToList();
+                if (newlyUpdateable.Count > 0) NotifyUpdatesAvailable(newlyUpdateable);
+            }
             AppsUpdated?.Invoke(this, EventArgs.Empty);
         }
         finally
         {
             _checking = false;
+        }
+    }
+
+    /// Windows toast for newly found updates. Unpackaged toast delivery is
+    /// best-effort: if the platform refuses it, the in-app list still shows
+    /// the updates.
+    private static void NotifyUpdatesAvailable(List<TrackedApp> apps)
+    {
+        try
+        {
+            var text = apps.Count == 1
+                ? $"Update available: {apps[0].FinalName} {apps[0].LatestVersion}"
+                : $"{apps.Count} app updates available";
+            var notification = new AppNotificationBuilder()
+                .AddText("Obtainium-PC")
+                .AddText(text)
+                .BuildNotification();
+            AppNotificationManager.Default.Show(notification);
+        }
+        catch
+        {
+            // Toast unavailable (e.g. unpackaged identity limits); the in-app
+            // list remains the source of truth.
         }
     }
 }
