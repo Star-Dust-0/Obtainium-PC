@@ -46,3 +46,36 @@ public class VersionServiceTests
         Assert.Equal(expectedSign, Math.Sign(result!.Value));
     }
 }
+
+public class DetailActionTests
+{
+    [Fact]
+    public void First_install_is_enabled_and_marked_install()
+    {
+        var (enabled, firstInstall) = ObtainiumPC.Services.Versioning.VersionService.DetailAction(null, "v8.9.8.1");
+        Assert.True(enabled);
+        Assert.True(firstInstall);
+    }
+
+    [Fact]
+    public void Matching_versions_disable_the_action()
+    {
+        var (enabled, _) = ObtainiumPC.Services.Versioning.VersionService.DetailAction("v8.9.8.1", "v8.9.8.1");
+        Assert.False(enabled);
+    }
+
+    [Fact]
+    public void Differing_versions_enable_update_not_install()
+    {
+        var (enabled, firstInstall) = ObtainiumPC.Services.Versioning.VersionService.DetailAction("8.0", "v8.9.8.1");
+        Assert.True(enabled);
+        Assert.False(firstInstall);
+    }
+
+    [Fact]
+    public void Unknown_latest_disables_the_action()
+    {
+        var (enabled, _) = ObtainiumPC.Services.Versioning.VersionService.DetailAction(null, null);
+        Assert.False(enabled);
+    }
+}

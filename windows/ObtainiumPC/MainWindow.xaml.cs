@@ -23,6 +23,16 @@ namespace ObtainiumPC
             if (_backgroundStarted) return;
             _backgroundStarted = true;
             await App.InitAsync();
+            // Apply the saved theme: SettingsPage only sets RequestedTheme when
+            // the user changes the combo, so without this a saved "dark" came
+            // back light after every restart.
+            if (Content is FrameworkElement root)
+                root.RequestedTheme = App.Settings.Theme switch
+                {
+                    "light" => ElementTheme.Light,
+                    "dark" => ElementTheme.Dark,
+                    _ => ElementTheme.Default,
+                };
             Services.Updates.BackgroundUpdateService.Instance.Start();
         }
 

@@ -262,6 +262,16 @@ public static class VersionService
         return changed ? current : null;
     }
 
+    /// Detail-page action button decision, mirroring lib/pages/app.dart
+    /// hasAction: enabled whenever installed is null or differs from latest
+    /// (no hideDowngrades gate on the detail page), first-install when
+    /// installed is null so the caller labels the button "Install".
+    public static (bool Enabled, bool FirstInstall) DetailAction(string? installedVersion, string? latestVersion)
+    {
+        if (latestVersion == null) return (false, false);
+        return (installedVersion != latestVersion, installedVersion == null);
+    }
+
     /// Whether an app should be presented as having an update available.
     public static bool IsAppUpdateable(string? installedVersion, string? latestVersion, bool hideDowngrades)
     {

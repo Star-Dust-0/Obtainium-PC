@@ -42,12 +42,11 @@ namespace ObtainiumPC.Pages
             ReleaseDateText.Text = _app.ReleaseDate is { } rd ? "Released: " + rd.ToString("yyyy-MM-dd") : "";
             ReleaseLink.Visibility = !string.IsNullOrEmpty(_app.ReleaseUrl) ? Visibility.Visible : Visibility.Collapsed;
             TrackButton.Label = _app.Disabled ? "Enable tracking" : "Disable tracking";
-            // lib/pages/app.dart hasAction: enabled whenever installed is null or
-            // differs from latest (no hideDowngrades gate on the detail page);
-            // the label is "Install" for a first install, "Update" otherwise.
-            UpdateButton.IsEnabled = _app.LatestVersion != null
-                && _app.InstalledVersion != _app.LatestVersion;
-            if (_app.InstalledVersion == null && _app.LatestVersion != null)
+            // lib/pages/app.dart hasAction + Install/Update label.
+            var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
+                _app.InstalledVersion, _app.LatestVersion);
+            UpdateButton.IsEnabled = actionEnabled;
+            if (actionEnabled && firstInstall)
             {
                 UpdateButton.Label = "Install";
                 ((Microsoft.UI.Xaml.Controls.FontIcon)UpdateButton.Icon).Glyph = "\uE8B5";
