@@ -22,6 +22,10 @@ public sealed class BackgroundUpdateService
     private bool _started;
 
     public event EventHandler? AppsUpdated;
+
+    /// Raised by mutators outside update checks (deep-link imports, manual
+    /// refreshes) so open pages reload. AppsUpdated stays raisable only here.
+    public void NotifyAppsChanged() => AppsUpdated?.Invoke(this, EventArgs.Empty);
     public DateTimeOffset? LastCheck { get; private set; }
     public int LastUpdateCount { get; private set; }
     public bool IsChecking => _checking;

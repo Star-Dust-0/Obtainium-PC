@@ -258,6 +258,9 @@ public static class DeepLinkService
                     else { App.TrackedApps.Add(app); added++; }
                 }
                 await App.SaveAppsAsync();
+                // Reload any open Apps page; the import bypasses update checks,
+                // which are the usual AppsUpdated source.
+                Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
                 var done = new ThemedContentDialog
                 {
                     Title = Loc.T("Import complete"),
@@ -289,6 +292,7 @@ public static class DeepLinkService
                             {
                                 await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
                                 await App.SaveAppsAsync();
+                                Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
                             }
                             catch (Exception ex)
                             {
