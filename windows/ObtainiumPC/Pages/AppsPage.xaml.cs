@@ -72,9 +72,15 @@ namespace ObtainiumPC.Pages
         {
             get
             {
-                var installed = App.InstalledVersion ?? "not installed";
-                var latest = App.LatestVersion ?? "unknown";
-                return $"{App.FinalAuthor}  -  {installed} -> {latest}";
+                // app_list_tile.dart installedVersionText: the arrow form
+                // appears only when installed != latest; at parity the
+                // installed version shows alone.
+                var installed = App.InstalledVersion ?? Services.Localization.Loc.T("not installed");
+                var latest = App.LatestVersion;
+                var versionText = App.InstalledVersion != null && latest != null && App.InstalledVersion != latest
+                    ? $"{installed} -> {latest}"
+                    : installed;
+                return $"{App.FinalAuthor}  -  {versionText}";
             }
         }
 
