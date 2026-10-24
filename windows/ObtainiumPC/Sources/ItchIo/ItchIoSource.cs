@@ -7,7 +7,7 @@ namespace ObtainiumPC.Sources.ItchIo;
 
 /// <summary>
 /// Port of lib/app_sources/itchio.dart. itch.io uses a multi-step dynamic
-/// download flow (CSRF token + cookies, "Name your price" bypass, tokenized
+/// download flow (CSRF token + cookies, itch.io's own "no thanks" free-download path, tokenized
 /// Cloudflare R2 URLs). Windows mapping: the platform icon filter looks for
 /// Windows uploads (icon-windows8) instead of Android ones.
 /// </summary>
@@ -129,7 +129,9 @@ public sealed class ItchIoSource : AppSourceBase
         var baseUrl = standardUrl.TrimEnd('/');
         if (ExtractDownloads(initialBody).Count > 0) return initialBody;
 
-        // Bypass the "Name your price" lightbox.
+        // Follow itch.io's "No thanks, just take me to the downloads" path:
+        // the same POST the web UI sends for free/pay-what-you-want downloads.
+        // Paid-only uploads are never listed to this anonymous session.
         csrfToken ??= (await SetupDownload(standardUrl, ct)).Csrf;
         cookies ??= (await SetupDownload(standardUrl, ct)).Cookies;
         if (csrfToken == null || cookies == null) return initialBody;

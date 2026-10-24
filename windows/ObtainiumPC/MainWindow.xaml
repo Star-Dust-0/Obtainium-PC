@@ -19,6 +19,9 @@
             <muxc:NavigationViewItem Content="Add App" Tag="addapp">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE710;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
+            <muxc:NavigationViewItem Content="Update Health" Tag="updatehealth">
+                <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE95E;"/></muxc:NavigationViewItem.Icon>
+            </muxc:NavigationViewItem>
             <muxc:NavigationViewItem Content="Import / Export" Tag="importexport">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8CB;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>

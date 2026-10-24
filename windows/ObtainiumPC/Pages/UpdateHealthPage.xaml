@@ -1,0 +1,30 @@
+<Page
+    x:Class="ObtainiumPC.Pages.UpdateHealthPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer>
+        <StackPanel MaxWidth="900" Margin="24" Spacing="12">
+            <TextBlock Text="Update Health" Style="{ThemeResource TitleTextBlockStyle}"/>
+
+            <TextBlock Text="Detection" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
+            <ComboBox x:Name="StaleReleaseCombo" Header="Flag when the latest release is older than" HorizontalAlignment="Stretch"/>
+            <ComboBox x:Name="StaleVersionCombo" Header="Flag when the version has not changed for" HorizontalAlignment="Stretch"/>
+            <ComboBox x:Name="FailedChecksCombo" Header="Flag after this many consecutive failed checks" HorizontalAlignment="Stretch"/>
+            <ToggleSwitch x:Name="ArchivedToggle" Header="Flag archived repositories"/>
+            <ComboBox x:Name="FilteredReleasesCombo" Header="Flag after this many newer releases were filtered out" HorizontalAlignment="Stretch"/>
+            <ToggleSwitch x:Name="IndicatorToggle" Header="Show update-health indicator on the Apps list"/>
+
+            <TextBlock Text="Flagged apps" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+            <ItemsRepeater x:Name="FlaggedList"/>
+            <TextBlock x:Name="FlaggedEmpty" Text="No apps with update-health issues." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Ignored apps" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+            <ItemsRepeater x:Name="IgnoredList"/>
+            <TextBlock x:Name="IgnoredEmpty" Text="No ignored apps." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

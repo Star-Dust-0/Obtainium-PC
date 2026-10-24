@@ -25,6 +25,14 @@ public sealed class AppSettings
     public string? GitLabPersonalAccessToken { get; set; }
     public string? ForgejoPersonalAccessToken { get; set; }
 
+    // Update-health detection thresholds (upstream defaults).
+    public int UpdateHealthStaleReleaseDays { get; set; } = 180;
+    public int UpdateHealthStaleVersionDays { get; set; } = 180;
+    public int UpdateHealthFailedChecksCount { get; set; } = 5;
+    public bool UpdateHealthArchivedEnabled { get; set; } = true;
+    public int UpdateHealthFilteredReleasesCount { get; set; } = 5;
+    public bool ShowUpdateHealthIndicator { get; set; } = true;
+
     private static string Dir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ObtainiumPC");
 

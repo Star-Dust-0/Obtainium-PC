@@ -39,6 +39,7 @@ namespace ObtainiumPC
                 {
                     "apps" => typeof(AppsPage),
                     "addapp" => typeof(AddAppPage),
+                    "updatehealth" => typeof(UpdateHealthPage),
                     "importexport" => typeof(ImportExportPage),
                     "settings" => typeof(SettingsPage),
                     _ => null
