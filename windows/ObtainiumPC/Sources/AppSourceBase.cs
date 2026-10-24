@@ -107,6 +107,16 @@ public abstract class AppSourceBase
     public virtual IReadOnlyDictionary<string, string>? GetDownloadRequestHeaders(
         string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => null;
 
+    /// Original: canSearch. Whether the source supports app search by name.
+    public virtual bool CanSearch => false;
+
+    /// Original: search. Returns url -> [name, description]; null = unsupported.
+    public virtual Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query,
+        IReadOnlyDictionary<string, JsonElement> querySettings,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<string>>?>(null);
+
     /// Original: assetUrlPrefetchModifier. Applied at download time, never stored.
     public virtual string AssetUrlPrefetchModifier(
         string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => assetUrl;

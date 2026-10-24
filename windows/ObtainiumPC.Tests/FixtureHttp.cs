@@ -7,6 +7,7 @@ namespace ObtainiumPC.Tests;
 public sealed class FixtureHttpHandler : HttpMessageHandler
 {
     private readonly Dictionary<string, (HttpStatusCode Status, string Body, Dictionary<string, string> Headers)> _responses = new();
+    private readonly List<(string Prefix, HttpStatusCode Status, string Body)> _prefixResponses = new();
 
     public FixtureHttpHandler Respond(string url, string body, HttpStatusCode status = HttpStatusCode.OK,
         Dictionary<string, string>? headers = null)
@@ -15,9 +16,18 @@ public sealed class FixtureHttpHandler : HttpMessageHandler
         return this;
     }
 
+    public FixtureHttpHandler RespondPrefix(string urlPrefix, string body, HttpStatusCode status = HttpStatusCode.OK)
+    {
+        _prefixResponses.Add((urlPrefix, status, body));
+        return this;
+    }
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var url = request.RequestUri!.ToString();
+        foreach (var (prefix, status, body) in _prefixResponses)
+            if (url.StartsWith(prefix, StringComparison.Ordinal))
+                return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
         if (_responses.TryGetValue(url, out var r))
         {
             var response = new HttpResponseMessage(r.Status) { Content = new StringContent(r.Body) };
