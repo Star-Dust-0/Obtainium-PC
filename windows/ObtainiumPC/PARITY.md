@@ -33,11 +33,11 @@ WinUI 3 port. Statuses:
 | APKCombo | pending | Android packages - proposed track-only |
 | APK4Free | pending | Android packages - proposed track-only |
 | LiteAPKs | pending | Android packages - proposed track-only |
-| Aptoide | pending | Android packages - proposed track-only |
+| Aptoide | track-only | page-scraped app ID + ws2 API; install disabled with label |
 | Uptodown | pending | Android packages - proposed track-only |
 | CoolApk | pending | Android packages - proposed track-only |
 | Farsroid | pending | Android packages - proposed track-only |
-| RockMods | pending | Android packages - proposed track-only |
+| RockMods | track-only | JSON-LD version tracking only (track-only upstream too, PR #2966) |
 | RuStore | pending | Android packages - proposed track-only |
 | Huawei AppGallery | pending | Android packages - proposed track-only |
 | Samsung Galaxy Store | pending | Android packages - proposed track-only |
