@@ -62,11 +62,13 @@ public class ApkMirrorSourceTests
             </item>
             </channel></rss>
             """;
+        // The size line sits outside the changelog block (Dart's stop list
+        // would not cut it); page text is scanned whole for the size.
         const string releasePage = """
             <html><body>
+            <p>File size: 10.0 MB</p>
             <h3>What's new in Cool App 1.2.3</h3>
             <p>cool fixes</p>
-            <p>File size: 10.0 MB</p>
             </body></html>
             """;
         var handler = new FixtureHttpHandler()
