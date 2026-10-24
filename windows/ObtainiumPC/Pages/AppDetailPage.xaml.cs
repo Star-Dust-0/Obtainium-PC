@@ -86,7 +86,7 @@ namespace ObtainiumPC.Pages
                 });
                 var downloadUrl = asset.Value;
                 if (SourceCatalog.TryResolve(_app.Url, App.Settings, out var dlSource) && dlSource != null)
-                    downloadUrl = dlSource.AssetUrlPrefetchModifier(downloadUrl, _app.Url, _app.AdditionalSettings);
+                    downloadUrl = await dlSource.AssetUrlPrefetchModifierAsync(downloadUrl, _app.Url, _app.AdditionalSettings);
                 // The GitHub PAT is only attached to GitHub asset requests.
                 var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
                     ? App.Settings.GitHubPersonalAccessToken : null;

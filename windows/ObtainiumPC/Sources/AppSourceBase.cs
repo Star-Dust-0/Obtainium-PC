@@ -96,6 +96,13 @@ public abstract class AppSourceBase
     public virtual string AssetUrlPrefetchModifier(
         string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings) => assetUrl;
 
+    /// Async variant for sources that must resolve a signed URL at download
+    /// time (itch.io). Defaults to the sync modifier.
+    public virtual Task<string> AssetUrlPrefetchModifierAsync(
+        string assetUrl, string standardUrl, IReadOnlyDictionary<string, JsonElement> additionalSettings,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(AssetUrlPrefetchModifier(assetUrl, standardUrl, additionalSettings));
+
     /// Original: isReleaseTooYoung from lib/utils/min_update_age.dart.
     protected static bool IsReleaseTooYoung(DateTimeOffset? releaseDate, int minAgeDays)
     {
