@@ -1,0 +1,27 @@
+name: Build Windows (Obtainium-PC)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/build-windows.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore windows/ObtainiumPC/ObtainiumPC.csproj --runtime win-x64
+      - name: Publish
+        run: dotnet publish windows/ObtainiumPC/ObtainiumPC.csproj -c Release -r win-x64 --self-contained true --no-restore -o publish
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ObtainiumPC-win-x64
+          path: publish/
