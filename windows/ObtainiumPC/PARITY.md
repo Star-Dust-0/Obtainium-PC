@@ -5,7 +5,7 @@ Upstream reference: ImranR98/Obtainium at commit
 upstream sync). Test expectations are derived from that code, not from this
 port's own implementation.
 
-Source totals: 30 upstream sources; 23 ported (9 ported + 2 mapped +
+Source totals: 30 upstream sources; 25 ported (11 ported + 2 mapped +
 12 track-only), 7 pending (all Android APK stores, to be ported track-only).
 
 Tracks every upstream Obtainium (ImranR98) source and feature against the
@@ -89,7 +89,7 @@ partial / gap. Interaction-verified items cite the ui-smoke evidence.
 | Page | Status | Present in port | Known gaps vs upstream |
 | --- | --- | --- | --- |
 | Apps (apps.dart) | partial | search box, updates-only toggle, health indicator, refresh, app card -> detail (ui-smoke verified) | multi-select + batch actions (update/install/mark-updated/remove/categorize/share URLs/share configs/export selected), sort options, category filter dialog, pin-to-top, list density |
-| App detail (app.dart) | partial | installed/latest/release date, changelog, update with progress + safe completion (ui-smoke verified), mark as updated, enable/disable tracking, remove, per-app options, release page link, OS gear honestly disabled unpackaged (ui-smoke verified) | repo-rename prompt + update-URL flow, reset install status, copy changelog, share, signer-change warning, pseudo-version note, update-health note dismissal |
+| App detail (app.dart) | partial | installed/latest/release date, changelog, Install-vs-Update action button matching upstream hasAction (enabled whenever installed differs from latest), update with progress + safe completion (ui-smoke verified), mark as updated, enable/disable tracking, remove, per-app options, release page link, OS gear honestly disabled unpackaged (ui-smoke verified) | repo-rename prompt + update-URL flow, reset install status, copy changelog, share, signer-change warning, pseudo-version note, update-health note dismissal |
 | Add App (add_app.dart) | partial | URL add, override source picker, track-only toggle (ui-smoke verified) | source search, crowdsourced config suggestions, add-without-check option, already-added dedupe prompt |
 | App options (app_additional_options.dart) | partial | combined per-source form items render (ui-smoke verified: GitHub release options) | verify every control kind (choice lists, headers) across sources |
 | Settings (settings.dart) | partial | theme + language picker, update interval, min update age, check-on-start, global version/asset regexes, source PATs, update-health thresholds (ui-smoke verified) | app sort order/density, phone layout, background-update limits explanation, app-verifier sharing, about section links |

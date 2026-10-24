@@ -167,7 +167,8 @@ jobs:
           if ($gear.Current.IsEnabled) { throw 'OS app settings gear must be disabled for unpackaged apps' }
 
           # Download safe completion: Update downloads the asset; poll for the file.
-          ClickNamed 'Update'
+          # First install: the detail action button reads 'Install' (upstream lib/pages/app.dart).
+          ClickNamed 'Install' -verify
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           $file = $null
           foreach ($i in 1..40) {
