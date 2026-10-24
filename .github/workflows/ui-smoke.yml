@@ -211,50 +211,37 @@ jobs:
           "downloaded: $($file.FullName) ($($file.Length) bytes)"
 
           # Real install: drive the npp NSIS wizard to completion (interactive
-          # clicks on the disposable runner), then verify the app detects the
-          # installed version from the registry instead of relying on the
-          # manual Mark-as-updated fallback.
-          function ClickAnyOf($names, $timeoutSec) {
-            $deadline = (Get-Date).AddSeconds($timeoutSec)
-            while ((Get-Date) -lt $deadline) {
-              $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-              foreach ($el in $all) {
-                if ($el.Current.ControlType -ne [System.Windows.Automation.ControlType]::Button) { continue }
-                foreach ($n in $names) {
-                  if ($el.Current.Name -eq $n) {
-                    $r = $el.Current.BoundingRectangle
-                    if ($r.Width -gt 5 -and $r.Height -gt 5) {
-                      [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
-                      Start-Sleep -Milliseconds 400
-                      [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
-                      "clicked installer button: $n"
-                      return $true
-                    }
-                  }
-                }
-              }
-              Start-Sleep 1
+          # window-focus + Enter on the disposable runner), then verify the app
+          # detects the installed version from the registry instead of relying
+          # on the manual Mark-as-updated fallback. Enter hits each NSIS page's
+          # default button (OK / Next > / I Agree / Install / Finish).
+          $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++'
+          $deadline = (Get-Date).AddMinutes(5)
+          $reg = $null
+          while ((Get-Date) -lt $deadline) {
+            $w = $null
+            foreach ($t in @('Installer Language', 'Notepad++ v8.9.8.1 Setup')) {
+              $w = FindNamed $t $root
+              if ($w -ne $null) { break }
             }
-            return $false
+            if ($w -ne $null) {
+              $r = $w.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + 12))
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              Start-Sleep -Milliseconds 600
+              [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+              "advanced installer page: $($w.Current.Name)"
+              Start-Sleep 4
+            } else {
+              $reg = Get-ItemProperty $regPath -ErrorAction SilentlyContinue
+              if ($reg -ne $null) { break }
+              Start-Sleep 2
+            }
           }
-          # Installer Language -> OK, then the setup wizard.
-          if (-not (ClickAnyOf @('OK') 30)) { Shot 'installer-no-language'; throw 'installer language dialog did not appear' }
-          Start-Sleep 2
-          if (-not (ClickAnyOf @('Next >') 30)) { Shot 'installer-no-welcome'; throw 'installer welcome page not found' }
-          Start-Sleep 1
-          if (-not (ClickAnyOf @('I Agree') 30)) { Shot 'installer-no-license'; throw 'installer license page not found' }
-          Start-Sleep 1
-          ClickAnyOf @('Next >') 15 | Out-Null   # components page (npp 8.x)
-          Start-Sleep 1
-          if (-not (ClickAnyOf @('Install') 30)) { Shot 'installer-no-install'; throw 'installer install page not found' }
-          Start-Sleep 2
-          if (-not (ClickAnyOf @('Finish') 120)) { Shot 'installer-no-finish'; throw 'installer did not finish' }
-          Start-Sleep 3
-          Shot '11a-installer-finished'
-          # Registry entry must now exist and the app must detect it.
-          $reg = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++' -ErrorAction SilentlyContinue
-          if ($reg -eq $null) { throw 'Notepad++ not present in registry Uninstall after installer completed' }
+          if ($reg -eq $null) { Shot 'installer-stuck'; throw 'installer did not complete / registry entry missing' }
           "registry DisplayVersion: $($reg.DisplayVersion)"
+          Shot '11a-installer-finished'
+          # The app must now detect the installed version via registry.
           ClickNamed 'Detect installed version now'
           Start-Sleep 3
           AssertAlive 'detect'; Shot '11b-detected-installed'
