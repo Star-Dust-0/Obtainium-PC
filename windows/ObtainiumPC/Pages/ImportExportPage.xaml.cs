@@ -128,6 +128,67 @@ namespace ObtainiumPC.Pages
                 $"Added {added} app(s). They resolve their first version on the next update check.");
         }
 
+        // lib/pages/import_export.dart: URL-list import -> addAppsByURL with a
+        // per-URL error report.
+        private async void ImportUrls_Click(object sender, RoutedEventArgs e)
+        {
+            var urls = (UrlListBox.Text ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(u => u.Trim()).Where(u => u.Length > 0).Distinct().ToList();
+            if (urls.Count == 0) return;
+            UrlImportButton.IsEnabled = false;
+            UrlImportRing.IsActive = true;
+            var errors = new List<string>();
+            var added = 0;
+            try
+            {
+                foreach (var url in urls)
+                {
+                    try
+                    {
+                        var app = await App.Updater.CheckAppAsync(url, new Dictionary<string, JsonElement>());
+                        var dupe = App.TrackedApps.FirstOrDefault(t => t.Id == app.Id || t.Url == app.Url);
+                        if (dupe != null)
+                        {
+                            errors.Add(url + ": already added (" + dupe.FinalName + ")");
+                            continue;
+                        }
+                        App.TrackedApps.Add(app);
+                        added++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(url + ": " + ex.Message);
+                    }
+                }
+                if (added > 0) await App.SaveAppsAsync();
+                if (errors.Count == 0)
+                {
+                    Show(InfoBarSeverity.Success, $"Imported {added} app(s).");
+                    UrlListBox.Text = "";
+                }
+                else
+                {
+                    var dlg = new ContentDialog
+                    {
+                        Title = $"Imported {added} of {urls.Count}",
+                        Content = new ScrollViewer
+                        {
+                            MaxHeight = 360,
+                            Content = new TextBlock { Text = string.Join("\n", errors), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+                        },
+                        CloseButtonText = "OK",
+                        XamlRoot = this.XamlRoot,
+                    };
+                    await dlg.ShowAsync();
+                }
+            }
+            finally
+            {
+                UrlImportRing.IsActive = false;
+                UrlImportButton.IsEnabled = true;
+            }
+        }
+
         private async void Import_Click(object sender, RoutedEventArgs e)
         {
             await App.InitAsync();

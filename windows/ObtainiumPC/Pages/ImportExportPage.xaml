@@ -28,6 +28,15 @@
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <Button Content="Import from file..." Click="Import_Click" HorizontalAlignment="Left"/>
 
+                <TextBlock Text="Import from URL list" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+                <TextBlock Text="One app source URL per line. Each is checked and added; failures are reported per URL."
+                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBox x:Name="UrlListBox" PlaceholderText="https://github.com/owner/repo&#x0a;https://..." AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="UrlImportButton" Content="Import URLs" Click="ImportUrls_Click"/>
+                    <ProgressRing x:Name="UrlImportRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
+                </StackPanel>
+
                 <TextBlock Text="Bulk import" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
                 <TextBlock Text="Import apps in bulk from an external list. You review and pick which repos to add before anything is saved."
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
