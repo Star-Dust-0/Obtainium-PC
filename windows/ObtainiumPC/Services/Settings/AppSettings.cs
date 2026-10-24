@@ -28,6 +28,9 @@ public sealed class AppSettings
     public bool AllowAddingAppsWithoutCheck { get; set; }
     // Upstream appListDensity: standard / compact / dense (stored as name).
     public string ListDensity { get; set; } = "standard";
+    // lib/providers/settings_provider.dart autoExportOnChanges / autoExportFileName
+    public bool AutoExportOnChanges { get; set; }
+    public string? AutoExportPath { get; set; }
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;

@@ -22,6 +22,8 @@
                     <ComboBoxItem Content="Apps and settings, including credentials"/>
                 </ComboBox>
                 <Button Content="Export to file..." Click="Export_Click" HorizontalAlignment="Left"/>
+                <ToggleSwitch x:Name="AutoExportToggle" Header="Automatically export on changes" Toggled="AutoExportToggle_Toggled"/>
+                <TextBox x:Name="AutoExportPathBox" Header="Auto-export file path" PlaceholderText="C:\Users\you\Documents\obtainium-export.json" LostFocus="AutoExportPathBox_LostFocus"/>
 
                 <TextBlock Text="Import" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
                 <TextBlock Text="Reads an Obtainium export file (schema v2 and legacy formats). Apps with an existing ID are replaced; new apps are added."

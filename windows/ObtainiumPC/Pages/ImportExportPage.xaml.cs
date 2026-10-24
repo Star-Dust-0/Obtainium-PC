@@ -14,6 +14,11 @@ namespace ObtainiumPC.Pages
         public ImportExportPage()
         {
             this.InitializeComponent();
+            Loaded += (s2, e2) =>
+            {
+                AutoExportToggle.IsOn = App.Settings.AutoExportOnChanges;
+                AutoExportPathBox.Text = App.Settings.AutoExportPath ?? "";
+            };
         }
 
         private static void InitPicker(object picker)
@@ -130,6 +135,19 @@ namespace ObtainiumPC.Pages
 
         // lib/pages/import_export.dart: URL-list import -> addAppsByURL with a
         // per-URL error report.
+        private void AutoExportToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            App.Settings.AutoExportOnChanges = AutoExportToggle.IsOn;
+            App.Settings.Save();
+        }
+
+        private void AutoExportPathBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var path = (AutoExportPathBox.Text ?? "").Trim();
+            App.Settings.AutoExportPath = path.Length > 0 ? path : null;
+            App.Settings.Save();
+        }
+
         private async void ImportUrls_Click(object sender, RoutedEventArgs e)
         {
             var urls = (UrlListBox.Text ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)

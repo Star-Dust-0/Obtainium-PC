@@ -15,6 +15,7 @@
                 <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
             </StackPanel>
             <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True" Message=""/>
-        </StackPanel>
+                        <HyperlinkButton Content="Browse crowdsourced app configs" NavigateUri="https://apps.obtainium.imranr.dev/"/>
+            </StackPanel>
     </Grid>
 </Page>

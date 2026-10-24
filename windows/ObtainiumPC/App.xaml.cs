@@ -43,6 +43,31 @@ namespace ObtainiumPC
             Initialized = true;
         }
 
-        public static async Task SaveAppsAsync() => await Store.SaveAsync(TrackedApps);
+        public static async Task SaveAppsAsync()
+        {
+            await Store.SaveAsync(TrackedApps);
+            ScheduleAutoExport();
+        }
+
+        // lib/providers/apps_provider.dart scheduleAutoExport: a 2s debounce
+        // coalesces bursts of saves into one apps-only export file.
+        private static System.Threading.Timer? _autoExportTimer;
+        public static void ScheduleAutoExport()
+        {
+            if (!Settings.AutoExportOnChanges || string.IsNullOrEmpty(Settings.AutoExportPath)) return;
+            _autoExportTimer?.Dispose();
+            _autoExportTimer = new System.Threading.Timer(_ =>
+            {
+                try
+                {
+                    var json = Services.Store.AppStore.Export(TrackedApps.ToList(), null, 0, "0.1.0");
+                    System.IO.File.WriteAllText(Settings.AutoExportPath!, json);
+                }
+                catch (Exception ex)
+                {
+                    Services.Logging.AppLogger.Warn("Auto-export failed", ex);
+                }
+            }, null, 2000, System.Threading.Timeout.Infinite);
+        }
     }
 }
