@@ -22,6 +22,7 @@
                     <ComboBoxItem Content="Apps and settings, including credentials"/>
                 </ComboBox>
                 <Button Content="Export to file..." Click="Export_Click" HorizontalAlignment="Left"/>
+                <ToggleSwitch x:Name="InstalledOnlyToggle" Header="Only include installed apps in exports" Toggled="InstalledOnlyToggle_Toggled"/>
                 <ToggleSwitch x:Name="AutoExportToggle" Header="Automatically export on changes" Toggled="AutoExportToggle_Toggled"/>
                 <TextBox x:Name="AutoExportPathBox" Header="Auto-export file path" PlaceholderText="C:\Users\you\Documents\obtainium-export.json" LostFocus="AutoExportPathBox_LostFocus"/>
 
@@ -35,6 +36,7 @@
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <TextBox x:Name="UrlListBox" PlaceholderText="https://github.com/owner/repo&#x0a;https://..." AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="UrlFileButton" Content="From file..." Click="ImportUrlFile_Click" VerticalAlignment="Center"/>
                     <Button x:Name="UrlImportButton" Content="Import URLs" Click="ImportUrls_Click"/>
                     <ProgressRing x:Name="UrlImportRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
                 </StackPanel>

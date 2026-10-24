@@ -31,6 +31,8 @@ public sealed class AppSettings
     // lib/providers/settings_provider.dart autoExportOnChanges / autoExportFileName
     public bool AutoExportOnChanges { get; set; }
     public string? AutoExportPath { get; set; }
+    // lib/providers/settings_provider.dart exportInstalledOnly
+    public bool ExportInstalledOnly { get; set; }
     public string Language { get; set; } = "en";
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;

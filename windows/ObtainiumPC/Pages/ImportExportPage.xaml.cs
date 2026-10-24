@@ -16,6 +16,7 @@ namespace ObtainiumPC.Pages
             this.InitializeComponent();
             Loaded += (s2, e2) =>
             {
+                InstalledOnlyToggle.IsOn = App.Settings.ExportInstalledOnly;
                 AutoExportToggle.IsOn = App.Settings.AutoExportOnChanges;
                 AutoExportPathBox.Text = App.Settings.AutoExportPath ?? "";
             };
@@ -57,7 +58,11 @@ namespace ObtainiumPC.Pages
                 settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
                 if (level < 2) settings.Remove(nameof(Services.Settings.AppSettings.GitHubPersonalAccessToken));
             }
-            var json = Services.Store.AppStore.Export(App.TrackedApps, settings, level, "0.1.0");
+            // lib/providers/settings_provider.dart exportInstalledOnly
+            var toExport = App.Settings.ExportInstalledOnly
+                ? App.TrackedApps.Where(a => a.InstalledVersion != null).ToList()
+                : App.TrackedApps;
+            var json = Services.Store.AppStore.Export(toExport, settings, level, "0.1.0");
             await FileIO.WriteTextAsync(file, json);
             ShowResult(InfoBarSeverity.Success, "Export complete",
                 $"{App.TrackedApps.Count} app(s) written to {file.Name}.");
@@ -135,6 +140,37 @@ namespace ObtainiumPC.Pages
 
         // lib/pages/import_export.dart: URL-list import -> addAppsByURL with a
         // per-URL error report.
+        private void InstalledOnlyToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            App.Settings.ExportInstalledOnly = InstalledOnlyToggle.IsOn;
+            App.Settings.Save();
+        }
+
+        // lib/pages/import_export.dart importFromFile: pull http(s) URLs out of
+        // a picked file and keep only ones a source recognizes.
+        private async void ImportUrlFile_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".txt");
+            picker.FileTypeFilter.Add("*");
+            InitPicker(picker);
+            var file = await picker.PickSingleFileAsync();
+            if (file == null) return;
+            var contents = await FileIO.ReadTextAsync(file);
+            var urls = System.Text.RegularExpressions.Regex.Matches(contents, "https?://[^\s\"]+")
+                .Select(m => m.Value)
+                .Distinct()
+                .Where(u => Sources.SourceCatalog.TryResolve(u, App.Settings, out _))
+                .ToList();
+            if (urls.Count == 0)
+            {
+                ShowResult(InfoBarSeverity.Warning, "No URLs", "No supported app URLs found in that file.");
+                return;
+            }
+            UrlListBox.Text = string.Join("\n", urls);
+            ShowResult(InfoBarSeverity.Informational, "URLs loaded", $"{urls.Count} URL(s) loaded - review and tap Import URLs.");
+        }
+
         private void AutoExportToggle_Toggled(object sender, RoutedEventArgs e)
         {
             App.Settings.AutoExportOnChanges = AutoExportToggle.IsOn;
