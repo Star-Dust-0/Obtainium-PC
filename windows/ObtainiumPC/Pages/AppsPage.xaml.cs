@@ -113,6 +113,89 @@ namespace ObtainiumPC.Pages
 
         private void FilterChanged(object sender, RoutedEventArgs e) => ReloadRows();
 
+        // lib/pages/apps.dart selection mode + bottom-sheet batch actions.
+        private void SelectToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            var selecting = SelectToggle.IsChecked == true;
+            AppsList.SelectionMode = selecting ? ListViewSelectionMode.Multiple : ListViewSelectionMode.None;
+            AppsList.IsItemClickEnabled = !selecting;
+            BatchBar.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
+            if (!selecting) AppsList.SelectedItems.Clear();
+        }
+
+        private List<TrackedApp> SelectedApps() =>
+            AppsList.SelectedItems.OfType<AppRow>().Select(r => r.App).ToList();
+
+        private void ExitSelection()
+        {
+            SelectToggle.IsChecked = false;
+            SelectToggle_Changed(this, new RoutedEventArgs());
+        }
+
+        // lib/pages/apps.dart pinSelectedApps: unpin only when every selected
+        // app is already pinned.
+        private async void BatchPin_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var target = !sel.All(a => a.Pinned);
+            foreach (var a in sel) a.Pinned = target;
+            await App.SaveAppsAsync();
+            ReloadRows();
+        }
+
+        private async void BatchDisable_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var target = !sel.All(a => a.Disabled);
+            foreach (var a in sel) a.Disabled = target;
+            await App.SaveAppsAsync();
+            ReloadRows();
+        }
+
+        // lib/pages/apps.dart showMassMarkDialog (simplified: mark as updated
+        // only; the extra "mark even without update" option is not ported).
+        private async void BatchMark_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps().Where(a => a.InstalledVersion != a.LatestVersion).ToList();
+            if (sel.Count == 0) return;
+            foreach (var a in sel) a.InstalledVersion = a.LatestVersion;
+            await App.SaveAppsAsync();
+            ReloadRows();
+            ExitSelection();
+        }
+
+        // lib/pages/apps.dart shareAppURLs (copied to the clipboard; Windows
+        // share-sheet integration is a disclosed simplification).
+        private void BatchCopyUrls_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(string.Join("\n", sel.Select(a => a.Url)));
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        }
+
+        private async void BatchRemove_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedApps();
+            if (sel.Count == 0) return;
+            var dialog = new ContentDialog
+            {
+                Title = sel.Count == 1 ? "Remove 1 app?" : $"Remove {sel.Count} apps?",
+                Content = "The apps themselves are not uninstalled; Obtainium-PC just stops tracking them.",
+                PrimaryButtonText = "Remove",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            foreach (var a in sel) App.TrackedApps.Remove(a);
+            await App.SaveAppsAsync();
+            ReloadRows();
+            ExitSelection();
+        }
+
         private void AppsList_ItemClick(object sender, ItemClickEventArgs e)
         {
             if (e.ClickedItem is AppRow row)
