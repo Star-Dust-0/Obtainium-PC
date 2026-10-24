@@ -1,5 +1,13 @@
 # Obtainium-PC parity matrix
 
+Upstream reference: ImranR98/Obtainium at commit
+`24807b46a9b2100eabd4c2dd357d84ded0027201` (2026-10-18, the fork's last
+upstream sync). Test expectations are derived from that code, not from this
+port's own implementation.
+
+Source totals: 30 upstream sources; 23 ported (9 ported + 2 mapped +
+12 track-only), 7 pending (all Android APK stores, to be ported track-only).
+
 Tracks every upstream Obtainium (ImranR98) source and feature against the
 WinUI 3 port. Statuses:
 
