@@ -30,7 +30,7 @@ WinUI 3 port. Statuses:
 | IzzyOnDroid | track-only | F-Droid-compatible API on Izzy hosts; install disabled with label |
 | APKMirror | pending | Android packages - proposed track-only |
 | APKPure | pending | Android packages - proposed track-only |
-| APKCombo | pending | Android packages - proposed track-only |
+| APKCombo | track-only | per-variant current-build links, R2 presigned URLs re-scraped at download; install disabled with label |
 | Apk4Free | track-only | two-page scrape with title cleaning and version fallbacks; install disabled with label |
 | LiteAPKs | track-only | WordPress API, Referer header + time-based CDN token at download; install disabled with label |
 | Aptoide | track-only | page-scraped app ID + ws2 API; install disabled with label |
