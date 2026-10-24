@@ -8,11 +8,22 @@ namespace ObtainiumPC
 {
     public sealed partial class MainWindow : Window
     {
+        private bool _backgroundStarted;
+
         public MainWindow()
         {
             this.InitializeComponent();
             Title = "Obtainium-PC";
             SystemBackdrop = new MicaBackdrop();
+            Activated += MainWindow_Activated;
+        }
+
+        private async void MainWindow_Activated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)
+        {
+            if (_backgroundStarted) return;
+            _backgroundStarted = true;
+            await App.InitAsync();
+            Services.Updates.BackgroundUpdateService.Instance.Start();
         }
 
         private void NavView_Loaded(object sender, RoutedEventArgs e)

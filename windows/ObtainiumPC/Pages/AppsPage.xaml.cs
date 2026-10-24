@@ -61,8 +61,17 @@ namespace ObtainiumPC.Pages
         {
             base.OnNavigatedTo(e);
             await App.InitAsync();
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated += OnAppsUpdated;
             ReloadRows();
         }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdated;
+            base.OnNavigatedFrom(e);
+        }
+
+        private void OnAppsUpdated(object? sender, EventArgs e) => ReloadRows();
 
         private void ReloadRows()
         {
@@ -84,18 +93,9 @@ namespace ObtainiumPC.Pages
             BusyRing.IsActive = true;
             try
             {
-                foreach (var app in App.TrackedApps.Where(a => !a.Disabled).ToList())
-                {
-                    try
-                    {
-                        await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
-                    }
-                    catch
-                    {
-                        app.ConsecutiveFailedChecks++;
-                    }
-                }
-                await App.SaveAppsAsync();
+                // Manual refresh checks every non-disabled app, including ones
+                // exempt from background updates.
+                await Services.Updates.BackgroundUpdateService.Instance.CheckAllAsync(manual: true);
             }
             finally
             {
