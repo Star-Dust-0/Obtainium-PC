@@ -27,6 +27,33 @@ public class InstalledAppsServiceTests
     }
 
     [Fact]
+    public void Prefix_match_covers_arch_suffix()
+    {
+        // Real case: "Notepad++" (tracked name) vs the registry's
+        // "Notepad++ (64-bit x64)" - only 46% containment overlap, but a
+        // clean prefix match, so detection must still succeed.
+        var installed = new[] { Entry("Notepad++ (64-bit x64)", "Notepad++ Team", "8.9.8.1"), Entry("Other App") };
+        var match = InstalledAppsService.FindMatch("Notepad++", null, installed);
+        Assert.NotNull(match);
+        Assert.Equal(InstalledAppsService.MatchConfidence.Strong, match!.Confidence);
+        Assert.Equal("8.9.8.1", match.Info.DisplayVersion);
+    }
+
+    [Fact]
+    public void Ambiguous_prefix_returns_null()
+    {
+        var installed = new[] { Entry("Git (x64)"), Entry("GitHub Desktop") };
+        Assert.Null(InstalledAppsService.FindMatch("Git", null, installed));
+    }
+
+    [Fact]
+    public void Prefix_needs_minimum_length()
+    {
+        var installed = new[] { Entry("7z extra") };
+        Assert.Null(InstalledAppsService.FindMatch("7", null, installed));
+    }
+
+    [Fact]
     public void Ambiguous_containment_returns_null()
     {
         // Both pass the overlap rule; without a publisher hint there is no

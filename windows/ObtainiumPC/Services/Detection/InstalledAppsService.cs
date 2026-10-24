@@ -70,7 +70,9 @@ public static class InstalledAppsService
     /// user-visible; Weak/Ambiguous results are returned as null so a wrong
     /// match can never drive an action. Order of attempts:
     /// 1. Exact normalized display-name match (publisher disambiguates ties).
-    /// 2. Unique containment match with at least 60% length overlap and a
+    /// 2. Unique prefix match, minimum normalized length of 4 (covers arch /
+    ///    edition suffixes like "Notepad++ (64-bit x64)").
+    /// 3. Unique containment match with at least 60% length overlap and a
     ///    minimum normalized length of 4, publisher disambiguates ties.
     /// Anything ambiguous returns null.
     /// </summary>
@@ -102,6 +104,19 @@ public static class InstalledAppsService
         if (exactMatch != null) return new MatchResult(exactMatch, MatchConfidence.Exact);
 
         if (needle.Length < 4) return null; // too short to contain-match safely
+
+        // Prefix tier: "notepad" is a prefix of "notepad64bitx64" (arch and
+        // edition suffixes in DisplayName). Stronger than arbitrary
+        // containment, so no length-overlap requirement beyond the minimum.
+        var prefix = installed
+            .Where(a =>
+            {
+                var hay = Normalize(a.DisplayName);
+                return hay.Length >= 4 && (hay.StartsWith(needle) || needle.StartsWith(hay));
+            })
+            .ToList();
+        var prefixMatch = Disambiguate(prefix);
+        if (prefixMatch != null) return new MatchResult(prefixMatch, MatchConfidence.Strong);
 
         var containment = installed
             .Where(a =>
