@@ -163,7 +163,7 @@ namespace ObtainiumPC.Pages
                 if (added > 0) await App.SaveAppsAsync();
                 if (errors.Count == 0)
                 {
-                    Show(InfoBarSeverity.Success, $"Imported {added} app(s).");
+                    ShowResult(InfoBarSeverity.Success, "Imported", $"Imported {added} app(s).");
                     UrlListBox.Text = "";
                 }
                 else
