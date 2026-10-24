@@ -292,7 +292,9 @@ public static class DeepLinkService
                             {
                                 await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
                                 await App.SaveAppsAsync();
-                                Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
+                                // Subscribers reload UI collections; marshal.
+                                App.MainWindowInstance?.DispatcherQueue.TryEnqueue(() =>
+                                    Updates.BackgroundUpdateService.Instance.NotifyAppsChanged());
                             }
                             catch (Exception ex)
                             {
