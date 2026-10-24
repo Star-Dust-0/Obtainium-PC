@@ -80,10 +80,7 @@ jobs:
           # screenshotting every page. The token field is a PasswordBox
           # (masked), so no screenshot can leak the seeded token.
           Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
-          Add-Type @"
-          using System; using System.Runtime.InteropServices;
-          public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }
-"@
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
           $root = [System.Windows.Automation.AutomationElement]::RootElement
           $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
           $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
