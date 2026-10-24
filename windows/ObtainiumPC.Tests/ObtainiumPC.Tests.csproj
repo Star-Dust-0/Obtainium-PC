@@ -29,5 +29,6 @@
     <Compile Include="..\ObtainiumPC\Sources\Forms\OptionForm.cs" Link="Sources\OptionForm.cs" />
     <Compile Include="..\ObtainiumPC\Sources\FDroid\FDroidSource.cs" Link="Sources\FDroidSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ItchIo\ItchIoSource.cs" Link="Sources\ItchIoSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\ApkCombo\ApkComboSource.cs" Link="Sources\ApkComboSource.cs" />
   </ItemGroup>
 </Project>
