@@ -126,17 +126,18 @@ namespace ObtainiumPC.Pages
             {
                 var items = new List<SearchResultItem>();
                 var errors = new List<string>();
-                // Searchable sources ported so far: GitHub, GitLab (PARITY.md).
-                var searchable = new[] { "GitHub", "GitLab" }
+                // Searchable sources ported so far (PARITY.md).
+                var searchable = new[] { "GitHub", "GitLab", "Uptodown", "RuStore", "Huawei AppGallery" }
                     .Select(n => SourceCatalog.ResolveByName(n, App.Settings))
                     .Where(src => src.CanSearch);
                 foreach (var source in searchable)
                 {
                     try
                     {
-                        var res = await source.SearchAsync(query);
+                        var res = await source.SearchAsync(query, new Dictionary<string, JsonElement>());
+                        if (res == null) continue;
                         foreach (var (url, v) in res)
-                            items.Add(new SearchResultItem { Url = url, Name = v.Name, Description = v.Description });
+                            items.Add(new SearchResultItem { Url = url, Name = v.Count > 0 ? v[0] : url, Description = v.Count > 1 ? v[1] : "" });
                     }
                     catch (Exception ex)
                     {

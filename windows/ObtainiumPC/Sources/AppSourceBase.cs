@@ -103,13 +103,6 @@ public abstract class AppSourceBase
     /// Original: versionDetectionDisallowed.
     public virtual bool VersionDetectionDisallowed => false;
 
-    /// Original: canSearch. True for sources with a ported SearchAsync.
-    public virtual bool CanSearch => false;
-
-    /// Original: search - returns result URL -> (display name, description).
-    public virtual Task<Dictionary<string, (string Name, string Description)>> SearchAsync(
-        string query, CancellationToken ct = default) =>
-        throw new NotSupportedException(Name + " does not support search");
 
     /// Original: excludeCommonSettingKeys.
     public virtual IReadOnlyList<string> ExcludeCommonSettingKeys => Array.Empty<string>();

@@ -39,13 +39,13 @@ public sealed class GitLabSource : AppSourceBase
     // lib/app_sources/gitlab.dart search
     public override bool CanSearch => true;
 
-    public override async Task<Dictionary<string, (string Name, string Description)>> SearchAsync(
-        string query, CancellationToken ct = default)
+    public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query, IReadOnlyDictionary<string, JsonElement> querySettings, CancellationToken ct = default)
     {
         var url = $"https://{Hosts[0]}/api/v4/projects?search=" + Uri.EscapeDataString(query);
         var res = await _http.GetAsync(url, ct);
         res.EnsureSuccessStatusCode();
-        var results = new Dictionary<string, (string, string)>();
+        var results = new Dictionary<string, IReadOnlyList<string>>();
         var arr = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?.AsArray();
         if (arr == null) return results;
         foreach (var e in arr)
@@ -54,7 +54,7 @@ public sealed class GitLabSource : AppSourceBase
             if (path == null) continue;
             var name = e?["name_with_namespace"]?.GetValue<string>() ?? path;
             var desc = e?["description"]?.GetValue<string>() ?? "No description";
-            results[$"https://{Hosts[0]}/" + path] = (name, desc);
+            results[$"https://{Hosts[0]}/" + path] = new List<string> { name, desc };
         }
         return results;
     }
