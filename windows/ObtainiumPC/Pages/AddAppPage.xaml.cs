@@ -127,7 +127,7 @@ namespace ObtainiumPC.Pages
                 var items = new List<SearchResultItem>();
                 var errors = new List<string>();
                 // Searchable sources ported so far (PARITY.md).
-                var searchable = new[] { "GitHub", "GitLab", "Uptodown", "RuStore", "Huawei AppGallery" }
+                var searchable = new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "F-Droid", "Uptodown", "RuStore", "Huawei AppGallery" }
                     .Select(n => SourceCatalog.ResolveByName(n, App.Settings))
                     .Where(src => src.CanSearch);
                 foreach (var source in searchable)

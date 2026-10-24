@@ -40,6 +40,33 @@ public class FDroidSource : AppSourceBase
     /// Only the official repo has fdroiddata metadata (author/changelog).
     public virtual bool IsOfficialHost => true;
 
+    // lib/app_sources/fdroid.dart search: scrape search.f-droid.org package
+    // headers; URLs standardized so results match stored app URLs.
+    public override bool CanSearch => true;
+
+    public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query, IReadOnlyDictionary<string, JsonElement> querySettings, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"https://search.{Hosts[0]}/?q=" + Uri.EscapeDataString(query), ct);
+        res.EnsureSuccessStatusCode();
+        var doc = new HtmlDocument();
+        doc.LoadHtml(await res.Content.ReadAsStringAsync(ct));
+        var results = new Dictionary<string, IReadOnlyList<string>>();
+        foreach (var e in doc.DocumentNode.SelectNodes("//a[contains(@class,'package-header')]") ?? new HtmlNodeCollection(null))
+        {
+            var href = e.GetAttributeValue("href", null);
+            if (href == null) continue;
+            string url;
+            try { url = SourceSpecificStandardizeUrl(href); }
+            catch { continue; }
+            var name = e.SelectSingleNode(".//*[contains(@class,'package-name')]")?.InnerText.Trim() ?? "";
+            var desc = e.SelectSingleNode(".//*[contains(@class,'package-summary')]")?.InnerText.Trim() ?? "No description";
+            results[url] = new List<string> { name, desc };
+        }
+        return results;
+    }
+
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false)
     {
         var hostPattern = string.Join("|", Hosts.Select(h => Regex.Escape(h)));

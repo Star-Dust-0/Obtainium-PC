@@ -1,4 +1,6 @@
+using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ObtainiumPC.Sources.GitHub;
 
 namespace ObtainiumPC.Sources.Codeberg;
@@ -56,6 +58,33 @@ public sealed class CodebergSource : AppSourceBase
             new Forms.OptionFormItem[] { new() { Key = "useLatestAssetDateAsReleaseDate", Label = "Use latest asset upload as release date", Kind = Forms.OptionFormItemKind.Switch } },
             new Forms.OptionFormItem[] { new() { Key = "releaseTitleAsVersion", Label = "Use release title as version string", Kind = Forms.OptionFormItemKind.Switch } },
         };
+
+    // lib/app_sources/codeberg.dart search (searchCommon on the Forgejo API,
+    // root prop "data").
+    public override bool CanSearch => true;
+
+    public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query, IReadOnlyDictionary<string, JsonElement> querySettings, CancellationToken ct = default)
+    {
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
+        var res = await http.GetAsync(
+            $"https://{Hosts[0]}/api/v1/repos/search?q=" + Uri.EscapeDataString(query) + "&limit=100", ct);
+        res.EnsureSuccessStatusCode();
+        var results = new Dictionary<string, IReadOnlyList<string>>();
+        var data = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?["data"]?.AsArray();
+        if (data == null) return results;
+        foreach (var e in data)
+        {
+            var htmlUrl = e?["html_url"]?.GetValue<string>();
+            var fullName = e?["full_name"]?.GetValue<string>();
+            if (htmlUrl == null || fullName == null) continue;
+            var archived = e?["archived"]?.GetValue<bool>() == true;
+            var desc = e?["description"]?.GetValue<string>() ?? "No description";
+            results[htmlUrl] = new List<string> { fullName, (archived ? "[ARCHIVED] " : "") + desc };
+        }
+        return results;
+    }
 
     public override string SourceSpecificStandardizeUrl(string url, bool forSelection = false) =>
         StandardizeUrlWithRegex(url, subdomainPrefix: @"(www\.)?", pathPattern: @"/[^/]+/[^/]+");

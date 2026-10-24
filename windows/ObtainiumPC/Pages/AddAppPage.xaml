@@ -17,7 +17,7 @@
             <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True" Message=""/>
                         <HyperlinkButton Content="Browse crowdsourced app configs" NavigateUri="https://apps.obtainium.imranr.dev/"/>
 
-                <TextBlock Text="Search sources (GitHub, GitLab, Uptodown, RuStore, Huawei AppGallery)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
+                <TextBlock Text="Search sources (GitHub, GitLab, Codeberg, F-Droid, Uptodown, RuStore, Huawei AppGallery)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBox x:Name="SearchBox" PlaceholderText="Search for a project" Width="320"/>
                     <Button x:Name="SearchButton" Content="Search" Click="Search_Click"/>
