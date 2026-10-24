@@ -39,7 +39,7 @@ public sealed class TrackedApp
     [JsonPropertyName("latestVersionChangedAt")] public long? LatestVersionChangedAtUs { get; set; }
     [JsonPropertyName("consecutiveFailedChecks")] public int ConsecutiveFailedChecks { get; set; }
     [JsonPropertyName("isArchived")] public bool? IsArchived { get; set; }
-    [JsonPropertyName("newerReleasesFilteredOut")] public bool? NewerReleasesFilteredOut { get; set; }
+    [JsonPropertyName("newerReleasesFilteredOut")] public int? NewerReleasesFilteredOut { get; set; }
     [JsonPropertyName("updateHealthEnabled")] public bool UpdateHealthEnabled { get; set; } = true;
     [JsonPropertyName("updateHealthDismissedVersion")] public string? UpdateHealthDismissedVersion { get; set; }
 

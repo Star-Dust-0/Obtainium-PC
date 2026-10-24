@@ -67,7 +67,7 @@ public sealed class AppStore
             writer.WriteString("appVersion", appVersion);
             writer.WritePropertyName("apps");
             writer.WriteStartArray();
-            foreach (var a in appList) a.WriteTo(writer);
+            foreach (var a in appList) JsonSerializer.Serialize(writer, a);
             writer.WriteEndArray();
             if (exportLevel > 0 && settings != null)
             {
