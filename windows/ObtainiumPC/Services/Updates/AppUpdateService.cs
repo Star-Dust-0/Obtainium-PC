@@ -115,7 +115,8 @@ public sealed class AppUpdateService
         // conservative: only exact or uniquely-strong name matches (publisher
         // disambiguated) are used; ambiguous results leave the stored version
         // untouched so a wrong match never drives an action.
-        if (currentApp != null && !trackOnly && SettingBool(settings, "versionDetection", fallback: true))
+        if (currentApp != null && !trackOnly && !source.VersionDetectionDisallowed
+            && SettingBool(settings, "versionDetection", fallback: true))
         {
             var detected = Detection.InstalledAppsService.FindMatch(currentApp.FinalName, currentApp.Author);
             if (detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
