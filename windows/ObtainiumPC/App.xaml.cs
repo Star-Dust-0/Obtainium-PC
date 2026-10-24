@@ -12,6 +12,8 @@ namespace ObtainiumPC
     {
         private Window? _window;
 
+        public static Window? MainWindowInstance { get; private set; }
+
         public static AppSettings Settings { get; private set; } = new AppSettings();
         public static AppStore Store { get; private set; } = new AppStore();
         public static AppUpdateService Updater { get; private set; } = new AppUpdateService(Settings);
@@ -26,6 +28,7 @@ namespace ObtainiumPC
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             _window = new MainWindow();
+            MainWindowInstance = _window;
             _window.Activate();
         }
 

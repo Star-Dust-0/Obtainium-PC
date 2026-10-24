@@ -4,6 +4,36 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Padding="36,24,36,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+        <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="6" MaxWidth="720">
+                <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
+                <ComboBox x:Name="ThemeCombo" Header="Theme" MinWidth="260" SelectionChanged="ThemeCombo_SelectionChanged"/>
+
+                <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                <ComboBox x:Name="UpdateIntervalCombo" Header="Background update interval" MinWidth="260" SelectionChanged="UpdateIntervalCombo_SelectionChanged"/>
+                <ComboBox x:Name="MinAgeCombo" Header="Minimum age for updates (global default)" MinWidth="260" SelectionChanged="MinAgeCombo_SelectionChanged"/>
+                <ToggleSwitch x:Name="CheckOnStartToggle" Header="Check for updates on app start" Toggled="CheckOnStartToggle_Toggled"/>
+                <ToggleSwitch x:Name="NotifyToggle" Header="Show update notifications" Toggled="NotifyToggle_Toggled"/>
+                <ToggleSwitch x:Name="HideDowngradesToggle" Header="Hide downgrades (when installed version is newer)" Toggled="HideDowngradesToggle_Toggled"/>
+
+                <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                <TextBox x:Name="GlobalVersionRegexBox" Header="Trim version string with RegEx" TextWrapping="Wrap" LostFocus="GlobalVersionRegexBox_LostFocus"/>
+                <TextBox x:Name="GlobalMatchGroupBox" Header="Match group to use" PlaceholderText="$0" Width="160" HorizontalAlignment="Left" LostFocus="GlobalMatchGroupBox_LostFocus"/>
+                <TextBox x:Name="GlobalAssetFilterBox" Header="Filter assets by regular expression (global default)" TextWrapping="Wrap" LostFocus="GlobalAssetFilterBox_LostFocus"/>
+
+                <TextBlock Text="GitHub" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                <PasswordBox x:Name="GitHubPatBox" Header="Personal access token (raises API rate limits)" Width="360" HorizontalAlignment="Left" LostFocus="GitHubPatBox_LostFocus"/>
+                <ToggleSwitch x:Name="RepoRenameToggle" Header="Detect renamed repositories" Toggled="RepoRenameToggle_Toggled"/>
+                <TextBox x:Name="GhReqPrefixBox" Header="Request prefix (for GitHub proxies)" TextWrapping="Wrap" LostFocus="GhReqPrefixBox_LostFocus"/>
+
+                <TextBlock Text="More settings from the original (search, update health thresholds, logs, crowdsourced app configs) land as their pages are ported."
+                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,24,0,12" FontSize="12"/>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

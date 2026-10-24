@@ -4,6 +4,30 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Padding="36,24,36,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <TextBlock Text="Import / Export" Style="{StaticResource TitleTextBlockStyle}"/>
+        <ScrollViewer Grid.Row="1" Margin="0,12,0,0">
+            <StackPanel Spacing="12" MaxWidth="720">
+                <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True"/>
+
+                <TextBlock Text="Export" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
+                <TextBlock Text="Writes a file in the original Obtainium export format, so it can be imported by Obtainium on Android or by this app."
+                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <ComboBox x:Name="ExportLevelCombo" Header="What to include" MinWidth="320" SelectedIndex="1">
+                    <ComboBoxItem Content="Apps only"/>
+                    <ComboBoxItem Content="Apps and settings (credentials stripped)"/>
+                    <ComboBoxItem Content="Apps and settings, including credentials"/>
+                </ComboBox>
+                <Button Content="Export to file..." Click="Export_Click" HorizontalAlignment="Left"/>
+
+                <TextBlock Text="Import" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+                <TextBlock Text="Reads an Obtainium export file (schema v2 and legacy formats). Apps with an existing ID are replaced; new apps are added."
+                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Button Content="Import from file..." Click="Import_Click" HorizontalAlignment="Left"/>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>
