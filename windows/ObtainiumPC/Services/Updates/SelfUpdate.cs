@@ -66,6 +66,25 @@ public static class SelfUpdate
         return app;
     }
 
+    /// <summary>
+    /// One-time compatible migration for own-app records created before
+    /// prereleases were included: only when the key is ABSENT is
+    /// includePrereleases set to true. An explicit user choice (true or
+    /// false) is never touched, nor is any other setting. Returns whether a
+    /// record changed.
+    /// </summary>
+    public static bool MigrateOwnRecord(List<TrackedApp> apps)
+    {
+        var changed = false;
+        foreach (var app in apps.Where(IsSelf))
+        {
+            if (app.AdditionalSettings.ContainsKey("includePrereleases")) continue;
+            app.SetSetting("includePrereleases", true);
+            changed = true;
+        }
+        return changed;
+    }
+
     /// <summary>Stable order with the own app moved to the end.</summary>
     public static List<T> OrderSelfLast<T>(IEnumerable<T> items, Func<T, TrackedApp> app) =>
         items.Where(i => !IsSelf(app(i))).Concat(items.Where(i => IsSelf(app(i)))).ToList();

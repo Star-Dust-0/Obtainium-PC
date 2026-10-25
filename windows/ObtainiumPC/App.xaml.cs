@@ -94,6 +94,7 @@ namespace ObtainiumPC
             Services.Logging.AppLogger.PurgeOld();
             TrackedApps = await Store.LoadAsync();
             HandleFirstRun();
+            if (Services.Updates.SelfUpdate.MigrateOwnRecord(TrackedApps)) _ = SaveAppsAsync();
             ReconcileExternalUninstalls();
             Initialized = true;
         }

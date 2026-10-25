@@ -33,6 +33,23 @@ public class SelfUpdateTests
     }
 
     [Fact]
+    public void Migration_adds_includePrereleases_only_when_absent_and_keeps_other_settings()
+    {
+        var old = new TrackedApp { Id = SelfUpdate.OwnId, Url = SelfUpdate.OwnUrl };
+        old.SetSetting("apkFilterRegEx", "Setup");
+        var optedOut = new TrackedApp { Id = "x", Url = SelfUpdate.OwnUrl + "/" };
+        optedOut.SetSetting("includePrereleases", false);
+        var other = new TrackedApp { Id = "o", Url = "https://x.test/o" };
+        var apps = new List<TrackedApp> { old, optedOut, other };
+        Assert.True(SelfUpdate.MigrateOwnRecord(apps));
+        Assert.True(old.GetSettingBool("includePrereleases"));
+        Assert.Equal("Setup", old.GetSettingString("apkFilterRegEx"));
+        Assert.False(optedOut.GetSettingBool("includePrereleases", true));
+        Assert.False(other.AdditionalSettings.ContainsKey("includePrereleases"));
+        Assert.False(SelfUpdate.MigrateOwnRecord(apps));
+    }
+
+    [Fact]
     public void Os_detected_install_records_os_provenance()
     {
         var apps = new List<TrackedApp>();
