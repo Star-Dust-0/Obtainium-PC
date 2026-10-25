@@ -154,7 +154,8 @@ namespace ObtainiumPC
             // container from the current text.
             var selTag = (NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem)?.Tag as string;
             var freshItems = new System.Collections.Generic.List<object>(NavView.MenuItems);
-            NavView.MenuItems = freshItems;
+            NavView.MenuItems.Clear();
+            foreach (var fi in freshItems) NavView.MenuItems.Add(fi);
             NavView.SelectedItem = freshItems.FirstOrDefault(i =>
                 (i as Microsoft.UI.Xaml.Controls.NavigationViewItem)?.Tag as string == selTag);
             Services.Logging.AppLogger.Info($"menu-items reset done, selection restored: {selTag}");
