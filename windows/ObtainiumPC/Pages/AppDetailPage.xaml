@@ -27,6 +27,15 @@
                     <AppBarButton x:Name="DownloadButton" Label="Download" Click="Update_Click" Visibility="Collapsed">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE896;"/></AppBarButton.Icon>
                     </AppBarButton>
+                    <!-- Upstream lib/pages/app.dart:508/511: the track-only primary action is
+                         markInstalled/markUpdated (version bookkeeping only). The port keeps
+                         that action alongside the manual-download button. -->
+                    <AppBarButton x:Name="MarkInstalledAction" Label="Mark installed" Click="MarkTrackOnly_Click" Visibility="Collapsed">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="MarkUpdatedAction" Label="Mark updated" Click="MarkTrackOnly_Click" Visibility="Collapsed">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton Label="Options" Click="Options_Click" ToolTipService.ToolTip="Per-app options">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE70F;"/></AppBarButton.Icon>
                     </AppBarButton>

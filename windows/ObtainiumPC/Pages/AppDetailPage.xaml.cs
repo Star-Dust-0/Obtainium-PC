@@ -112,6 +112,15 @@ namespace ObtainiumPC.Pages
             UpdateButton.Visibility = !trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
             InstallButton.Visibility = !trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
             DownloadButton.Visibility = trackOnlyApp ? Visibility.Visible : Visibility.Collapsed;
+            // lib/pages/app.dart:508/511: track-only apps also keep the upstream
+            // markInstalled/markUpdated bookkeeping action (records
+            // installedVersion = latestVersion, no download, no install). Same
+            // hasAction gating: disabled once the recorded install matches
+            // latest; reset-install takes over from there (lib/pages/app.dart:600).
+            MarkInstalledAction.IsEnabled = actionEnabled;
+            MarkUpdatedAction.IsEnabled = actionEnabled;
+            MarkInstalledAction.Visibility = trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
+            MarkUpdatedAction.Visibility = trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
@@ -250,6 +259,16 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
         // detection is unavailable or cannot match the app (upstream detects
         // from the Android package manager; this port detects from the
         // registry Uninstall entries).
+        // Upstream track-only mark action: version bookkeeping only, no
+        // download, no installer launch.
+        private async void MarkTrackOnly_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            _app.InstalledVersion = _app.LatestVersion;
+            await App.SaveAppsAsync();
+            Render();
+        }
+
         private async void MarkUpdated_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;

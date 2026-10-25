@@ -679,6 +679,23 @@ jobs:
           $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.apk -ErrorAction SilentlyContinue
           if ($apkFiles.Count -eq 0) { Shot 'track-only-file-missing'; throw 'downloaded APK not found in the downloads folder' }
           Shot '28g-track-only-apk-downloaded'
+
+          # Track-only bookkeeping (upstream markInstalled/markUpdated): the
+          # version transition must record installedVersion = latestVersion
+          # with no download and no installer launch.
+          $procsBefore = @(Get-Process | Where-Object { $_.Name -match 'setup|installer|msiexec' }).Count
+          ClickNamedIn 'Mark installed' $win3
+          Start-Sleep 3
+          $apps2 = Get-Content $appsPath -Raw | ConvertFrom-Json
+          $obt2 = $apps2 | Where-Object { $_.id -eq 'deeplink-smoke-1' }
+          if ($obt2.installedVersion -ne $obt2.latestVersion) { Shot 'track-only-mark-failed'; throw "mark-installed did not record installedVersion ($($obt2.installedVersion)) = latestVersion ($($obt2.latestVersion))" }
+          $procsAfter = @(Get-Process | Where-Object { $_.Name -match 'setup|installer|msiexec' }).Count
+          if ($procsAfter -ne $procsBefore) { Shot 'track-only-mark-installer'; throw 'mark-installed launched an installer process' }
+          $markUpd = FindNamed 'Mark updated' $win3
+          if ($markUpd -eq $null) { Shot 'track-only-mark-updated-missing'; throw 'Mark updated action missing after mark-installed' }
+          if ($markUpd.Current.IsEnabled -ne $false) { Shot 'track-only-mark-updated-enabled'; throw 'Mark updated still enabled although installed matches latest' }
+          Shot '28h-track-only-marked-installed'
+          'track-only mark-installed bookkeeping verified'
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
           'GitHub track-only APK tracking+download verified'
