@@ -301,7 +301,7 @@ jobs:
             Start-Sleep 2
             $still = Get-Process | Where-Object { $_.ProcessName -like 'ObtainiumPC-Setup*' -or $_.ProcessName -like '*tmp*' -and $_.MainWindowTitle -like '*Obtainium-PC*' }
             $clicked = $false
-            foreach ($bn in 'OK','Next >','Install','Finish','Yes') {
+            foreach ($bn in 'OK','Next >','Next','Install','Finish','Yes') {
               $sw = $null
               foreach ($w in $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.Name -like 'Setup - Obtainium-PC*' -or $w.Current.Name -eq 'Select Setup Language') { $sw = $w; break } }
               if ($sw -eq $null) { continue }
