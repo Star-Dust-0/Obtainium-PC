@@ -32,15 +32,30 @@ public static class Localizer
     /// (e.g. right after a FlowDirection flip), so the tree walk alone can
     /// miss them and leave stale labels after a language switch.
     /// </summary>
+    // Tag-keyed nav originals. WinUI can swap item container instances (a
+    // fresh container inherits the already-translated text, so a per-instance
+    // original is never recorded and the label gets stuck - ui-smoke scenario
+    // 17 evidence, run 40214469046 logs). The Tag is stable across container
+    // replacement, so the original survives.
+    private static readonly System.Collections.Generic.Dictionary<string, string> NavOriginals = new();
+
     public static void ApplyToItems(System.Collections.Generic.IList<object> items)
     {
         foreach (var item in items)
-            if (item is NavigationViewItem nvi && nvi.Content is string s)
+        {
+            if (item is not NavigationViewItem nvi || nvi.Content is not string s) continue;
+            if (nvi.Tag is not string tag) { Translate(nvi); continue; }
+            if (!NavOriginals.TryGetValue(tag, out var key))
             {
-                var after = FromOriginal(nvi, s);
-                Logging.AppLogger.Info($"apply-items nvi tag={nvi.Tag} [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
-                nvi.Content = after;
+                if (IsKey(s)) key = s;
+                else if (Loc.TryReverse(s, out var reversed)) key = reversed;
+                else continue;
+                NavOriginals[tag] = key;
             }
+            var after = Loc.T(key);
+            Logging.AppLogger.Info($"apply-items nvi tag={tag} id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} key=[{key}] [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
+            nvi.Content = after;
+        }
     }
 
     private static void Walk(DependencyObject parent)

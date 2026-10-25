@@ -46,6 +46,27 @@ public static class Loc
 
     public static string T(string en) => TranslateAs(en, ResolvedLanguage);
 
+    private static readonly Dictionary<string, string> ReverseIndex = new();
+    private static bool ReverseIndexBuilt;
+
+    /// Recover the English key whose translation in a supported language
+    /// equals the given text. Used when an element is first seen already
+    /// translated (e.g. a recreated nav container that inherited the
+    /// translated label). Ambiguous translations resolve to the first
+    /// recorded key - cosmetic at worst.
+    public static bool TryReverse(string text, out string key)
+    {
+        if (!ReverseIndexBuilt)
+        {
+            foreach (var (k, v) in ArOverlay) ReverseIndex.TryAdd(v, k);
+            foreach (var (_, dict) in LocTranslations.ByLang)
+                foreach (var (k, v) in dict)
+                    ReverseIndex.TryAdd(v, k);
+            ReverseIndexBuilt = true;
+        }
+        return ReverseIndex.TryGetValue(text, out key!);
+    }
+
     /// Translate a key as if the given language were active (used to detect
     /// an element still showing the previous language's translation).
     public static string TranslateAs(string en, string language)
