@@ -289,7 +289,7 @@ jobs:
           $setupWin = $null
           foreach ($i in 1..20) {
             Start-Sleep 2
-            foreach ($t in 'Setup - Obtainium-PC', 'Select Setup Language') { $setupWin = FindNamed $t $root; if ($setupWin) { break } }
+            foreach ($w in $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.Name -like 'Setup - Obtainium-PC*' -or $w.Current.Name -eq 'Select Setup Language') { $setupWin = $w; break } }
             if ($setupWin) { break }
           }
           if ($setupWin -eq $null) { Shot 'su-installer-never-launched'; throw 'app did not launch the installer' }
