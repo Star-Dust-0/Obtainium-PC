@@ -50,6 +50,45 @@ LANGS = [
     ("gl", "gl.json", "Galego"),
 ]
 
+# "Back" for the detail-page BackButton's accessible name + tooltip. Upstream's
+# BackButton tooltip comes from Flutter's MaterialLocalizations, not the app
+# JSONs, so these values mirror Flutter's backButtonTooltip per locale
+# (flutter/packages/flutter_localizations, stable): zh-Hant-TW inherits from
+# zh, pt-BR from pt, and en-EO falls back to English exactly as Flutter does
+# for an unsupported locale.
+BACK_TOOLTIP = {
+    "en": "Back",
+    "bn": "ফিরে যান",
+    "zh-Hant-TW": "返回",
+    "zh": "返回",
+    "it": "Indietro",
+    "ja": "戻る",
+    "hu": "Vissza",
+    "de": "Zurück",
+    "fa": "برگشتن",
+    "fr": "Retour",
+    "es": "Atrás",
+    "pl": "Wstecz",
+    "ru": "Назад",
+    "bs": "Nazad",
+    "pt-BR": "Voltar",
+    "pt": "Voltar",
+    "cs": "Zpět",
+    "sv": "Tillbaka",
+    "nl": "Terug",
+    "vi": "Quay lại",
+    "tr": "Geri",
+    "uk": "Назад",
+    "da": "Tilbage",
+    "en-EO": "Back",
+    "id": "Kembali",
+    "ko": "뒤로",
+    "ca": "Enrere",
+    "ar": "رجوع",
+    "ml": "മടങ്ങുക",
+    "gl": "Atrás",
+}
+
 def flatten(d):
     """key -> display string (plural dicts take their 'other' form)."""
     out = {}
@@ -106,6 +145,9 @@ for tag, fname, _name in LANGS:
         en_v = en_flat.get(k)
         if en_v and v and v != en_v:
             entries[en_v] = v
+    tip = BACK_TOOLTIP.get(tag)
+    if tip and tip != "Back":
+        entries["Back"] = tip
     if not entries:
         continue
     field = "L_" + tag.replace("-", "_")

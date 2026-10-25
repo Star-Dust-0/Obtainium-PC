@@ -16,7 +16,17 @@ namespace ObtainiumPC.Pages
         public AppDetailPage()
         {
             this.InitializeComponent();
-            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
+            Loaded += (_, _) =>
+            {
+                Services.Localization.Localizer.Apply(this);
+                // The Back button is icon-only like upstream; its accessible
+                // name and tooltip carry the localized string (Flutter
+                // MaterialLocalizations backButtonTooltip, mirrored into
+                // LocTranslations by the generator).
+                var back = Services.Localization.Loc.T("Back");
+                BackButton.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, back);
+                Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(BackButton, back);
+            };
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)

@@ -1032,6 +1032,58 @@ jobs:
           Start-Sleep 1
           'certificate pinning toggle verified'
 
+          # Navigation regression checks (a2733317): the detail Back button
+          # and re-tapping the already-selected Apps nav item must each
+          # return to the list; ordinary section changes must still navigate.
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          foreach ($openTry in 1..2) {
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 } else { break }
+          }
+          $nppRow = FindNamed 'Notepad++' $win3
+          if ($nppRow -eq $null) { Shot 'nav-npp-missing'; throw 'Notepad++ row not found for navigation checks' }
+          $nppItem = $nppRow
+          while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
+          $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
+          try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+          $nr = $nppTarget.Current.BoundingRectangle
+          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($nr.X + $nr.Width/2), [int]($nr.Y + $nr.Height/2))
+          Start-Sleep -Milliseconds 300
+          [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          Start-Sleep 3
+          $backBtn = FindNamed 'Back' $win3
+          if ($backBtn -eq $null) { Shot 'nav-back-missing'; throw 'detail Back button missing or unlabeled (accessible name required)' }
+          "detail Back accessible name: [$($backBtn.Current.Name)]"
+          ClickNamedIn 'Back' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Filter' $win3) -eq $null) { Shot 'nav-back-failed'; throw 'detail Back button did not return to the Apps list' }
+          # Re-open the same detail, then re-tap the already-selected Apps item.
+          $nppRow = FindNamed 'Notepad++' $win3
+          $nppItem = $nppRow
+          while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
+          $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
+          try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+          $nr = $nppTarget.Current.BoundingRectangle
+          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($nr.X + $nr.Width/2), [int]($nr.Y + $nr.Height/2))
+          Start-Sleep -Milliseconds 300
+          [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          Start-Sleep 3
+          if ((FindNamed 'Remove' $win3) -eq $null) { Shot 'nav-reopen-failed'; throw 'detail page did not reopen for the re-tap check' }
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Filter' $win3) -eq $null) { Shot 'nav-retap-failed'; throw 're-tapping the selected Apps nav item did not return to the list' }
+          Shot '36-nav-back-and-retap'
+          # Ordinary section changes: Settings renders its Theme control, Apps
+          # renders its Filter button; the ItemInvoked handler must not break
+          # or double the normal SelectionChanged path.
+          ClickNamedIn 'Settings' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Theme' $win3) -eq $null) { Shot 'nav-settings-failed'; throw 'Settings section did not render after section change' }
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Filter' $win3) -eq $null) { Shot 'nav-apps-failed'; throw 'Apps section did not render after section change' }
+          'navigation regression checks verified'
+
           # Every launch above went through the single-instance redirect.
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "ObtainiumPC processes after deep links: $($procs.Count)"
