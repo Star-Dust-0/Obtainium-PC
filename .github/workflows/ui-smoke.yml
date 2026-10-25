@@ -210,6 +210,34 @@ jobs:
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
             return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
           }
+
+          function ClickPaneToggle($win) {
+            # Guarded pane-toggle click: real toggles sit in the nav rail
+            # BELOW the title bar, inside the window bounds. WinUI templates
+            # expose phantom 'Open Navigation' nodes whose rects land on the
+            # caption close button (run 40211348160 - an unguarded click
+            # closed the app window), so candidates are rect-filtered.
+            $wrect = $win.Current.BoundingRectangle
+            $cands = @()
+            foreach ($bn in 'Open Navigation','Close Navigation') {
+              $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $bn)
+              $cands += @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond))
+            }
+            foreach ($c in $cands) {
+              $r = $c.Current.BoundingRectangle
+              $cx = $r.X + $r.Width/2; $cy = $r.Y + $r.Height/2
+              $insideX = ($cx -gt ($wrect.X + 8)) -and ($cx -lt ($wrect.X + $wrect.Width - 8))
+              $belowTitle = $cy -gt ($wrect.Y + 40)
+              $saneSize = ($r.Width -ge 20 -and $r.Width -le 80 -and $r.Height -ge 20 -and $r.Height -le 80)
+              if (-not ($insideX -and $belowTitle -and $saneSize)) { continue }
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]$cx, [int]$cy)
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              Start-Sleep 2
+              return $true
+            }
+            return $false
+          }
           function DumpNames($scope, $tag) {
             # Evidence for name-miss failures: what UIA actually sees.
             try {
@@ -412,18 +440,11 @@ jobs:
           }
           if (-not $found) { Shot 'arabic-missing'; throw 'Arabic nav label not found after language switch' }
           Shot '15-arabic-rtl-settings'
-          $burgerEl = $null
-          foreach ($bn in 'Open Navigation','Close Navigation') { $burgerEl = FindNamed $bn $win2; if ($burgerEl -ne $null) { break } }
-          if ($burgerEl -ne $null) {
-            $bbr = $burgerEl.Current.BoundingRectangle
-            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($bbr.X + $bbr.Width/2), [int]($bbr.Y + $bbr.Height/2))
-            Start-Sleep -Milliseconds 300
-            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
-            Start-Sleep 2
+          if (ClickPaneToggle $win2) {
             Shot '15b-arabic-rtl-nav-pane'
-            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
             Start-Sleep 1
-          } else { "WARNING: burger not found for 15b-arabic-rtl-nav-pane - pane pixel evidence missing" }
+            $null = ClickPaneToggle $win2
+          } else { "WARNING: guarded pane toggle not found for 15b-arabic-rtl-nav-pane - pane pixel evidence missing" }
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"ar"') { throw 'language not persisted to settings.json' }
           'language persisted as ar'
@@ -459,17 +480,7 @@ jobs:
             # loudly, never silently.
             DumpNames $win2 'english-restore-first-poll'
             $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
-            $burgers = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Open Navigation')))
-            foreach ($b in $burgers) {
-              $br = $b.Current.BoundingRectangle
-              if ($br.Width -gt 0 -and $br.X -ge 0 -and $br.Y -ge 0) {
-                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($br.X + $br.Width/2), [int]($br.Y + $br.Height/2))
-                Start-Sleep -Milliseconds 300
-                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
-                Start-Sleep 2
-                break
-              }
-            }
+            if (-not (ClickPaneToggle $win2)) { "WARNING: no guarded pane toggle candidate in english-restore recovery" }
             Shot 'english-restore-pane-open'
             foreach ($w in 1..10) {
               Start-Sleep 1
@@ -479,18 +490,11 @@ jobs:
           }
           if (-not $found) { DumpNames $win2 'english-restore-final'; Shot 'english-missing'; throw 'English nav label not found after switching back' }
           Shot '17-back-to-english'
-          $burgerEl = $null
-          foreach ($bn in 'Open Navigation','Close Navigation') { $burgerEl = FindNamed $bn $win2; if ($burgerEl -ne $null) { break } }
-          if ($burgerEl -ne $null) {
-            $bbr = $burgerEl.Current.BoundingRectangle
-            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($bbr.X + $bbr.Width/2), [int]($bbr.Y + $bbr.Height/2))
-            Start-Sleep -Milliseconds 300
-            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
-            Start-Sleep 2
+          if (ClickPaneToggle $win2) {
             Shot '17b-english-nav-pane'
-            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
             Start-Sleep 1
-          } else { "WARNING: burger not found for 17b-english-nav-pane - pane pixel evidence missing" }
+            $null = ClickPaneToggle $win2
+          } else { "WARNING: guarded pane toggle not found for 17b-english-nav-pane - pane pixel evidence missing" }
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"en"') { throw 'language not persisted back to en' }
           'language reverted to en'
