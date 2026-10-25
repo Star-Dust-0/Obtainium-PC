@@ -39,6 +39,24 @@ jobs:
               author = 'notepad-plus-plus'; name = 'Notepad++'
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+              installedVersion = '7.0'
+            }
+            @{
+              # Updatable (old recorded version) for the bulk-confirm scenario.
+              id = 'seed-sharex'; url = 'https://github.com/ShareX/ShareX'
+              author = 'ShareX'; name = 'ShareX'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+              installedVersion = '1.0'
+            }
+            @{
+              # Recorded version far above the real latest: the downgrade
+              # gate must block the update on the detail page.
+              id = 'seed-dg'; url = 'https://github.com/mumble-voip/mumble'
+              author = 'mumble-voip'; name = 'Mumble'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+              installedVersion = '999.0'
             }
             @{
               # Disabled: skipped by update checks, so the seeded changelog
@@ -850,6 +868,65 @@ jobs:
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
           'light-theme mark-disabled state verified'
+
+          # Downgrade gate on the detail page (showAppDowngradeError default
+          # on): recorded 999.0 vs a real latest must be blocked with the
+          # downgrade dialog, never downloaded.
+          $dgRow = FindNamed 'Mumble' $win3
+          if ($dgRow -eq $null) { ClickPartial 'Mumble' $win3 | Out-Null; Start-Sleep 2; $dgRow = FindNamed 'Mumble' $win3 }
+          if ($dgRow -eq $null) { Shot 'dg-row-missing'; throw 'Mumble row not found' }
+          try { $dgRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Mumble' $win3 | Out-Null }
+          Start-Sleep 3
+          ClickNamedIn 'Update' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Downgrade blocked' $root) -eq $null) { Shot 'dg-not-blocked'; throw 'downgrade update was not blocked on the detail page' }
+          Shot '33-downgrade-blocked'
+          (FindNamed 'OK' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 1
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          'downgrade block verified'
+
+          # Bulk download confirmation (skipBulkUpdateConfirmation default
+          # off): the confirm dialog must list the set before any download;
+          # cancelling starts nothing.
+          ClickNamedIn 'Select' $win3
+          Start-Sleep 1
+          ClickPartial 'Notepad++' $win3 | Out-Null
+          Start-Sleep -Milliseconds 500
+          ClickPartial 'ShareX' $win3 | Out-Null
+          Start-Sleep 1
+          $batchDl = FindNamed 'Download updates' $win3
+          if ($batchDl -eq $null) {
+            # Crowded CommandBar: the button may live in the overflow menu.
+            ClickNamedIn '...' $win3
+            Start-Sleep 1
+            $batchDl = FindNamed 'Download updates' $root
+          }
+          if ($batchDl -eq $null) { Shot 'bulk-button-missing'; throw 'Download updates button not found' }
+          try { $batchDl.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Download updates' $root | Out-Null }
+          Start-Sleep 2
+          if ((FindNamed 'Download 2?' $root) -eq $null) { Shot 'bulk-confirm-missing'; throw 'bulk download confirmation did not list the set' }
+          Shot '34-bulk-confirm'
+          (FindNamed 'Cancel' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 1
+          ClickNamedIn 'Select' $win3
+          Start-Sleep 1
+          'bulk confirmation verified'
+
+          # Certificate-pinning toggle renders and persists.
+          ClickNamedIn 'Settings' $win3
+          Start-Sleep 3
+          $pinToggle = FindNamed 'Enable certificate pinning' $win3
+          if ($pinToggle -eq $null) { Shot 'pinning-toggle-missing'; throw 'certificate pinning toggle missing in Settings' }
+          try { $pinToggle.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { ClickPartial 'Enable certificate pinning' $win3 | Out-Null }
+          Start-Sleep 2
+          $stJson = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw | ConvertFrom-Json
+          if ($stJson.EnableCertificatePinning -ne $true) { Shot 'pinning-not-persisted'; throw 'certificate pinning toggle did not persist' }
+          Shot '35-cert-pinning-on'
+          try { $pinToggle.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { ClickPartial 'Enable certificate pinning' $win3 | Out-Null }
+          Start-Sleep 1
+          'certificate pinning toggle verified'
 
           # Every launch above went through the single-instance redirect.
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
