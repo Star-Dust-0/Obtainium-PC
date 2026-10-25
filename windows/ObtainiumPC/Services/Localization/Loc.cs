@@ -134,6 +134,9 @@ public static class Loc
         ["Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). Turn on track-only for this app to follow its version without installing."] =
             "تم العثور على إصدارات، لكن لا يحتوي أيٌّ منها على ملف تثبيت لنظام Windows (‎.exe أو .msi أو .msix أو .appx أو .appinstaller). فعّل «التتبع فقط» لهذا التطبيق لمتابعة إصداره دون تثبيته.",
 
+        ["Server request failed (HTTP {0})"] = "فشل طلب الخادم (HTTP {0})",
+        ["Invalid URL for source {0}"] = "رابط غير صالح للمصدر {0}",
+
         // Buttons and actions
         ["Add"] = "إضافة",
         ["Install"] = "تثبيت",
