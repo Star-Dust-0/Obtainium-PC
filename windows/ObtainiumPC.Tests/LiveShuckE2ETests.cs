@@ -1,3 +1,4 @@
+using Xunit;
 using System.Diagnostics;
 using ObtainiumPC.Services.Detection;
 using ObtainiumPC.Services.Download;
