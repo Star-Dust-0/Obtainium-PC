@@ -101,15 +101,15 @@ public static class UpdateHealthService
 
     public static string ReasonLabel(UpdateHealthReason reason, TrackedApp app, UpdateHealthConfig config) => reason switch
     {
-        UpdateHealthReason.StaleRelease => $"Latest release is older than {config.StaleReleaseDays} days",
-        UpdateHealthReason.StaleVersion => $"Version has not changed in {config.StaleVersionDays} days",
+        UpdateHealthReason.StaleRelease => $"Latest release is more than {config.StaleReleaseDays} days old",
+        UpdateHealthReason.StaleVersion => $"Not updated in over {config.StaleVersionDays} days",
         UpdateHealthReason.FailedChecks => app.ConsecutiveFailedChecks == 1
             ? "1 update check failed in a row"
             : $"{app.ConsecutiveFailedChecks} update checks failed in a row",
-        UpdateHealthReason.Archived => "Repository is archived",
+        UpdateHealthReason.Archived => "Source is archived",
         UpdateHealthReason.FilteredReleases => (app.NewerReleasesFilteredOut ?? 0) == 1
-            ? "1 newer release filtered out"
-            : $"{app.NewerReleasesFilteredOut ?? 0} newer releases filtered out",
+            ? "1 newer release is hidden by your filters"
+            : $"{app.NewerReleasesFilteredOut ?? 0} newer releases are hidden by your filters",
         _ => reason.ToString(),
     };
 
