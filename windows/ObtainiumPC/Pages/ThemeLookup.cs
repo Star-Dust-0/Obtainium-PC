@@ -25,8 +25,11 @@ public static class ThemeLookup
         if (Application.Current is not { } app) return null;
         var themeKey = App.MainWindowInstance?.Content is FrameworkElement root
             && root.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
-        return FindInThemeDictionaries<T>(app.Resources, themeKey, key)
-            ?? ThemeLookupCore.TryGet<T>(app.Resources, key);
+        var themed = FindInThemeDictionaries<T>(app.Resources, themeKey, key);
+        var fallback = themed == null ? ThemeLookupCore.TryGet<T>(app.Resources, key) : null;
+        Services.Logging.AppLogger.Debug(
+            $"ThemeLookup {key}: theme={themeKey} themedHit={themed != null} fallbackHit={fallback != null}");
+        return themed ?? fallback;
     }
 
     private static T? FindInThemeDictionaries<T>(ResourceDictionary dict, string themeKey, string key) where T : class

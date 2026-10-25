@@ -513,6 +513,7 @@ jobs:
           Start-Sleep 1
           Shot '28-health-restored'
           'update-health ignore/restore verified'
+          Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Tail 30 | Select-String 'ThemeLookup' | ForEach-Object { $_.Line }
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
 
