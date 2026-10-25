@@ -35,19 +35,14 @@ public sealed class DownloadService
     {
         Directory.CreateDirectory(DownloadDir);
         var target = Path.Combine(DownloadDir, Sanitize(fileName));
-        var req = new HttpRequestMessage(HttpMethod.Get, url);
-        // GitHub API asset URLs need the octet-stream accept header (and auth when set).
-        if (!string.IsNullOrEmpty(personalAccessToken))
-        {
-            req.Headers.TryAddWithoutValidation("Authorization", "Token " + personalAccessToken);
-            req.Headers.TryAddWithoutValidation("Accept", "application/octet-stream");
-        }
-        if (extraHeaders != null)
-            foreach (var (key, value) in extraHeaders)
-                req.Headers.TryAddWithoutValidation(key, value);
+        var req = BuildRequest(url, personalAccessToken, extraHeaders);
         using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         res.EnsureSuccessStatusCode();
         var total = res.Content.Headers.ContentLength;
+        // Release-asset API metadata (JSON) is never an installer.
+        if (mediaType0(res) is { } mt0 && mt0.Contains("json", StringComparison.OrdinalIgnoreCase)
+            && !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The server returned asset metadata instead of the file.");
         // A web page (proxy/ISP block page, login or error page) is never an installer.
         var mediaType = res.Content.Headers.ContentType?.MediaType;
         if (mediaType != null && mediaType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)
@@ -70,6 +65,31 @@ public sealed class DownloadService
         catch { TryDelete(target); throw; }
         return target;
     }
+
+    private static string? mediaType0(HttpResponseMessage res) => res.Content.Headers.ContentType?.MediaType;
+
+    /// GitHub release-asset API URLs (api.github.com/.../releases/assets/ID) answer with
+    /// JSON metadata unless the request asks for the binary, with or without a token.
+    internal static HttpRequestMessage BuildRequest(string url, string? personalAccessToken, IReadOnlyDictionary<string, string>? extraHeaders)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!string.IsNullOrEmpty(personalAccessToken))
+            req.Headers.TryAddWithoutValidation("Authorization", "Token " + personalAccessToken);
+        if (!string.IsNullOrEmpty(personalAccessToken) || IsGitHubAssetApiUrl(url))
+            req.Headers.TryAddWithoutValidation("Accept", "application/octet-stream");
+        if (extraHeaders != null)
+            foreach (var (key, value) in extraHeaders)
+            {
+                req.Headers.Remove(key);
+                req.Headers.TryAddWithoutValidation(key, value);
+            }
+        return req;
+    }
+
+    internal static bool IsGitHubAssetApiUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u)
+        && u.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
+        && u.AbsolutePath.Contains("/releases/assets/", StringComparison.Ordinal);
 
     private static void TryDelete(string path)
     {

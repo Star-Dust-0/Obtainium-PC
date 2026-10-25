@@ -278,4 +278,23 @@ public class DownloadIntegrityTests
         var r = ObtainiumPC.Services.Download.BatchDownloadPlanner.PickerAssets(f, all);
         Assert.Equal(new[] { "S.exe", "S_x64.exe", "P.zip" }, r.Select(e => e.Key).ToArray());
     }
+
+    [Fact]
+    public void GitHubAssetApiUrlAsksForBinaryEvenWithoutToken()
+    {
+        var url = "https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512";
+        var req = ObtainiumPC.Services.Download.DownloadService.BuildRequest(url, null, null);
+        Assert.Contains("application/octet-stream", req.Headers.GetValues("Accept"));
+        Assert.Null(req.Headers.Authorization);
+        var plain = ObtainiumPC.Services.Download.DownloadService.BuildRequest("https://github.com/shuck-app/shuck/releases/download/v1.0.1/Shuck-setup.exe", null, null);
+        Assert.False(plain.Headers.Contains("Accept"));
+    }
+
+    [Fact]
+    public void AssetMetadataJsonSavedAsExeIsRejected()
+    {
+        var f = Path.GetTempFileName();
+        File.WriteAllText(f, "{\"url\":\"https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512\",\"name\":\"Shuck_1.0.1_x64-setup.exe\",\"size\":6297561}");
+        Assert.Throws<InvalidDataException>(() => ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(f, "Shuck_1.0.1_x64-setup.exe", new FileInfo(f).Length, new FileInfo(f).Length));
+    }
 }
