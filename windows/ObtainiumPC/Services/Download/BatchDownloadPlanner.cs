@@ -39,4 +39,20 @@ public static class BatchDownloadPlanner
     /// transfer.
     public static bool ShouldLaunchInstaller(bool? sourceSupportsInstall, string assetKey)
         => sourceSupportsInstall != false && AssetFilterService.IsAppOrContainerFile(assetKey);
+
+    /// Assets offered in a manual picker: filtered assets first, then the rest of
+    /// the release without duplicates, checksum files or source snapshots.
+    public static List<KeyValuePair<string, string>> PickerAssets(
+        IEnumerable<KeyValuePair<string, string>> filtered, IEnumerable<KeyValuePair<string, string>> all)
+    {
+        var list = filtered.ToList();
+        foreach (var other in all)
+        {
+            if (list.Any(a => a.Value == other.Value || a.Key == other.Key)) continue;
+            if (System.Text.RegularExpressions.Regex.IsMatch(other.Key, @"(sha-?(1|256|512)|checksums?|\.(sig|asc|sha256|sha512|md5|txt))", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+            if (other.Value.Contains("/tarball/") || other.Value.Contains("/zipball/")) continue;
+            list.Add(other);
+        }
+        return list;
+    }
 }

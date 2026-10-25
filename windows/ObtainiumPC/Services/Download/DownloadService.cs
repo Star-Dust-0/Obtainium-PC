@@ -59,7 +59,88 @@ public sealed class DownloadService
             received += read;
             progress?.Report((received, total));
         }
+        await output.FlushAsync(ct);
+        output.Close();
+        try { VerifyDownloaded(target, fileName, received, total); }
+        catch { TryDelete(target); throw; }
         return target;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { File.Delete(path); } catch { /* best effort */ }
+    }
+
+    /// Refuses to hand on a file that is empty, shorter than the server announced,
+    /// or an .exe/.msi that is not a structurally valid Windows image. A truncated
+    /// PE is what Windows reports as "Unsupported 16-Bit Application".
+    public static void VerifyDownloaded(string path, string fileName, long received, long? expectedLength)
+    {
+        if (received == 0)
+            throw new InvalidDataException("The download was empty.");
+        if (expectedLength is > 0 && received != expectedLength)
+            throw new InvalidDataException($"The download was incomplete ({received} of {expectedLength} bytes).");
+        var lower = fileName.ToLowerInvariant();
+        if (lower.EndsWith(".exe"))
+        {
+            if (!IsValidPe(path))
+                throw new InvalidDataException("The downloaded file is not a valid Windows executable.");
+        }
+        else if (lower.EndsWith(".msi"))
+        {
+            using var f = File.OpenRead(path);
+            var sig = new byte[8];
+            if (f.Read(sig, 0, 8) < 8 || sig[0] != 0xD0 || sig[1] != 0xCF || sig[2] != 0x11 || sig[3] != 0xE0)
+                throw new InvalidDataException("The downloaded file is not a valid Windows Installer package.");
+        }
+    }
+
+    public static bool IsValidPe(string path)
+    {
+        try
+        {
+            using var f = File.OpenRead(path);
+            if (f.Length < 0x40) return false;
+            var head = new byte[0x40];
+            f.ReadExactly(head, 0, 0x40);
+            if (head[0] != 'M' || head[1] != 'Z') return false;
+            var peOffset = BitConverter.ToInt32(head, 0x3c);
+            if (peOffset < 0x40 || peOffset + 24L > f.Length) return false;
+            f.Position = peOffset;
+            var pe = new byte[4];
+            f.ReadExactly(pe, 0, 4);
+            return pe[0] == 'P' && pe[1] == 'E' && pe[2] == 0 && pe[3] == 0;
+        }
+        catch { return false; }
+    }
+
+    /// Finds the expected SHA-256 for fileName in checksum-file text
+    /// ("<hex>  name" / "<hex> *name" lines, or a bare hash file).
+    public static string? ExpectedSha256(string checksumText, string fileName)
+    {
+        var lines = checksumText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(line, @"^([0-9a-fA-F]{64})\s+\*?(.+)$");
+            if (m.Success && Path.GetFileName(m.Groups[2].Value.Trim()).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                return m.Groups[1].Value.ToLowerInvariant();
+        }
+        if (lines.Length == 1 && System.Text.RegularExpressions.Regex.IsMatch(lines[0], @"^[0-9a-fA-F]{64}$"))
+            return lines[0].ToLowerInvariant();
+        return null;
+    }
+
+    public static string Sha256Of(string path)
+    {
+        using var f = File.OpenRead(path);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(f)).ToLowerInvariant();
+    }
+
+    /// True when a checksum file lists this asset and the hash differs.
+    public static bool ChecksumMismatch(string path, string fileName, string checksumText)
+    {
+        var expected = ExpectedSha256(checksumText, fileName);
+        return expected != null && !expected.Equals(Sha256Of(path), StringComparison.Ordinal);
     }
 
     private static string Sanitize(string fileName)

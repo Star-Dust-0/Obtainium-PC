@@ -239,3 +239,43 @@ public class TrackOnlyApkLinkRegressionTests
         Assert.Equal("https://cdn.apk4free.net/files/cool-1.2.3.apk", Assert.Single(d.AssetUrls).Value);
     }
 }
+
+public class DownloadIntegrityTests
+{
+    [Fact]
+    public void TruncatedExeIsRejectedAndValidPeAccepted()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "dlint-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var good = Path.Combine(dir, "a.exe");
+        var bytes = new byte[0x200];
+        bytes[0] = (byte)'M'; bytes[1] = (byte)'Z'; bytes[0x3c] = 0x80;
+        bytes[0x80] = (byte)'P'; bytes[0x81] = (byte)'E';
+        File.WriteAllBytes(good, bytes);
+        ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(good, "a.exe", bytes.Length, bytes.Length);
+        var cut = Path.Combine(dir, "b.exe");
+        File.WriteAllBytes(cut, bytes[..0x50]);
+        Assert.Throws<InvalidDataException>(() => ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(cut, "b.exe", 0x50, 0x50));
+        Assert.Throws<InvalidDataException>(() => ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(good, "a.exe", bytes.Length, bytes.Length + 10));
+    }
+
+    [Fact]
+    public void ChecksumLineParsedAndMismatchDetected()
+    {
+        var f = Path.GetTempFileName();
+        File.WriteAllText(f, "abc");
+        var sha = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        Assert.False(ObtainiumPC.Services.Download.DownloadService.ChecksumMismatch(f, "x.exe", sha + "  x.exe\n"));
+        Assert.True(ObtainiumPC.Services.Download.DownloadService.ChecksumMismatch(f, "x.exe", new string('0', 64) + " *x.exe\n"));
+        Assert.False(ObtainiumPC.Services.Download.DownloadService.ChecksumMismatch(f, "other.exe", sha + "  x.exe\n"));
+    }
+
+    [Fact]
+    public void PickerDropsDuplicatesChecksumsAndSourceSnapshots()
+    {
+        var f = new List<KeyValuePair<string, string>> { new("S.exe", "u1"), new("S_x64.exe", "u2") };
+        var all = new List<KeyValuePair<string, string>> { new("SHA256SUMS", "u0"), new("P.zip", "u3"), new("S.exe", "u1"), new("S_x64.exe", "u2"), new("v1.tar.gz", "https://api.github.com/repos/o/r/tarball/v1"), new("v1.zip", "https://api.github.com/repos/o/r/zipball/v1") };
+        var r = ObtainiumPC.Services.Download.BatchDownloadPlanner.PickerAssets(f, all);
+        Assert.Equal(new[] { "S.exe", "S_x64.exe", "P.zip" }, r.Select(e => e.Key).ToArray());
+    }
+}

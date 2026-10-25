@@ -60,6 +60,8 @@ namespace ObtainiumPC.Pages
 
         public Thickness RowPadding { get; private set; } = new Thickness(12);
         public double IconSize { get; private set; } = 22;
+        public double IconBox => IconSize + 10;
+        public Microsoft.UI.Xaml.Media.ImageSource? IconSource => Services.AppIconService.Source(App);
 
         public TrackedApp App { get; }
         public bool HasUpdate { get; }
@@ -378,7 +380,7 @@ base.OnNavigatedTo(e);
                     results.Add(app.FinalName + ": update would downgrade " + app.InstalledVersion + " -> " + app.LatestVersion + "; blocked");
                     continue;
                 }
-                var assets = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
+                var assets = Services.Download.BatchDownloadPlanner.PickerAssets(app.AssetUrls, app.OtherAssetUrls);
                 if (assets.Count == 0)
                 {
                     results.Add(app.FinalName + ": no downloadable asset on the latest release");

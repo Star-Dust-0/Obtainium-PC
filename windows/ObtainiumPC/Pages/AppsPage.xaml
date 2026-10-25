@@ -23,7 +23,10 @@
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xECAA;" FontSize="{x:Bind IconSize}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Grid VerticalAlignment="Center" HorizontalAlignment="Left" Width="{x:Bind IconBox}" Height="{x:Bind IconBox}">
+                            <FontIcon Glyph="&#xECAA;" FontSize="{x:Bind IconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <Image Source="{x:Bind IconSource}" Stretch="UniformToFill"/>
+                        </Grid>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="{x:Bind Title}" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                             <TextBlock Text="{x:Bind Subtitle}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

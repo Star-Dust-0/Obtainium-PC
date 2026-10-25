@@ -7,7 +7,9 @@ public sealed record InstalledAppInfo(
     string DisplayName,
     string? DisplayVersion,
     string? InstallLocation,
-    string? Publisher);
+    string? Publisher,
+    string? KeyName = null,
+    string? DisplayIcon = null);
 
 /// <summary>
 /// Windows equivalent of the original's PackageManager lookup: installed
@@ -71,7 +73,9 @@ public static class InstalledAppsService
                         displayName,
                         sub.GetValue("DisplayVersion") as string,
                         sub.GetValue("InstallLocation") as string,
-                        sub.GetValue("Publisher") as string));
+                        sub.GetValue("Publisher") as string,
+                        subName,
+                        sub.GetValue("DisplayIcon") as string));
                 }
                 catch { /* unreadable subkey - skip */ }
             }
@@ -123,6 +127,19 @@ public static class InstalledAppsService
         var exact = installed.Where(a => Normalize(a.DisplayName) == needle).ToList();
         var exactMatch = Disambiguate(exact);
         if (exactMatch != null) return new MatchResult(exactMatch, MatchConfidence.Exact);
+
+        // Identity tier: the uninstall key name, the install folder name or the
+        // icon's exe name equals the tracked name (installers whose DisplayName
+        // carries extra words, e.g. "Shuck - Screen OCR").
+        if (needle.Length >= 4)
+        {
+            var byIdentity = installed.Where(a =>
+                (a.KeyName != null && Normalize(a.KeyName) == needle)
+                || (!string.IsNullOrWhiteSpace(a.InstallLocation) && Normalize(Path.GetFileName(a.InstallLocation.TrimEnd('\\', '/'))) == needle)
+                || (!string.IsNullOrWhiteSpace(a.DisplayIcon) && Normalize(Path.GetFileNameWithoutExtension(a.DisplayIcon.Split(',')[0].Trim('"'))) == needle)).ToList();
+            var idMatch = Disambiguate(byIdentity);
+            if (idMatch != null) return new MatchResult(idMatch, MatchConfidence.Strong);
+        }
 
         if (needle.Length < 4) return null; // too short to contain-match safely
 

@@ -7,7 +7,10 @@
         <ScrollViewer>
             <StackPanel Spacing="16">
                 <StackPanel Orientation="Horizontal" Spacing="16">
-                    <FontIcon Glyph="&#xECAA;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Grid Width="48" Height="48" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xECAA;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Image x:Name="AppIconImage" Stretch="UniformToFill"/>
+                    </Grid>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock x:Name="NameText" Style="{StaticResource TitleTextBlockStyle}"/>
                         <TextBlock x:Name="AuthorText" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

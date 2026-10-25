@@ -65,6 +65,7 @@ namespace ObtainiumPC.Pages
         {
             if (_app == null) return;
             NameText.Text = _app.FinalName;
+            AppIconImage.Source = Services.AppIconService.Source(_app);
             AuthorText.Text = _app.FinalAuthor;
             InstalledText.Text = Services.Localization.Loc.T("Installed: ") + (_app.InstalledVersion ?? Services.Localization.Loc.T("not installed"));
             LatestText.Text = Services.Localization.Loc.T("Latest: ") + (_app.LatestVersion ?? Services.Localization.Loc.T("unknown"));
@@ -218,7 +219,16 @@ namespace ObtainiumPC.Pages
             }
             // Upstream confirmAppFileUrl(pickAnyAsset: true) offers
             // apkUrls + otherAssetUrls.
-            var assets = _app.AssetUrls.Concat(_app.OtherAssetUrls).ToList();
+            var assets = _app.AssetUrls.ToList();
+            foreach (var other in _app.OtherAssetUrls)
+            {
+                // The same file is listed in both groups; checksum files and
+                // source snapshots are not installers, so keep them out of the picker.
+                if (assets.Any(a => a.Value == other.Value || a.Key == other.Key)) continue;
+                if (System.Text.RegularExpressions.Regex.IsMatch(other.Key, @"(sha-?(1|256|512)|checksums?|\.(sig|asc|sha256|sha512|md5|txt))", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+                if (other.Value.Contains("/tarball/") || other.Value.Contains("/zipball/")) continue;
+                assets.Add(other);
+            }
             if (assets.Count == 0)
             {
                 Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No downloadable asset on the latest release."));
@@ -270,6 +280,19 @@ namespace ObtainiumPC.Pages
                 var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(
                     downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
+                // Cross-check against a published checksum file when the release has one.
+                var sumAsset = _app.AssetUrls.Concat(_app.OtherAssetUrls).FirstOrDefault(a =>
+                    System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+                if (sumAsset.Value != null)
+                {
+                    string? sumText = null;
+                    try { sumText = await new System.Net.Http.HttpClient().GetStringAsync(sumAsset.Value); } catch { }
+                    if (sumText != null && DownloadService.ChecksumMismatch(path, asset.Key, sumText))
+                    {
+                        try { System.IO.File.Delete(path); } catch { }
+                        throw new System.IO.InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
+                    }
+                }
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
                 // Installability is per-asset, not only per-source: an APK fetched
