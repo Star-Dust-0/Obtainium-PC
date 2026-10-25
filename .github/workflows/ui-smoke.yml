@@ -40,6 +40,17 @@ jobs:
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
             }
+            @{
+              # Disabled: skipped by update checks, so the seeded changelog
+              # survives. Exercises the MarkdownRenderer dialog (the Notepad++
+              # changelog is a bare URL = link-only dialog).
+              id = 'seed-md'; url = 'https://github.com/smoke/markdown-seed'
+              author = 'smoke'; name = 'Markdown seed'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $true
+              releaseDate = 1790208000000000
+              changeLog = "## What's new`n`n- **Bold** fix`n- second item`n`n[Example link](https://example.com)"
+            }
           )
           # -InputObject keeps a one-element array a JSON array (pipeline unrolls it).
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
@@ -307,6 +318,9 @@ jobs:
           ClickPartial 'Dark' $root | Out-Null
           Start-Sleep 2
           Shot '12-settings-dark'
+          # The switch is live (no restart): another page must render dark too.
+          ClickNamed 'Logs'
+          Start-Sleep 3; AssertAlive 'logs-dark-live'; Shot '12b-logs-dark-live'
 
           # Restart and verify the theme persisted.
           Stop-Process -Id $p.Id -Force
@@ -513,6 +527,22 @@ jobs:
           Start-Sleep 1
           Shot '28-health-restored'
           'update-health ignore/restore verified'
+
+          # Markdown changelog dialog in dark theme: the disabled seed app's
+          # markdown changelog runs through MarkdownRenderer's themed brushes.
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 3; AssertAlive 'apps-before-md'
+          ClickPartial 'Markdown seed' $win2 | Out-Null
+          Start-Sleep 3; AssertAlive 'md-detail'
+          Shot '28b-md-detail-dark'
+          ClickPartial 'Released' $win2 | Out-Null
+          Start-Sleep 2
+          $mdOk = FindNamed 'OK' $root
+          if ($mdOk -eq $null) { Shot 'md-dialog-missing'; throw 'changelog dialog did not open for the markdown seed app' }
+          Shot '28c-md-changelog-dark'
+          try { $mdOk.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'OK' $root | Out-Null }
+          Start-Sleep 2
+          'markdown changelog dark dialog verified'
           Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Tail 30 | Select-String 'ThemeLookup' | ForEach-Object { $_.Line }
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
