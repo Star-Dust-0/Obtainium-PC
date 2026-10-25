@@ -332,6 +332,17 @@ jobs:
           if ((Get-Item $exe).VersionInfo.ProductVersion -notlike '0.2.0*') { throw 'exe not 0.2.0 after update' }
           Copy-Item (Join-Path $dir 'logs.jsonl') shots\app-logs.jsonl -ErrorAction SilentlyContinue
           Copy-Item "$PWD\fixture-requests.log" shots\ -ErrorAction SilentlyContinue
+      - name: Collect diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          Get-ChildItem $dir -ErrorAction SilentlyContinue | Out-String | Set-Content shots\datadir-listing.txt
+          Copy-Item (Join-Path $dir 'logs.jsonl') shots\app-logs.jsonl -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $dir 'settings.json') shots\settings-after.json -ErrorAction SilentlyContinue
+          Copy-Item "$env:RUNNER_TEMP\ssl\srv.err" shots\ -ErrorAction SilentlyContinue
+          Copy-Item "$PWD\fixture-requests.log" shots\ -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         if: always()
         with:
