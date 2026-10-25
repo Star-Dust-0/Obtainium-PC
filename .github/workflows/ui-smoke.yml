@@ -225,10 +225,13 @@ jobs:
           if ($gear.Current.IsEnabled) { throw 'OS app settings gear must be disabled for unpackaged apps' }
 
           # Download safe completion: Update downloads the asset; poll for the file.
-          # First install: the detail action button reads 'Install' (upstream lib/pages/app.dart).
+          # The detail primary action reads 'Update' when a newer version is
+          # available for an installed app, 'Install' when nothing is recorded
+          # (upstream lib/pages/app.dart). The seed records 7.0, so expect
+          # Update; accept Install to keep the harness honest either way.
           # Upstream always shows the asset picker on manual download
           # (confirmAppFileUrl evenIfSingleChoice: true).
-          ClickNamed 'Install'
+          if ((FindNamed 'Update' $win) -ne $null) { ClickNamed 'Update' } else { ClickNamed 'Install' }
           Start-Sleep 3
           $dlg = FindNamed 'Choose a file' $root
           if ($dlg -eq $null) { Shot 'no-asset-picker'; throw 'asset picker dialog did not appear after Install' }
