@@ -25,6 +25,20 @@ public static class Localizer
         Walk(root);
     }
 
+    /// <summary>
+    /// Translates NavigationViewItem objects held in a NavigationView's
+    /// MenuItems/FooterMenuItems collections directly. The item containers
+    /// leave the visual tree when the pane is unrealized or re-templating
+    /// (e.g. right after a FlowDirection flip), so the tree walk alone can
+    /// miss them and leave stale labels after a language switch.
+    /// </summary>
+    public static void ApplyToItems(System.Collections.Generic.IList<object> items)
+    {
+        foreach (var item in items)
+            if (item is NavigationViewItem nvi && nvi.Content is string)
+                Translate(nvi);
+    }
+
     private static void Walk(DependencyObject parent)
     {
         var count = VisualTreeHelper.GetChildrenCount(parent);

@@ -125,6 +125,13 @@ namespace ObtainiumPC
         public void ApplyLocalization()
         {
             Services.Localization.Localizer.Apply(NavView);
+            // The tree walk only reaches realized visuals; nav item containers
+            // can be unrealized or mid re-template after the flow-direction
+            // flip, so translate the persistent item objects too (ui-smoke:
+            // switching back to English left the nav labels in Arabic while
+            // the re-navigated page was already English).
+            Services.Localization.Localizer.ApplyToItems(NavView.MenuItems);
+            Services.Localization.Localizer.ApplyToItems(NavView.FooterMenuItems);
             var current = NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem;
             var pageType = current?.Tag switch
             {

@@ -440,12 +440,25 @@ jobs:
             # The page can be fully re-localized (Settings renders English)
             # while the collapsed nav pane's item names go stale in UIA (run
             # 40203139396: app alive, English UI, 'Apps' missing 15s). Dump
-            # what UIA sees, refind the window, open the pane to force the
-            # names live, and re-poll - loudly, never silently.
+            # what UIA sees, refind the window, open the pane with a REAL
+            # mouse click at an on-screen burger (Invoke on a stale node
+            # silently no-ops; run 40206305872), shoot the open pane for
+            # pixel evidence of the actual label language, then re-poll -
+            # loudly, never silently.
             DumpNames $win2 'english-restore-first-poll'
             $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
-            $burger = FindNamed 'Open Navigation' $win2
-            if ($burger -ne $null) { try { $burger.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {}; Start-Sleep 2 }
+            $burgers = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Open Navigation')))
+            foreach ($b in $burgers) {
+              $br = $b.Current.BoundingRectangle
+              if ($br.Width -gt 0 -and $br.X -ge 0 -and $br.Y -ge 0) {
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($br.X + $br.Width/2), [int]($br.Y + $br.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                Start-Sleep 2
+                break
+              }
+            }
+            Shot 'english-restore-pane-open'
             foreach ($w in 1..10) {
               Start-Sleep 1
               if ((FindNamed 'Apps' $win2) -ne $null) { $found = $true; break }
