@@ -108,7 +108,12 @@ public sealed class AppStore
                 writer.WriteStartObject();
                 foreach (var kv in settings)
                 {
-                    if (exportLevel < 2 && kv.Key.EndsWith("-creds")) continue;
+                    // Upstream strips settings keys ending in "-creds"
+                    // (apps_provider_import_export.dart); the port's typed
+                    // settings carry secrets as *PersonalAccessToken
+                    // properties, so strip that suffix too - otherwise the
+                    // GitLab/Forgejo PATs leak into "no credentials" exports.
+                    if (exportLevel < 2 && (kv.Key.EndsWith("-creds") || kv.Key.EndsWith("PersonalAccessToken"))) continue;
                     writer.WritePropertyName(kv.Key);
                     JsonSerializer.Serialize(writer, kv.Value);
                 }

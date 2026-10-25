@@ -68,6 +68,31 @@ public class ImportExportTests
     }
 
     [Fact]
+    public void Settings_level_secrets_are_stripped_unless_secrets_included()
+    {
+        // The port stores source PATs as typed *PersonalAccessToken settings;
+        // upstream's "-creds" suffix strip must cover them so GitLab/Forgejo
+        // PATs never leak into a "credentials stripped" export.
+        var settings = new Dictionary<string, object?>
+        {
+            ["GitHubPersonalAccessToken"] = "gh-secret",
+            ["GitLabPersonalAccessToken"] = "gl-secret",
+            ["ForgejoPersonalAccessToken"] = "fj-secret",
+            ["Theme"] = 2,
+        };
+        var stripped = AppStore.Export(new[] { SampleApp() }, settings, 1, "1.0.0-test");
+        Assert.DoesNotContain("gh-secret", stripped);
+        Assert.DoesNotContain("gl-secret", stripped);
+        Assert.DoesNotContain("fj-secret", stripped);
+        Assert.Contains(""Theme"", stripped);
+
+        var withSecrets = AppStore.Export(new[] { SampleApp() }, settings, 2, "1.0.0-test");
+        Assert.Contains("gh-secret", withSecrets);
+        Assert.Contains("gl-secret", withSecrets);
+        Assert.Contains("fj-secret", withSecrets);
+    }
+
+    [Fact]
     public void Import_accepts_a_bare_apps_array()
     {
         var (imported, hasSettings, _) = AppStore.Import("""[{"id":"x","url":"https://github.com/a/b"}]""");

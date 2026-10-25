@@ -26,3 +26,15 @@ jobs:
         with:
           name: ObtainiumPC-win-x64
           path: windows/ObtainiumPC/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build installer (version read from csproj; never bumped here)
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content windows/ObtainiumPC/ObtainiumPC.csproj)).Project.PropertyGroup.Version | Select-Object -First 1
+          iscc /DMyAppVersion=$v "/DBuildDir=$PWD\windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64" windows\packaging\ObtainiumPC.iss
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ObtainiumPC-Setup-win-x64
+          path: installer-out/
