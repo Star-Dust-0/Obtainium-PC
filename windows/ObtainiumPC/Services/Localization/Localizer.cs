@@ -129,10 +129,23 @@ public static class Localizer
         catch (System.Exception ex) { Logging.AppLogger.Warn("nvi-host dump failed", ex); }
     }
 
+    private static string NavTexts(DependencyObject el)
+    {
+        var sb = new System.Text.StringBuilder();
+        void W(DependencyObject d)
+        {
+            if (d is TextBlock t) sb.Append($"{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(t)}:{t.Text}|");
+            var n = VisualTreeHelper.GetChildrenCount(d);
+            for (var i = 0; i < n; i++) W(VisualTreeHelper.GetChild(d, i));
+        }
+        W(el);
+        return sb.ToString();
+    }
+
     private static void WalkDump(DependencyObject el, string when, System.Collections.Generic.List<string> path)
     {
         if (el is NavigationViewItem nvi)
-            Logging.AppLogger.Info($"nvi-host {when}: id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} tag={nvi.Tag} content=[{nvi.Content}] path={string.Join(">", path)}");
+            Logging.AppLogger.Info($"nvi-host {when}: id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} tag={nvi.Tag} content=[{nvi.Content}] textblocks=[{NavTexts(nvi)}] path={string.Join(">", path)}");
         path.Add(el.GetType().Name);
         var count = VisualTreeHelper.GetChildrenCount(el);
         for (var i = 0; i < count; i++)
@@ -149,6 +162,20 @@ public static class Localizer
             Translate(child);
             Walk(child);
         }
+    }
+
+    // NavigationViewItem labels are translated through the item's Content.
+    // Writing Text on the template's internal TextBlock (a local value)
+    // detaches it from the Content-driven update and leaves a stale label.
+    private static bool IsInsideNavItem(DependencyObject el)
+    {
+        var p = VisualTreeHelper.GetParent(el);
+        while (p != null)
+        {
+            if (p is NavigationViewItem) return true;
+            p = VisualTreeHelper.GetParent(p);
+        }
+        return false;
     }
 
     private static bool IsKey(string text) => Loc.T(text) != text;
@@ -191,7 +218,7 @@ public static class Localizer
     {
         switch (el)
         {
-            case TextBlock tb when !string.IsNullOrEmpty(tb.Text):
+            case TextBlock tb when !string.IsNullOrEmpty(tb.Text) && !IsInsideNavItem(tb):
                 tb.Text = FromOriginal(tb, tb.Text);
                 break;
             case Button { Content: string } btn:
