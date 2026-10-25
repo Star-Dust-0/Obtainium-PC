@@ -1019,6 +1019,7 @@ jobs:
           'bulk confirmation verified'
 
           # Certificate-pinning toggle renders and persists.
+          AssertAlive 'pre-cert-settings'
           ClickNamedIn 'Settings' $win3
           Start-Sleep 3
           $pinToggle = FindNamed 'Enable certificate pinning' $win3
@@ -1090,6 +1091,16 @@ jobs:
           if ($procs.Count -ne 1) { Shot 'deeplink-instance-count'; throw "expected 1 ObtainiumPC process, found $($procs.Count)" }
           'deep links verified'
           Stop-Process -Id $p.Id -Force
+      - name: Preserve app logs
+        if: always()
+        shell: pwsh
+        run: |
+          # Crash evidence: the app's logs.jsonl (with any unhandled-exception
+          # entry) and the script-visible process state travel with the shots.
+          $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+          "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

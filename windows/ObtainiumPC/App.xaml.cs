@@ -34,6 +34,10 @@ namespace ObtainiumPC
         public App()
         {
             this.InitializeComponent();
+            // Land crashes in logs.jsonl so CI smoke artifacts carry the
+            // exception; the store is write-guarded, this cannot recurse.
+            this.UnhandledException += (sender, e) =>
+                Services.Logging.AppLogger.Error("unhandled exception", e.Exception);
         }
 
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
