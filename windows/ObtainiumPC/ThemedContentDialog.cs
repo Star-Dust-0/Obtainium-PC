@@ -14,5 +14,10 @@ public class ThemedContentDialog : Microsoft.UI.Xaml.Controls.ContentDialog
             "dark" => Microsoft.UI.Xaml.ElementTheme.Dark,
             _ => Microsoft.UI.Xaml.ElementTheme.Default,
         };
+        // Popup trees also ignore the window root's FlowDirection; mirror RTL
+        // so titles, text and layout align right under Arabic.
+        FlowDirection = Services.Localization.Loc.IsRtl
+            ? Microsoft.UI.Xaml.FlowDirection.RightToLeft
+            : Microsoft.UI.Xaml.FlowDirection.LeftToRight;
     }
 }

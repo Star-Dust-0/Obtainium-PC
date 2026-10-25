@@ -53,6 +53,7 @@
                 </VisualState>
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" ZoomMode="Disabled">
         <StackPanel Orientation="Horizontal" Spacing="12" Padding="36,20,36,8" VerticalAlignment="Center">
             <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
             <Button x:Name="RefreshButton" ToolTipService.ToolTip="Check for updates" Click="Refresh_Click" VerticalAlignment="Center">
@@ -64,6 +65,7 @@
             <ComboBox x:Name="CategoryCombo" MinWidth="120" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
             <ToggleButton x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </StackPanel>
+        </ScrollViewer>
         <Grid x:Name="SearchRow" Grid.Row="1" Padding="36,0,36,8">
             <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
         </Grid>

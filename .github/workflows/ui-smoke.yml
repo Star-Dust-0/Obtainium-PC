@@ -462,6 +462,15 @@ jobs:
           Start-Sleep 4
           AssertAlive 'deeplink-refresh'
 
+          # 5b) refresh with explicit id: the continuation runs on a background
+          # thread and must marshal AppsUpdated to the UI thread; a regression
+          # there crashes the app when open pages reload their rows.
+          Start-Process $exe -ArgumentList 'obtainium://refresh?id=deeplink-smoke-1'
+          Start-Sleep 6
+          AssertAlive 'deeplink-refresh-id'
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $obtCond) -eq $null) { Shot 'deeplink-refresh-id-row'; throw 'row missing after id-refresh notification' }
+          'refresh-with-id UI-thread marshal verified'
+
           # Group headers + collapse-on-startup across a relaunch.
           $settingsPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $sj = Get-Content $settingsPath -Raw | ConvertFrom-Json
