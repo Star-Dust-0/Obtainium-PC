@@ -46,7 +46,7 @@ jobs:
           # Make the first-run state deterministic.
           # The runner's per-job token is throwaway and never leaves the runner;
           # it only raises the GitHub API rate limit for the live check.
-          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json') }
+          $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json'); UpdateHealthFailedChecksCount = 1 }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Launch and capture
         shell: pwsh
@@ -471,6 +471,30 @@ jobs:
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $obtCond) -eq $null) { Shot 'deeplink-refresh-id-row'; throw 'row missing after id-refresh notification' }
           'refresh-with-id UI-thread marshal verified'
 
+          # 5c) Update Health ignore/restore round trip. The seed set the
+          # failed-checks threshold to 1, so the Obtainium row (its checks fail
+          # on the runner) is flagged and can be ignored and restored.
+          ClickNamedIn 'Update Health' $win2
+          Start-Sleep 3
+          $dots = FindNamed ([char]0x2026) $root
+          if ($dots -eq $null) { Shot 'health-no-rows'; throw 'no flagged update-health rows to ignore' }
+          try { $dots.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial ([char]0x2026) $win2 | Out-Null }
+          Start-Sleep 2
+          $ign = FindNamed 'Ignore permanently' $root
+          if ($ign -eq $null) { Shot 'health-menu-missing'; throw 'update-health ignore menu did not open' }
+          $ign.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 2
+          Shot '27-health-ignored'
+          $rest = FindNamed 'Restore' $root
+          if ($rest -eq $null) { Shot 'health-ignore-failed'; throw 'ignored app did not move to the Ignored section' }
+          $rest.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 2
+          if ((FindNamed 'Restore' $root) -ne $null) { Shot 'health-restore-failed'; throw 'restore did not return the app to the flagged list' }
+          Shot '28-health-restored'
+          'update-health ignore/restore verified'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+
           # Group headers + collapse-on-startup across a relaunch.
           $settingsPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $sj = Get-Content $settingsPath -Raw | ConvertFrom-Json
@@ -495,6 +519,51 @@ jobs:
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -eq $null) { Shot 'group-expand-failed'; throw 'group did not expand on header click' }
           Shot '24-groups-expanded'
           'group collapse verified'
+
+          # Source option editors render at runtime: F-Droid and Farsroid apps
+          # imported via deep link, then their per-source options pages.
+          $fdJson = '{"id":"deeplink-smoke-fdroid","url":"https://f-droid.org/packages/org.fdroid.fdroid/","author":"F-Droid","name":"F-Droid client","additionalSettings":"{}"}'
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($fdJson))
+          Start-Sleep 4
+          if ((FindNamed 'Import app' $root) -eq $null) { Shot 'fdroid-import-missing'; throw 'F-Droid deep-link import dialog missing' }
+          (FindNamed 'Import' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 3
+          $cb3 = FindNamed 'Close' $root
+          if ($cb3 -ne $null) { try { $cb3.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+          $fdRow = FindNamed 'F-Droid client' $win3
+          if ($fdRow -eq $null) { ClickNamedIn 'F-Droid' $win3; Start-Sleep 2; $fdRow = FindNamed 'F-Droid client' $win3 }
+          if ($fdRow -eq $null) { Shot 'fdroid-row-missing'; throw 'F-Droid row not found after import' }
+          try { $fdRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'F-Droid client' $win3 | Out-Null }
+          Start-Sleep 3
+          ClickNamed 'Options' 'F-Droid client options'
+          Start-Sleep 2; AssertAlive 'fdroid-options'
+          if ((FindNamed 'Filter versions by regular expression' $root) -eq $null) { Shot 'fdroid-options-missing'; throw 'F-Droid source option editors did not render' }
+          Shot '29-fdroid-options'
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+
+          $frJson = '{"id":"deeplink-smoke-farsroid","url":"https://farsroid.com/telegram-x/","author":"Farsroid","name":"Farsroid smoke","additionalSettings":"{}"}'
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($frJson))
+          Start-Sleep 4
+          if ((FindNamed 'Import app' $root) -eq $null) { Shot 'farsroid-import-missing'; throw 'Farsroid deep-link import dialog missing' }
+          (FindNamed 'Import' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 3
+          $cb4 = FindNamed 'Close' $root
+          if ($cb4 -ne $null) { try { $cb4.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+          $frRow = FindNamed 'Farsroid smoke' $win3
+          if ($frRow -eq $null) { ClickNamedIn 'Farsroid' $win3; Start-Sleep 2; $frRow = FindNamed 'Farsroid smoke' $win3 }
+          if ($frRow -eq $null) { Shot 'farsroid-row-missing'; throw 'Farsroid row not found after import' }
+          try { $frRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Farsroid smoke' $win3 | Out-Null }
+          Start-Sleep 3
+          ClickNamed 'Options' 'Farsroid smoke options'
+          Start-Sleep 2; AssertAlive 'farsroid-options'
+          if ((FindNamed 'Auto-select first of multiple APKs' $root) -eq $null) { Shot 'farsroid-options-missing'; throw 'Farsroid source option editors did not render' }
+          Shot '30-farsroid-options'
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          'F-Droid and Farsroid option editors render verified'
 
           # Dialog theme + language round-trip: in-session changes must reach
           # newly created dialogs (ThemedContentDialog reads the saved theme at
