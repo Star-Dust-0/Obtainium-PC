@@ -24,7 +24,7 @@ WinUI 3 port. Statuses:
 
 | Upstream source | Status | Notes |
 | --- | --- | --- |
-| GitHub | ported | releases, fallback to latest, filters, PAT, per-app creds |
+| GitHub | ported | releases, fallback to latest, filters, PAT, per-app creds; asset acceptance mapped from upstream's APK container list to Windows installers (.exe/.msi/.msix/.appx/.appinstaller) - a repo with no Windows-installer assets fails the check with no-releases, the same structural filter upstream applies to repos with no APK assets (github.dart:713/830/876) |
 | GitLab | ported | async prefetch modifier for project download URLs |
 | Codeberg / Forgejo | ported | delegates to the GitHub pipeline with the Forgejo API host |
 | SourceForge | mapped | RSS feed; suppress-standard-version-extraction flag |
