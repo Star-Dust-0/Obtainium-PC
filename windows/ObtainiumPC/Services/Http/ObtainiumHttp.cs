@@ -84,7 +84,7 @@ public static class ObtainiumHttp
         {
             using var custom = new X509Chain();
             custom.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            custom.ChainPolicy.RevocationMode = X509ChainRevocationMode.NoCheck;
+            custom.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             // serverAuth EKU, as the platform TLS verifier requires.
             custom.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1"));
             var roots = 0;

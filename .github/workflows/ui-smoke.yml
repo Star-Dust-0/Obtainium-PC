@@ -694,6 +694,8 @@ jobs:
           $markUpd = FindNamed 'Mark updated' $win3
           if ($markUpd -eq $null) { Shot 'track-only-mark-updated-missing'; throw 'Mark updated action missing after mark-installed' }
           if ($markUpd.Current.IsEnabled -ne $false) { Shot 'track-only-mark-updated-enabled'; throw 'Mark updated still enabled although installed matches latest' }
+          $dlAfter = FindNamed 'Download' $win3
+          if ($dlAfter -eq $null -or $dlAfter.Current.IsEnabled -ne $true) { Shot 'track-only-download-disabled'; throw 'manual Download must stay available after mark-installed (bookkeeping does not place the file locally)' }
           Shot '28h-track-only-marked-installed'
           'track-only mark-installed bookkeeping verified'
           ClickNamedIn 'Apps' $win3

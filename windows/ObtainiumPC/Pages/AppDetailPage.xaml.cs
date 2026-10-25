@@ -126,7 +126,10 @@ namespace ObtainiumPC.Pages
             // the port keeps the authorized manual-download flow).
             UpdateButton.IsEnabled = actionEnabled;
             InstallButton.IsEnabled = actionEnabled;
-            DownloadButton.IsEnabled = actionEnabled;
+            // Manual download stays available for track-only apps even after
+            // marking: the mark is version bookkeeping only and does not put
+            // the file on disk.
+            DownloadButton.IsEnabled = true;
             UpdateButton.Visibility = !trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
             InstallButton.Visibility = !trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
             DownloadButton.Visibility = trackOnlyApp ? Visibility.Visible : Visibility.Collapsed;
@@ -135,10 +138,16 @@ namespace ObtainiumPC.Pages
             // installedVersion = latestVersion, no download, no install). Same
             // hasAction gating: disabled once the recorded install matches
             // latest; reset-install takes over from there (lib/pages/app.dart:600).
-            MarkInstalledAction.IsEnabled = actionEnabled;
-            MarkUpdatedAction.IsEnabled = actionEnabled;
-            MarkInstalledAction.Visibility = trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
-            MarkUpdatedAction.Visibility = trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
+            // Disabled-looking mark states use the baked-disabled twin: a
+            // freshly-shown button with IsEnabled set in code keeps the
+            // enabled visual state (stale CommonStates on first template,
+            // same family as 40139280718; 28h pixel review). The actionable
+            // variants are enabled by construction and only show when
+            // actionEnabled; MarkTrackOnly_Click still no-ops when the
+            // recorded install matches latest.
+            MarkInstalledAction.Visibility = trackOnlyApp && firstInstall && actionEnabled ? Visibility.Visible : Visibility.Collapsed;
+            MarkUpdatedAction.Visibility = trackOnlyApp && !firstInstall && actionEnabled ? Visibility.Visible : Visibility.Collapsed;
+            MarkUpdatedDisabledAction.Visibility = trackOnlyApp && !firstInstall && !actionEnabled ? Visibility.Visible : Visibility.Collapsed;
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
@@ -300,6 +309,9 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
         private async void MarkTrackOnly_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
+            // Same hasAction gate as upstream: marking an app whose recorded
+            // install already matches the latest version is a no-op.
+            if (_app.InstalledVersion == _app.LatestVersion) return;
             _app.InstalledVersion = _app.LatestVersion;
             await App.SaveAppsAsync();
             Render();

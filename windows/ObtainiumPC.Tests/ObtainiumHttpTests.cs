@@ -55,7 +55,11 @@ public class ObtainiumHttpTests : IDisposable
         leafReq.CertificateExtensions.Add(san.Build());
         leafReq.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
             new OidCollection { new Oid("1.3.6.1.5.5.7.3.1") }, false)); // serverAuth
-        var leaf = leafReq.CreateSigned(ca,
+        // Issuer-linked via name + signature (net8-safe; CreateSigned(X509Certificate2,...)
+        // is not available on this target).
+        var leaf = leafReq.Create(
+            ca.SubjectName,
+            X509SignatureGenerator.CreateForRSA(caKey, RSASignaturePadding.Pkcs1),
             expired ? DateTimeOffset.UtcNow.AddYears(-2) : DateTimeOffset.UtcNow.AddDays(-2),
             expired ? DateTimeOffset.UtcNow.AddYears(-1) : DateTimeOffset.UtcNow.AddYears(1),
             new byte[] { 9, 8, 7, 6, 5, 4, 3, 2 });
