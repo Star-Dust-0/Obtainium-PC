@@ -42,19 +42,53 @@ public static class Localizer
     public static void ApplyToItems(System.Collections.Generic.IList<object> items)
     {
         foreach (var item in items)
+            if (item is NavigationViewItem nvi)
+                TranslateNavItem(nvi);
+    }
+
+    private static void TranslateNavItem(NavigationViewItem nvi)
+    {
+        if (nvi.Content is not string s) return;
+        if (nvi.Tag is not string tag) { Translate(nvi); return; }
+        if (!NavOriginals.TryGetValue(tag, out var key))
         {
-            if (item is not NavigationViewItem nvi || nvi.Content is not string s) continue;
-            if (nvi.Tag is not string tag) { Translate(nvi); continue; }
-            if (!NavOriginals.TryGetValue(tag, out var key))
-            {
-                if (IsKey(s)) key = s;
-                else if (Loc.TryReverse(s, out var reversed)) key = reversed;
-                else continue;
-                NavOriginals[tag] = key;
-            }
-            var after = Loc.T(key);
-            Logging.AppLogger.Info($"apply-items nvi tag={tag} id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} key=[{key}] [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
-            nvi.Content = after;
+            if (IsKey(s)) key = s;
+            else if (Loc.TryReverse(s, out var reversed)) key = reversed;
+            else return;
+            NavOriginals[tag] = key;
+        }
+        var after = Loc.T(key);
+        Logging.AppLogger.Info($"nav-item tag={tag} id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} key=[{key}] [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
+        nvi.Content = after;
+    }
+
+    /// Translates every tagged NavigationViewItem in any subtree. The overlay
+    /// nav pane hosts cloned containers that keep the text they were created
+    /// with (run 40216021873: MenuItems provably English while the open pane
+    /// still rendered Arabic), so MenuItems translation alone cannot reach
+    /// them; the tag map translates the clones too.
+    public static void ApplyToNavContainers(DependencyObject root)
+    {
+        if (root is NavigationViewItem nvi) TranslateNavItem(nvi);
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+            ApplyToNavContainers(VisualTreeHelper.GetChild(root, i));
+    }
+
+    /// The compact-overlay pane lives in a Popup - a separate visual tree the
+    /// normal walk cannot reach. Called after a language switch and on every
+    /// PaneOpened so the cached cloned containers pick up the new language.
+    public static void TranslatePopupNavItems(XamlRoot xamlRoot)
+    {
+        try
+        {
+            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(xamlRoot))
+                if (popup.Child is DependencyObject child)
+                    ApplyToNavContainers(child);
+        }
+        catch (System.Exception ex)
+        {
+            Logging.AppLogger.Warn("popup nav-item translation failed", ex);
         }
     }
 

@@ -14,6 +14,9 @@ namespace ObtainiumPC
         public MainWindow()
         {
             this.InitializeComponent();
+            // Overlay-pane clones are created/cached with the text current at
+            // clone time; re-translate them every time the pane opens.
+            NavView.PaneOpened += (_, _) => Services.Localization.Localizer.TranslatePopupNavItems(NavView.XamlRoot);
             Title = "Obtainium-PC";
             SystemBackdrop = new MicaBackdrop();
             // Below ~700px the Apps header controls can no longer all fit even
@@ -133,6 +136,9 @@ namespace ObtainiumPC
             // switch (ui-smoke scenario 17 evidence).
             Services.Localization.Localizer.ApplyToItems(NavView.MenuItems);
             Services.Localization.Localizer.ApplyToItems(NavView.FooterMenuItems);
+            // The overlay pane's cloned containers live in a cached Popup;
+            // translate them too when the pane is open during the switch.
+            Services.Localization.Localizer.TranslatePopupNavItems(NavView.XamlRoot);
             Services.Localization.Localizer.Apply(NavView);
             var dbg = new System.Text.StringBuilder("apply-localization nav-items end state: ");
             foreach (var mi in NavView.MenuItems)
