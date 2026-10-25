@@ -257,7 +257,7 @@ jobs:
           Shot 'su-03-update-available'
           if (-not (ClickRow 'Obtainium-PC' $win)) { Shot 'su-own-row-missing'; throw 'own app row not found' }
           Start-Sleep 3; Shot 'su-04-own-detail'
-          if ((FindNamed 'Update' $win) -ne $null) { ClickNamed 'Update' } else { Shot 'su-no-update-button'; throw 'no Update action on own detail' }
+          if ((FindNamed 'Update' $win) -ne $null) { ClickNamedIn 'Update' $win } else { Shot 'su-no-update-button'; throw 'no Update action on own detail' }
           Start-Sleep 3
           $dlg = FindNamed 'Choose a file' $root
           if ($dlg -eq $null) { Shot 'su-no-picker'; throw 'asset picker did not appear' }
@@ -274,7 +274,7 @@ jobs:
           if (-not $picked) { Shot 'su-asset-not-found'; throw 'Setup asset not offered in picker' }
           Shot 'su-05-asset-picker'
           Start-Sleep 1
-          ClickNamed 'Download'
+          ClickNamedIn 'Download' $dlg
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           $file = $null
           foreach ($i in 1..40) {
