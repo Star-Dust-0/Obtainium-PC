@@ -118,6 +118,10 @@ public static class Localizer
             case PasswordBox pb:
                 if (pb.Header is string pbh) pb.Header = FromOriginal(pb, pbh);
                 break;
+            case InfoBar ib:
+                if (ib.Title is string ibt && !string.IsNullOrEmpty(ibt)) ib.Title = FromOriginal(ib, ibt);
+                if (ib.Message is string ibm && !string.IsNullOrEmpty(ibm)) ib.Message = FromOriginal(ib, ibm);
+                break;
             case NavigationViewItem { Content: string } nvi:
                 nvi.Content = FromOriginal(nvi, (string)nvi.Content);
                 break;

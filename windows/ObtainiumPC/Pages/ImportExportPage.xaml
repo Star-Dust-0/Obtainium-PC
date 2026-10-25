@@ -21,6 +21,9 @@
                     <ComboBoxItem Content="Apps and settings (credentials stripped)"/>
                     <ComboBoxItem Content="Apps and settings, including credentials"/>
                 </ComboBox>
+                <InfoBar x:Name="ExportSecretsWarning" Severity="Warning" IsOpen="False"
+                         Title="Warning"
+                         Message="The exported file will contain all settings in cleartext, which may include sensitive values such as tokens. Anyone with the file can read them. Auto-export on changes runs at this level too."/>
                 <Button Content="Export to file..." Click="Export_Click" HorizontalAlignment="Left"/>
                 <ToggleSwitch x:Name="InstalledOnlyToggle" Header="Only include installed apps in exports" Toggled="InstalledOnlyToggle_Toggled"/>
                 <ToggleSwitch x:Name="AutoExportToggle" Header="Automatically export on changes" Toggled="AutoExportToggle_Toggled"/>

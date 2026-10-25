@@ -17,12 +17,17 @@ namespace ObtainiumPC.Pages
             // Persisted like upstream settings_provider exportSettings; the
             // same level drives auto-export on changes.
             ExportLevelCombo.SelectedIndex = App.Settings.ExportSettingsLevel;
+            ExportSecretsWarning.IsOpen = App.Settings.ExportSettingsLevel >= 2;
             ExportLevelCombo.SelectionChanged += (_, _) =>
             {
                 if (ExportLevelCombo.SelectedIndex >= 0)
                 {
                     App.Settings.ExportSettingsLevel = ExportLevelCombo.SelectedIndex;
                     App.Settings.Save();
+                    // Level 2 stays tied to this explicit selection; the warning
+                    // (upstream exportIncludesSecretsWarning) stays visible while
+                    // it is selected, and it also covers auto-export-on-changes.
+                    ExportSecretsWarning.IsOpen = ExportLevelCombo.SelectedIndex >= 2;
                 }
             };
             Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
@@ -63,6 +68,20 @@ namespace ObtainiumPC.Pages
             if (file == null) return;
 
             var level = ExportLevelCombo.SelectedIndex; // 0 apps, 1 +settings, 2 +creds
+            // lib/pages/import_export.dart runObtainiumExport: a secrets-level
+            // export re-confirms every time.
+            if (level >= 2)
+            {
+                var confirm = new ContentDialog
+                {
+                    Title = Services.Localization.Loc.T("Warning"),
+                    Content = Services.Localization.Loc.T("The exported file will contain all settings in cleartext, which may include sensitive values such as tokens. Anyone with the file can read them."),
+                    PrimaryButtonText = Services.Localization.Loc.T("Continue"),
+                    CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                    XamlRoot = this.XamlRoot,
+                };
+                if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            }
             Dictionary<string, object?>? settings = null;
             if (level > 0)
             {
