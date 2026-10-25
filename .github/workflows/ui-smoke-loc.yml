@@ -200,6 +200,16 @@ jobs:
             DumpNames $win 'en-pane-open'
             Start-Sleep 6
             Shot 'en-pane-open-late'
+            $tops = $root.FindAll([System.Windows.Automation.TreeScope]::Children, $wcond)
+            "top-level UIA windows for pid: $($tops.Count)"
+            foreach ($t in $tops) {
+              $r = $t.Current.BoundingRectangle
+              "TOP name='$($t.Current.Name)' class='$($t.Current.ClassName)' rect=$([int]$r.X),$([int]$r.Y),$([int]$r.Width),$([int]$r.Height)"
+              DumpNames $t "top-$($t.Current.ClassName)"
+            }
+            Add-Type -TypeDefinition 'using System; using System.Text; using System.Collections.Generic; using System.Runtime.InteropServices; public static class W { public delegate bool CB(IntPtr h, IntPtr l); [DllImport("user32.dll")] public static extern bool EnumWindows(CB cb, IntPtr l); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder sb, int n); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h); [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L,T,R,B; } public static List<string> ForPid(uint pid) { var l = new List<string>(); EnumWindows((h, x) => { uint p; GetWindowThreadProcessId(h, out p); if (p == pid) { var sb = new StringBuilder(256); GetClassName(h, sb, 256); RECT r; GetWindowRect(h, out r); l.Add(h.ToInt64() + " " + sb + " vis=" + IsWindowVisible(h) + " rect=" + r.L + "," + r.T + "," + r.R + "," + r.B); } return true; }, IntPtr.Zero); return l; } }'
+            "Win32 windows for pid:"
+            [W]::ForPid([uint32]$p.Id)
           } else { "WARNING: guarded pane toggle not found for en-pane-open" }
           AssertAlive 'end'
           'focused localization repro completed'
