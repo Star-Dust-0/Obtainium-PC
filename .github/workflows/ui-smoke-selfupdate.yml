@@ -302,9 +302,20 @@ jobs:
             $still = Get-Process | Where-Object { $_.ProcessName -like 'ObtainiumPC-Setup*' -or $_.ProcessName -like '*tmp*' -and $_.MainWindowTitle -like '*Obtainium-PC*' }
             $clicked = $false
             foreach ($bn in 'OK','Next >','Install','Finish','Yes') {
-              $b = FindNamed $bn $root
+              $sw = $null
+              foreach ($w in $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.Name -like 'Setup - Obtainium-PC*' -or $w.Current.Name -eq 'Select Setup Language') { $sw = $w; break } }
+              if ($sw -eq $null) { continue }
+              $b = FindNamed $bn $sw
               if ($b -ne $null) {
-                try { $b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $clicked = $true; "wizard: invoked '$bn'"; if ($bn -eq 'Finish') { $wizardDone = $true }; break } catch {}
+                try { $b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $clicked = $true; "wizard: invoked '$bn'" }
+                catch {
+                  $r = $b.Current.BoundingRectangle
+                  [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                  Start-Sleep -Milliseconds 300
+                  [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0); $clicked = $true; "wizard: mouse-clicked '$bn'"
+                }
+                if ($bn -eq 'Finish') { $wizardDone = $true }
+                break
               }
             }
             if ($clicked -and $bn -eq 'Install') { Start-Sleep 5; Shot 'su-07-wizard-installing' }
