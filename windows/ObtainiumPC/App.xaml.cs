@@ -120,14 +120,33 @@ namespace ObtainiumPC
                     return true;
                 }
                 var names = probe.Apps.Select(a => a.DisplayName).ToList();
-                var removed = Services.Detection.ExternalUninstallService
-                    .FindExternallyRemoved(TrackedApps, names, DetectionAllowed);
-                if (removed.Count == 0) return;
-                foreach (var app in TrackedApps.Where(a => removed.Contains(a.Id)))
+                // Re-adoption before clearing: a renamed/updated install keeps
+                // the app installed under a new DisplayName; only a Strong+
+                // match counts (same tiers as detection).
+                string? FindCurrentMatch(Models.TrackedApp app)
                 {
-                    Services.Logging.AppLogger.Info(
-                        $"External uninstall detected for {app.FinalName} ({app.Id}): recorded install cleared");
-                    app.InstalledVersion = null;
+                    var m = Services.Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author, probe.Apps);
+                    return m is { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong }
+                        ? m.Info.DisplayName : null;
+                }
+                var results = Services.Detection.ExternalUninstallService
+                    .Reconcile(TrackedApps, names, DetectionAllowed, FindCurrentMatch);
+                if (results.Count == 0) return;
+                foreach (var r in results)
+                {
+                    var app = TrackedApps.First(a => a.Id == r.Id);
+                    if (r.Action == Services.Detection.ExternalUninstallService.ReconcileAction.Readopt)
+                    {
+                        Services.Logging.AppLogger.Info(
+                            $"Install identity changed for {app.FinalName} ({app.Id}): re-adopted '{r.NewMatchedName}'");
+                        app.OsMatchedName = r.NewMatchedName;
+                    }
+                    else
+                    {
+                        Services.Logging.AppLogger.Info(
+                            $"External uninstall detected for {app.FinalName} ({app.Id}): recorded install cleared");
+                        app.InstalledVersion = null;
+                    }
                 }
                 _ = SaveAppsAsync();
             }

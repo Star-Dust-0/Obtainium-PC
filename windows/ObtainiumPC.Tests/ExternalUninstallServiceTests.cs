@@ -6,8 +6,8 @@ namespace ObtainiumPC.Tests;
 
 /// ExternalUninstallService (lib/providers/apps_provider_lifecycle.dart
 /// reconcileInstallStatus): clearing recorded installs on verifiable
-/// external uninstall, with the Windows safety rules (exact recorded
-/// identity, complete probe, os-provenance only).
+/// external uninstall. Absence of the recorded identity is an inference,
+/// not proof - renamed/updated installs re-adopt their new identity first.
 public class ExternalUninstallServiceTests
 {
     private static TrackedApp App(string id, string? source, string? matched) => new()
@@ -22,56 +22,54 @@ public class ExternalUninstallServiceTests
 
     private static readonly List<string> Installed = new() { "Other App", "Notepad++" };
 
+    private static List<ExternalUninstallService.ReconcileResult> Run(
+        IEnumerable<TrackedApp> apps, List<string> installed,
+        Func<TrackedApp, bool> gate, Func<TrackedApp, string?> match) =>
+        ExternalUninstallService.Reconcile(apps, installed, gate, match);
+
     [Fact]
     public void Os_confirmed_install_verifiably_gone_is_cleared()
     {
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", "os", "Gone App") }, Installed, _ => true);
-        Assert.Equal(new[] { "a" }, removed);
+        var r = Run(new[] { App("a", "os", "Gone App") }, Installed, _ => true, _ => null);
+        Assert.Single(r);
+        Assert.Equal(ExternalUninstallService.ReconcileAction.Clear, r[0].Action);
     }
 
     [Fact]
-    public void Recorded_identity_still_present_is_kept()
+    public void Recorded_identity_still_present_is_untouched()
     {
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", "os", "Notepad++") }, Installed, _ => true);
-        Assert.Empty(removed);
+        Assert.Empty(Run(new[] { App("a", "os", "Notepad++") }, Installed, _ => true, _ => null));
     }
 
     [Fact]
-    public void Identity_matching_uses_the_same_normalization_as_detection()
+    public void Renamed_install_identity_is_readopted_not_cleared()
     {
-        // "Gone-App 2024" recorded; "goneapp2024" present with different
-        // punctuation/casing still counts as present.
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", "os", "Gone App") }, new List<string> { "goneapp" }, _ => true);
-        Assert.Empty(removed);
+        // "Foo 1.2" was recorded; the user upgraded and the DisplayName is now
+        // "Foo 1.3". Old identity absent, but the matcher still finds the app.
+        var r = Run(new[] { App("a", "os", "Foo 1.2") }, new List<string> { "Foo 1.3" },
+            _ => true, _ => "Foo 1.3");
+        Assert.Single(r);
+        Assert.Equal(ExternalUninstallService.ReconcileAction.Readopt, r[0].Action);
+        Assert.Equal("Foo 1.3", r[0].NewMatchedName);
     }
 
     [Fact]
-    public void Manual_marks_are_never_cleared()
+    public void Manual_marks_are_never_touched()
     {
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", "manual", null), App("b", "manual", "Gone App") }, Installed, _ => true);
-        Assert.Empty(removed);
+        Assert.Empty(Run(new[] { App("a", "manual", null), App("b", "manual", "Gone App") },
+            Installed, _ => true, _ => null));
     }
 
     [Fact]
-    public void Legacy_records_without_provenance_are_never_cleared()
+    public void Legacy_records_without_provenance_are_never_touched()
     {
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", null, null) }, Installed, _ => true);
-        Assert.Empty(removed);
+        Assert.Empty(Run(new[] { App("a", null, null) }, Installed, _ => true, _ => null));
     }
 
     [Fact]
     public void Detection_gated_apps_are_preserved()
     {
-        // track-only / versionDetection off / source-disallowed: the caller's
-        // predicate says no, so the app is preserved even when verifiably gone.
-        var removed = ExternalUninstallService.FindExternallyRemoved(
-            new[] { App("a", "os", "Gone App") }, Installed, _ => false);
-        Assert.Empty(removed);
+        Assert.Empty(Run(new[] { App("a", "os", "Gone App") }, Installed, _ => false, _ => null));
     }
 
     [Fact]
@@ -79,7 +77,12 @@ public class ExternalUninstallServiceTests
     {
         var app = App("a", "os", "Gone App");
         app.InstalledVersion = null;
-        var removed = ExternalUninstallService.FindExternallyRemoved(new[] { app }, Installed, _ => true);
-        Assert.Empty(removed);
+        Assert.Empty(Run(new[] { app }, Installed, _ => true, _ => null));
+    }
+
+    [Fact]
+    public void Identity_matching_uses_detection_normalization()
+    {
+        Assert.Empty(Run(new[] { App("a", "os", "Gone App") }, new List<string> { "goneapp" }, _ => true, _ => null));
     }
 }

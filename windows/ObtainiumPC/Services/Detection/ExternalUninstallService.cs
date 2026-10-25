@@ -31,19 +31,31 @@ public static class ExternalUninstallService
 
     private static string Normalize(string name) => NonAlnum.Replace(name.ToLowerInvariant(), "");
 
+    public enum ReconcileAction { Clear, Readopt }
+
+    public readonly record struct ReconcileResult(string Id, ReconcileAction Action, string? NewMatchedName);
+
     /// <summary>
-    /// Returns the ids whose recorded OS-confirmed install is verifiably
-    /// gone. Caller clears InstalledVersion for exactly these and persists.
+    /// Absence of the recorded identity is an inference, not proof of
+    /// uninstall: a program renamed across versions ("Foo 1.2" -> "Foo 1.3")
+    /// drops its old DisplayName while staying installed. So before clearing,
+    /// re-run the app-name matcher (the same conservative tiers detection
+    /// uses); a Strong+ match means the app is still installed under a new
+    /// identity - re-adopt that identity instead of clearing. Only when the
+    /// exact recorded identity is absent AND the matcher finds nothing does
+    /// the record get cleared. The caller supplies the matcher (registry
+    /// types stay out of this pure layer) and the complete-probe guarantee.
     /// </summary>
-    public static List<string> FindExternallyRemoved(
+    public static List<ReconcileResult> Reconcile(
         IEnumerable<TrackedApp> apps,
         IReadOnlyCollection<string> installedDisplayNames,
-        Func<TrackedApp, bool> detectionAllowed)
+        Func<TrackedApp, bool> detectionAllowed,
+        Func<TrackedApp, string?> findCurrentMatch)
     {
         var present = installedDisplayNames
             .Select(Normalize)
             .ToHashSet();
-        var removed = new List<string>();
+        var results = new List<ReconcileResult>();
         foreach (var app in apps)
         {
             if (app.InstalledVersion == null) continue;
@@ -51,8 +63,16 @@ public static class ExternalUninstallService
             if (string.IsNullOrEmpty(app.OsMatchedName)) continue;
             if (!detectionAllowed(app)) continue;
             if (present.Contains(Normalize(app.OsMatchedName))) continue;
-            removed.Add(app.Id);
+            // Recorded identity is gone. Is the app still installed under a
+            // renamed/updated DisplayName?
+            var current = findCurrentMatch(app);
+            if (current != null)
+            {
+                results.Add(new ReconcileResult(app.Id, ReconcileAction.Readopt, current));
+                continue;
+            }
+            results.Add(new ReconcileResult(app.Id, ReconcileAction.Clear, null));
         }
-        return removed;
+        return results;
     }
 }
