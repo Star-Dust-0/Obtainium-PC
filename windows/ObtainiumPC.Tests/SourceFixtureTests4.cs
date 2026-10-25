@@ -297,4 +297,22 @@ public class DownloadIntegrityTests
         File.WriteAllText(f, "{\"url\":\"https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512\",\"name\":\"Shuck_1.0.1_x64-setup.exe\",\"size\":6297561}");
         Assert.Throws<InvalidDataException>(() => ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(f, "Shuck_1.0.1_x64-setup.exe", new FileInfo(f).Length, new FileInfo(f).Length));
     }
+
+    [Fact]
+    public void IdentityTierMatchesUninstallKeyNameButNotAmbiguousOrShort()
+    {
+        var shuck = new ObtainiumPC.Services.Detection.InstalledAppInfo("Shuck - Screen OCR", "1.0.1", null, "Shuck", "Shuck");
+        var other = new ObtainiumPC.Services.Detection.InstalledAppInfo("Unrelated Tool", "2.0", null, "Acme", "acme-tool");
+        var list = new List<ObtainiumPC.Services.Detection.InstalledAppInfo> { shuck, other };
+        var m = ObtainiumPC.Services.Detection.InstalledAppsService.FindMatch("shuck", null, list);
+        Assert.NotNull(m);
+        Assert.Equal("1.0.1", m!.Info.DisplayVersion);
+        Assert.Equal(ObtainiumPC.Services.Detection.InstalledAppsService.MatchConfidence.Strong, m.Confidence);
+        // Two programs with the same key identity: ambiguous, never guessed.
+        var dup = new ObtainiumPC.Services.Detection.InstalledAppInfo("Shuck Beta", "0.9", null, "Other", "Shuck");
+        Assert.Null(ObtainiumPC.Services.Detection.InstalledAppsService.FindMatch("shuck", null, new List<ObtainiumPC.Services.Detection.InstalledAppInfo> { shuck, dup }));
+        // Names under 4 characters never use the identity tier.
+        var tiny = new ObtainiumPC.Services.Detection.InstalledAppInfo("Some Big App", "1", null, null, "abc");
+        Assert.Null(ObtainiumPC.Services.Detection.InstalledAppsService.FindMatch("abc", null, new List<ObtainiumPC.Services.Detection.InstalledAppInfo> { tiny }));
+    }
 }
