@@ -27,30 +27,27 @@ public static class ThemeLookup
         // ActualTheme on the window root proved unreliable here (read Light
         // while the dark UI was on screen). For "default", follow the system
         // background color.
-        var themeKey = App.Settings.Theme switch
+        //
+        // XamlControlsResources has NO "Dark" theme dictionary (verified in
+        // the runner): its keys are [Default, Light, HighContrast] and the
+        // dark values live under "Default" (the framework's default theme is
+        // dark). Dark therefore resolves via "Dark" first, then "Default".
+        string[] themeKeys = App.Settings.Theme switch
         {
-            "dark" => "Dark",
-            "light" => "Light",
+            "dark" => new[] { "Dark", "Default" },
+            "light" => new[] { "Light" },
             _ => new Windows.UI.ViewManagement.UISettings()
                     .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background).B < 128
-                ? "Dark" : "Light",
+                ? new[] { "Dark", "Default" } : new[] { "Light" },
         };
-        var themed = FindInThemeDictionaries<T>(app.Resources, themeKey, key);
-        var fallback = themed == null ? ThemeLookupCore.TryGet<T>(app.Resources, key) : null;
-        Services.Logging.AppLogger.Debug(
-            $"ThemeLookup {key}: theme={themeKey} themedHit={themed != null} fallbackHit={fallback != null}");
-        return themed ?? fallback;
+        foreach (var themeKey in themeKeys)
+            if (FindInThemeDictionaries<T>(app.Resources, themeKey, key) is { } themed)
+                return themed;
+        return ThemeLookupCore.TryGet<T>(app.Resources, key);
     }
-
-    private static bool _structureDumped;
 
     private static T? FindInThemeDictionaries<T>(ResourceDictionary dict, string themeKey, string key) where T : class
     {
-        if (!_structureDumped)
-        {
-            _structureDumped = true;
-            DumpStructure(dict, 0);
-        }
         if (dict.ThemeDictionaries.TryGetValue(themeKey, out var themed)
             && themed is ResourceDictionary themeDict
             && ThemeLookupCore.TryGet<T>(themeDict, key) is { } hit)
@@ -61,16 +58,4 @@ public static class ThemeLookup
         return null;
     }
 
-    private static void DumpStructure(ResourceDictionary dict, int depth)
-    {
-        var themeKeys = string.Join(",", dict.ThemeDictionaries.Keys);
-        Services.Logging.AppLogger.Debug(
-            $"ThemeLookupDict depth={depth} type={dict.GetType().Name} themeKeys=[{themeKeys}]");
-        foreach (var tk in dict.ThemeDictionaries.Keys)
-            if (dict.ThemeDictionaries[tk] is ResourceDictionary td)
-                Services.Logging.AppLogger.Debug(
-                    $"ThemeLookupThemeDict {tk}: hasCard={td.ContainsKey("CardBackgroundFillColorDefaultBrush")} hasTextSec={td.ContainsKey("TextFillColorSecondaryBrush")} merged={td.MergedDictionaries.Count}");
-        foreach (var merged in dict.MergedDictionaries)
-            DumpStructure(merged, depth + 1);
-    }
 }
