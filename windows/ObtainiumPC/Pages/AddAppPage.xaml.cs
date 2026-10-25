@@ -134,7 +134,7 @@ namespace ObtainiumPC.Pages
                     var proceed = new ThemedContentDialog
                     {
                         Title = "Add without checking?",
-                        Content = "Fetching the latest version failed (" + checkEx.Message + "). The app can be added anyway and checked later.",
+                        Content = "Fetching the latest version failed (" + Services.Localization.SourceErrorText.Describe(checkEx, Services.Localization.Loc.T) + "). The app can be added anyway and checked later.",
                         PrimaryButtonText = "Add anyway",
                         CloseButtonText = "Cancel",
                         XamlRoot = this.XamlRoot,
@@ -177,7 +177,7 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, ex.Message);
+                Show(InfoBarSeverity.Error, Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
             }
             finally
             {
@@ -230,7 +230,7 @@ namespace ObtainiumPC.Pages
                     }
                     catch (Exception ex)
                     {
-                        errors.Add(source.Name + ": " + ex.Message);
+                        errors.Add(source.Name + ": " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
                     }
                 }
                 SearchResults.ItemsSource = items;

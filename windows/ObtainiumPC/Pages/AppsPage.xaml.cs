@@ -457,7 +457,7 @@ base.OnNavigatedTo(e);
                         if (pr.Total is > 0) bar.Value = Math.Min(100, (double)pr.Received / pr.Total.Value * 100);
                     });
                     try { await DownloadOneAsync(p.App, p.Asset, progress); }
-                    catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + ex.Message); }
+                    catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T)); }
                 }));
                 dlg.Hide();
                 try { await showAll; } catch { }
@@ -479,7 +479,7 @@ base.OnNavigatedTo(e);
                     }
                     catch (Exception ex)
                     {
-                        results.Add(app.FinalName + ": failed - " + ex.Message);
+                        results.Add(app.FinalName + ": failed - " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
                     }
                     finally
                     {

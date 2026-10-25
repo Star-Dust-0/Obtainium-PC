@@ -303,7 +303,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + ex.Message);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
             }
             finally
             {
@@ -485,7 +485,7 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Update check failed on the new URL: ") + ex.Message);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Update check failed on the new URL: ") + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
             }
             Render();
         }

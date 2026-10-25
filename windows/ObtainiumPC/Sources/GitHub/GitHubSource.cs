@@ -552,9 +552,7 @@ public sealed class GitHubSource : AppSourceBase
             if (published.Count > 0 && !published.Any(r =>
                     FindReleaseAssetUrls(r, includeZips, includeTarballs).Any(a =>
                         AssetFilterService.IsAppOrContainerFile(PairFrom(a?["final_url"]).Key, includeZips, includeTarballs))))
-                throw new NoAppAssetException(
-                    "Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). " +
-                    "Turn on track-only for this app to follow its version without installing.");
+                throw NoAppAssetException.NoWindowsInstaller();
             throw new NoReleasesException();
         }
 

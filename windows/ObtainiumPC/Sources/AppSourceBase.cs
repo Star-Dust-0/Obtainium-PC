@@ -45,8 +45,15 @@ public sealed class NoReleasesException : ObtainiumSourceException
 
 public sealed class NoAppAssetException : ObtainiumSourceException
 {
+    /// Shown (and localized by SourceErrorText) when releases exist but none has a
+    /// Windows installer asset. The English literal is also the translation key.
+    public const string NoWindowsInstallerMessage =
+        "Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). " +
+        "Turn on track-only for this app to follow its version without installing.";
+
     public NoAppAssetException() : base("No installable asset found for this app") { }
     public NoAppAssetException(string message) : base(message) { }
+    public static NoAppAssetException NoWindowsInstaller() => new(NoWindowsInstallerMessage);
 }
 
 public sealed class RepositoryRenamedException : ObtainiumSourceException

@@ -130,6 +130,10 @@ public static class Loc
         ["Ignored apps"] = "التطبيقات المتجاهَلة",
         ["Version detection (global defaults)"] = "اكتشاف الإصدار (الافتراضيات العامة)",
 
+        // Source errors (SourceErrorText)
+        ["Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). Turn on track-only for this app to follow its version without installing."] =
+            "تم العثور على إصدارات، لكن لا يحتوي أيٌّ منها على ملف تثبيت لنظام Windows (‎.exe أو .msi أو .msix أو .appx أو .appinstaller). فعّل «التتبع فقط» لهذا التطبيق لمتابعة إصداره دون تثبيته.",
+
         // Buttons and actions
         ["Add"] = "إضافة",
         ["Install"] = "تثبيت",

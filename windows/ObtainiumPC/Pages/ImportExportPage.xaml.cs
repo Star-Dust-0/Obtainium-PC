@@ -260,7 +260,7 @@ namespace ObtainiumPC.Pages
                     }
                     catch (Exception ex)
                     {
-                        errors.Add(url + ": " + ex.Message);
+                        errors.Add(url + ": " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
                     }
                 }
                 if (added > 0) await App.SaveAppsAsync();

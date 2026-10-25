@@ -40,6 +40,7 @@
     <Compile Include="..\ObtainiumPC\Services\MarkdownInlineParser.cs" Link="Services\MarkdownInlineParser.cs" />
     <Compile Include="..\ObtainiumPC\Services\EmojiTable.g.cs" Link="Services\EmojiTable.g.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\LocTranslations.g.cs" Link="Services\Localization\LocTranslations.g.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Localization\SourceErrorText.cs" Link="Services\Localization\SourceErrorText.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\LocaleResolution.cs" Link="Services\Localization\LocaleResolution.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\LocPlurals.g.cs" Link="Services\Localization\LocPlurals.g.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\PluralRules.cs" Link="Services\Localization\PluralRules.cs" />
