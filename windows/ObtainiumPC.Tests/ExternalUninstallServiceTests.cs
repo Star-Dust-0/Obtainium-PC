@@ -28,11 +28,22 @@ public class ExternalUninstallServiceTests
         ExternalUninstallService.Reconcile(apps, installed, gate, match);
 
     [Fact]
-    public void Os_confirmed_install_verifiably_gone_is_cleared()
+    public void Os_confirmed_install_absent_is_suspected_never_cleared()
     {
+        // Absence is inference, not proof of uninstall: the result is a
+        // separately retained suspicion; the caller never mutates the
+        // recorded installed state for it.
         var r = Run(new[] { App("a", "os", "Gone App") }, Installed, _ => true, _ => null);
         Assert.Single(r);
-        Assert.Equal(ExternalUninstallService.ReconcileAction.Clear, r[0].Action);
+        Assert.Equal(ExternalUninstallService.ReconcileAction.SuspectedGone, r[0].Action);
+        Assert.Null(r[0].NewMatchedName);
+    }
+
+    [Fact]
+    public void No_clear_action_exists()
+    {
+        Assert.False(Enum.GetValues<ExternalUninstallService.ReconcileAction>()
+            .Any(a => a.ToString() == "Clear"));
     }
 
     [Fact]

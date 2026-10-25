@@ -31,7 +31,11 @@ public static class ExternalUninstallService
 
     private static string Normalize(string name) => NonAlnum.Replace(name.ToLowerInvariant(), "");
 
-    public enum ReconcileAction { Clear, Readopt }
+    // No Clear action exists: complete registry absence plus no name match is
+    // inference, not proof of uninstall (per-user/machine hive blind spots,
+    // MSIX, portable installs, renames). SuspectedGone is a separately
+    // retained status - the recorded installed state is never mutated.
+    public enum ReconcileAction { SuspectedGone, Readopt }
 
     public readonly record struct ReconcileResult(string Id, ReconcileAction Action, string? NewMatchedName);
 
@@ -63,15 +67,16 @@ public static class ExternalUninstallService
             if (string.IsNullOrEmpty(app.OsMatchedName)) continue;
             if (!detectionAllowed(app)) continue;
             if (present.Contains(Normalize(app.OsMatchedName))) continue;
-            // Recorded identity is gone. Is the app still installed under a
-            // renamed/updated DisplayName?
+            // Recorded identity is gone. Re-adoption requires an UNAMBIGUOUS
+            // current identity (the caller's matcher enforces exact or
+            // publisher-disambiguated matches, not only a Strong name score).
             var current = findCurrentMatch(app);
             if (current != null)
             {
                 results.Add(new ReconcileResult(app.Id, ReconcileAction.Readopt, current));
                 continue;
             }
-            results.Add(new ReconcileResult(app.Id, ReconcileAction.Clear, null));
+            results.Add(new ReconcileResult(app.Id, ReconcileAction.SuspectedGone, null));
         }
         return results;
     }

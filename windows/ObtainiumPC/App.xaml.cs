@@ -123,11 +123,21 @@ namespace ObtainiumPC
                 // Re-adoption before clearing: a renamed/updated install keeps
                 // the app installed under a new DisplayName; only a Strong+
                 // match counts (same tiers as detection).
+                // Unambiguous identity only: an Exact name match, or a Strong
+                // match whose publisher also matches the tracked author. A
+                // bare Strong name score is not enough to re-adopt.
                 string? FindCurrentMatch(Models.TrackedApp app)
                 {
                     var m = Services.Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author, probe.Apps);
-                    return m is { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong }
-                        ? m.Info.DisplayName : null;
+                    if (m == null) return null;
+                    if (m.Confidence == Services.Detection.InstalledAppsService.MatchConfidence.Exact)
+                        return m.Info.DisplayName;
+                    if (m.Confidence == Services.Detection.InstalledAppsService.MatchConfidence.Strong
+                        && !string.IsNullOrWhiteSpace(app.Author) && m.Info.Publisher != null
+                        && Services.Detection.InstalledAppsService.NormalizeName(m.Info.Publisher)
+                            .Contains(Services.Detection.InstalledAppsService.NormalizeName(app.Author)))
+                        return m.Info.DisplayName;
+                    return null;
                 }
                 var results = Services.Detection.ExternalUninstallService
                     .Reconcile(TrackedApps, names, DetectionAllowed, FindCurrentMatch);
@@ -143,9 +153,11 @@ namespace ObtainiumPC
                     }
                     else
                     {
-                        Services.Logging.AppLogger.Info(
-                            $"External uninstall detected for {app.FinalName} ({app.Id}): recorded install cleared");
-                        app.InstalledVersion = null;
+                        // SuspectedGone: registry absence is not proof of
+                        // uninstall. The recorded install state is preserved;
+                        // only the suspicion is logged.
+                        Services.Logging.AppLogger.Warn(
+                            $"Recorded install for {app.FinalName} ({app.Id}) not found in the registry; recorded state preserved (absence is not proof of uninstall)");
                     }
                 }
                 _ = SaveAppsAsync();
