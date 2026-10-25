@@ -123,21 +123,27 @@ namespace ObtainiumPC
                 // Re-adoption before clearing: a renamed/updated install keeps
                 // the app installed under a new DisplayName; only a Strong+
                 // match counts (same tiers as detection).
-                // Unambiguous identity only: an Exact name match, or a Strong
-                // match whose publisher also matches the tracked author. A
-                // bare Strong name score is not enough to re-adopt.
+                // Unambiguous identity only: an exact display name can still
+                // collide across publishers, so when the tracked author is
+                // known the entry's publisher must match it (conflicting or
+                // missing publisher evidence retains the prior identity);
+                // with an unknown author only a unique Exact match qualifies.
+                // FindMatch itself returns null whenever multiple candidates
+                // stay tied after publisher disambiguation.
                 string? FindCurrentMatch(Models.TrackedApp app)
                 {
                     var m = Services.Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author, probe.Apps);
                     if (m == null) return null;
-                    if (m.Confidence == Services.Detection.InstalledAppsService.MatchConfidence.Exact)
+                    if (!string.IsNullOrWhiteSpace(app.Author))
+                    {
+                        if (m.Info.Publisher == null) return null;
+                        if (!Services.Detection.InstalledAppsService.NormalizeName(m.Info.Publisher)
+                                .Contains(Services.Detection.InstalledAppsService.NormalizeName(app.Author)))
+                            return null;
                         return m.Info.DisplayName;
-                    if (m.Confidence == Services.Detection.InstalledAppsService.MatchConfidence.Strong
-                        && !string.IsNullOrWhiteSpace(app.Author) && m.Info.Publisher != null
-                        && Services.Detection.InstalledAppsService.NormalizeName(m.Info.Publisher)
-                            .Contains(Services.Detection.InstalledAppsService.NormalizeName(app.Author)))
-                        return m.Info.DisplayName;
-                    return null;
+                    }
+                    return m.Confidence == Services.Detection.InstalledAppsService.MatchConfidence.Exact
+                        ? m.Info.DisplayName : null;
                 }
                 var results = Services.Detection.ExternalUninstallService
                     .Reconcile(TrackedApps, names, DetectionAllowed, FindCurrentMatch);
