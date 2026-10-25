@@ -103,18 +103,18 @@ public class MarkdownInlineParserEmojiFootnoteTests
     [Fact]
     public void Known_emoji_shortcode_becomes_emoji_text()
     {
+        // Emoji land as text and merge with adjacent text segments.
         var segs = MarkdownInlineParser.Parse("fixed :bug: and :tada:");
-        Assert.Equal(4, segs.Count);
-        Assert.Equal("🐛", segs[1].Text);
-        Assert.Equal("🎉", segs[3].Text);
+        Assert.Single(segs);
+        Assert.Equal("fixed 🐛 and 🎉", segs[0].Text);
     }
 
     [Fact]
     public void Plus_one_and_numeric_shortcodes_work()
     {
         var segs = MarkdownInlineParser.Parse(":+1: :100:");
-        Assert.Equal("👍", segs[0].Text);
-        Assert.Equal("💯", segs[2].Text);
+        Assert.Single(segs);
+        Assert.Equal("👍 💯", segs[0].Text);
     }
 
     [Fact]
