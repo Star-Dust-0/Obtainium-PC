@@ -52,6 +52,13 @@
     <Compile Include="..\ObtainiumPC\Sources\SourceHut\SourceHutSource.cs" Link="Sources\SourceHutSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\Html\HtmlSource.cs" Link="Sources\HtmlSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\DirectLink\DirectFileLinkSource.cs" Link="Sources\DirectFileLinkSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Apk4Free\Apk4FreeSource.cs" Link="Sources\Apk4FreeSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Aptoide\AptoideSource.cs" Link="Sources\AptoideSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Farsroid\FarsroidSource.cs" Link="Sources\FarsroidSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\LiteApks\LiteApksSource.cs" Link="Sources\LiteApksSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\RockMods\RockModsSource.cs" Link="Sources\RockModsSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\TelegramApp\TelegramAppSource.cs" Link="Sources\TelegramAppSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Tencent\TencentSource.cs" Link="Sources\TencentSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitLab\GitLabSource.cs" Link="Sources\GitLabSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\Codeberg\CodebergSource.cs" Link="Sources\CodebergSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
