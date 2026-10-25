@@ -145,20 +145,41 @@ namespace ObtainiumPC
             NavView.SelectedItem = NavView.MenuItems[0];
         }
 
+        private static Type? TagToPage(string tag) => tag switch
+        {
+            "apps" => typeof(AppsPage),
+            "addapp" => typeof(AddAppPage),
+            "updatehealth" => typeof(UpdateHealthPage),
+            "importexport" => typeof(ImportExportPage),
+            "logs" => typeof(LogsPage),
+            "settings" => typeof(SettingsPage),
+            _ => null
+        };
+
         private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
             if (args.SelectedItem is NavigationViewItem item && item.Tag is string tag)
             {
-                Type? pageType = tag switch
+                Type? pageType = TagToPage(tag);
+                if (pageType != null && ContentFrame.CurrentSourcePageType != pageType)
                 {
-                    "apps" => typeof(AppsPage),
-                    "addapp" => typeof(AddAppPage),
-                    "updatehealth" => typeof(UpdateHealthPage),
-                    "importexport" => typeof(ImportExportPage),
-                    "logs" => typeof(LogsPage),
-                    "settings" => typeof(SettingsPage),
-                    _ => null
-                };
+                    ContentFrame.Navigate(pageType);
+                }
+            }
+        }
+
+        // SelectionChanged only fires when the selection CHANGES. Tapping the
+        // already-selected nav item from a pushed page (app detail, options)
+        // must still return to that section's root, matching upstream where
+        // the tab always leads back to its list (the upstream detail also
+        // shows a leading BackButton, lib/pages/app.dart:469-471). Without
+        // this the user is stranded on the detail page: the current item is
+        // already selected, so no SelectionChanged ever fires.
+        private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+        {
+            if (args.InvokedItemContainer is NavigationViewItem item && item.Tag is string tag)
+            {
+                Type? pageType = TagToPage(tag);
                 if (pageType != null && ContentFrame.CurrentSourcePageType != pageType)
                 {
                     ContentFrame.Navigate(pageType);

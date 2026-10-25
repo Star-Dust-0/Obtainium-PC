@@ -13,6 +13,7 @@
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         SelectionChanged="NavView_SelectionChanged"
+        ItemInvoked="NavView_ItemInvoked"
         Loaded="NavView_Loaded">
         <muxc:NavigationView.MenuItems>
             <muxc:NavigationViewItem Content="Apps" Tag="apps">

@@ -15,6 +15,14 @@
                 </StackPanel>
 
                 <CommandBar x:Name="DetailCommandBar" DefaultLabelPosition="Right" Background="Transparent">
+                    <!-- Upstream lib/pages/app.dart:469-471: the detail app bar
+                         leads with a BackButton (the apps flow always passes
+                         onClose; upstream renders it icon-only, so there is no
+                         translatable label). Returns to the list without
+                         relying on the nav rail. -->
+                    <AppBarButton x:Name="BackButton" AutomationProperties.Name="Back" Click="Back_Click">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE72B;"/></AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton x:Name="UpdateButton" Label="Update" Click="Update_Click">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE777;"/></AppBarButton.Icon>
                     </AppBarButton>

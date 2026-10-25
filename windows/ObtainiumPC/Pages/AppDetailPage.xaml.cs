@@ -180,6 +180,11 @@ namespace ObtainiumPC.Pages
             return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
         }
 
+        private void Back_Click(object sender, RoutedEventArgs e)
+        {
+            if (Frame.CanGoBack) Frame.GoBack();
+        }
+
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
