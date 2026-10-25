@@ -634,6 +634,13 @@ jobs:
           # markdown changelog runs through MarkdownRenderer's themed brushes.
           ClickNamedIn 'Apps' $win2
           Start-Sleep 3; AssertAlive 'apps-before-md'
+          # The own-app row (first-run self registration) lengthens the list;
+          # bring the disabled seed row into the viewport before clicking it.
+          $scrollersMd = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond)
+          $bestMd = $null; $bestMdH = 0
+          foreach ($el in $scrollersMd) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $bestMdH) { $bestMdH = $h; $bestMd = $el } }
+          if ($bestMd -ne $null) { try { $bestMd.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
+          Start-Sleep 1
           ClickPartial 'Markdown seed' $win2 | Out-Null
           Start-Sleep 3; AssertAlive 'md-detail'
           Shot '28b-md-detail-dark'
