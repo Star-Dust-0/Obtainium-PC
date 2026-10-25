@@ -9,6 +9,10 @@ name: UI smoke - localization focus (manual)
 on:
   workflow_dispatch:
     inputs:
+      skip_ar_pane:
+        description: 'true = do not open the pane during the Arabic phase (diagnostic)'
+        required: false
+        default: 'false'
       ref:
         description: 'Ref to build (default: main)'
         required: false
@@ -170,7 +174,8 @@ jobs:
           Start-Sleep 4; AssertAlive 'arabic-switch'
           if (-not (PollNamed 'التطبيقات' $win 15)) { DumpNames $win 'ar-missing'; Shot 'ar-missing'; throw 'Arabic nav label not found after switch' }
           Shot 'ar-settings'
-          if (ClickPaneToggle $win) {
+          if ('${{ inputs.skip_ar_pane }}' -eq 'true') { 'diag: skipping ar pane open' }
+          elseif (ClickPaneToggle $win) {
             Shot 'ar-pane-open'
             DumpNames $win 'ar-pane-open'
             Start-Sleep 1
@@ -193,6 +198,8 @@ jobs:
           if (ClickPaneToggle $win) {
             Shot 'en-pane-open'
             DumpNames $win 'en-pane-open'
+            Start-Sleep 6
+            Shot 'en-pane-open-late'
           } else { "WARNING: guarded pane toggle not found for en-pane-open" }
           AssertAlive 'end'
           'focused localization repro completed'
