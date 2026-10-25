@@ -615,10 +615,13 @@ base.OnNavigatedTo(e);
         private void SelectToggle_Changed(object sender, RoutedEventArgs e)
         {
             var selecting = SelectToggle.IsChecked == true;
+            // WinUI 3: SelectedItems.Clear() once SelectionMode is already
+            // None throws COMException 0x8000FFFF (smoke run 40201607255
+            // crash evidence). Clear while the list is still Multiple.
+            if (!selecting) AppsList.SelectedItems.Clear();
             AppsList.SelectionMode = selecting ? ListViewSelectionMode.Multiple : ListViewSelectionMode.None;
             AppsList.IsItemClickEnabled = !selecting;
             BatchBar.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
-            if (!selecting) AppsList.SelectedItems.Clear();
         }
 
         private List<TrackedApp> SelectedApps() =>
