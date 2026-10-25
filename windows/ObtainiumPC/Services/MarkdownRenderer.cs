@@ -19,10 +19,6 @@ namespace ObtainiumPC.Services;
 public static class MarkdownRenderer
 {
 
-    private static readonly Regex InlineRegex = new(
-        @"(?<img>!\[(?<imgalt>[^\]]*)\]\((?<imgurl>[^)]+)\))|(?<link>\[(?<linktext>[^\]]+)\]\((?<linkurl>[^)]+)\))|(?<bold>\*\*(?<boldtext>[^*]+)\*\*)|(?<italic>\*(?<italictext>[^*]+)\*)|(?<code>`(?<codetext>[^`]+)`)",
-        RegexOptions.Compiled);
-
     private static readonly Regex TableSeparator = new(
         @"^\|?[\s:|-]+\|[\s:|-]*$", RegexOptions.Compiled);
 
@@ -145,9 +141,14 @@ public static class MarkdownRenderer
             var indent = line.Length - trimmed.Length;
             if (trimmed.StartsWith("- ") || trimmed.StartsWith("* "))
             {
+                var content = trimmed[2..];
+                // GFM task-list items: - [ ] / - [x]
+                var bullet = "•  ";
+                if (content.StartsWith("[ ] ")) { bullet = "☐  "; content = content[4..]; }
+                else if (content.StartsWith("[x] ", StringComparison.OrdinalIgnoreCase)) { bullet = "☑  "; content = content[4..]; }
                 var p = new Paragraph { Margin = new Thickness(indent + 12, 1, 0, 1) };
-                p.Inlines.Add(new Run { Text = "•  " });
-                AddInlines(p, StripHtml(trimmed[2..]));
+                p.Inlines.Add(new Run { Text = bullet });
+                AddInlines(p, StripHtml(content));
                 block.Blocks.Add(p);
                 currentList = p;
                 continue;
@@ -163,8 +164,23 @@ public static class MarkdownRenderer
                 continue;
             }
 
+            // <summary> labels inside <details> blocks (common in release
+            // notes): render the label bold; the details body falls through
+            // as plain paragraphs, matching the plain-text fallback for raw
+            // HTML.
+            var summary = Regex.Match(line, @"<summary>(?<s>.*?)</summary>", RegexOptions.IgnoreCase);
+            if (summary.Success)
+            {
+                var sp = new Paragraph { Margin = new Thickness(0, 6, 0, 2) };
+                sp.Inlines.Add(new Run { Text = summary.Groups["s"].Value.Trim(), FontWeight = FontWeights.SemiBold });
+                block.Blocks.Add(sp);
+                currentList = null;
+                continue;
+            }
+            var stripped = StripHtml(line).Trim();
+            if (stripped.Length == 0) { currentList = null; continue; } // tag-only lines (<details> etc.)
             var para = new Paragraph { Margin = new Thickness(0, 4, 0, 4) };
-            AddInlines(para, StripHtml(line));
+            AddInlines(para, stripped);
             block.Blocks.Add(para);
             currentList = null;
         }
@@ -232,54 +248,57 @@ public static class MarkdownRenderer
 
     private static void AddInlines(Paragraph p, string text)
     {
-        var pos = 0;
-        foreach (Match m in InlineRegex.Matches(text))
+        foreach (var seg in MarkdownInlineParser.Parse(text))
         {
-            if (m.Index > pos)
-                p.Inlines.Add(new Run { Text = text[pos..m.Index] });
-            if (m.Groups["img"].Success && Uri.TryCreate(m.Groups["imgurl"].Value, UriKind.Absolute, out var imgUri)
-                && (imgUri.Scheme == Uri.UriSchemeHttp || imgUri.Scheme == Uri.UriSchemeHttps))
+            switch (seg.Kind)
             {
-                var alt = m.Groups["imgalt"].Value;
-                var image = new Image
+                case MarkdownInlineKind.Image:
                 {
-                    Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(imgUri),
-                    MaxWidth = 460,
-                    MaxHeight = 320,
-                    Stretch = Stretch.Uniform,
-                    Margin = new Thickness(0, 4, 0, 4),
-                };
-                if (alt.Length > 0) ToolTipService.SetToolTip(image, alt);
-                p.Inlines.Add(new InlineUIContainer { Child = image });
-            }
-            else if (m.Groups["link"].Success && Uri.TryCreate(m.Groups["linkurl"].Value, UriKind.Absolute, out var uri)
-                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            {
-                var link = new Hyperlink { NavigateUri = uri };
-                link.Inlines.Add(new Run { Text = m.Groups["linktext"].Value });
-                p.Inlines.Add(link);
-            }
-            else if (m.Groups["bold"].Success)
-            {
-                p.Inlines.Add(new Run { Text = m.Groups["boldtext"].Value, FontWeight = FontWeights.SemiBold });
-            }
-            else if (m.Groups["italic"].Success)
-            {
-                p.Inlines.Add(new Run { Text = m.Groups["italictext"].Value, FontStyle = FontStyle.Italic });
-            }
-            else if (m.Groups["code"].Success)
-            {
-                p.Inlines.Add(new Run
+                    var image = new Image
+                    {
+                        Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(seg.Url!)),
+                        MaxWidth = 460,
+                        MaxHeight = 320,
+                        Stretch = Stretch.Uniform,
+                        Margin = new Thickness(0, 4, 0, 4),
+                    };
+                    if (seg.Text.Length > 0) ToolTipService.SetToolTip(image, seg.Text);
+                    p.Inlines.Add(new InlineUIContainer { Child = image });
+                    break;
+                }
+                case MarkdownInlineKind.Link:
                 {
-                    Text = m.Groups["codetext"].Value,
-                    FontFamily = new FontFamily("Consolas"),
-                });
+                    var link = new Hyperlink { NavigateUri = new Uri(seg.Url!) };
+                    link.Inlines.Add(new Run { Text = seg.Text });
+                    p.Inlines.Add(link);
+                    break;
+                }
+                case MarkdownInlineKind.Bold:
+                    p.Inlines.Add(new Run { Text = seg.Text, FontWeight = FontWeights.SemiBold });
+                    break;
+                case MarkdownInlineKind.Italic:
+                    p.Inlines.Add(new Run { Text = seg.Text, FontStyle = FontStyle.Italic });
+                    break;
+                case MarkdownInlineKind.BoldItalic:
+                    p.Inlines.Add(new Run { Text = seg.Text, FontWeight = FontWeights.SemiBold, FontStyle = FontStyle.Italic });
+                    break;
+                case MarkdownInlineKind.Strikethrough:
+                    p.Inlines.Add(new Run
+                    {
+                        Text = seg.Text,
+                        TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough,
+                    });
+                    break;
+                case MarkdownInlineKind.Code:
+                    p.Inlines.Add(new Run { Text = seg.Text, FontFamily = new FontFamily("Consolas") });
+                    break;
+                default:
+                    p.Inlines.Add(new Run { Text = seg.Text });
+                    break;
             }
-            pos = m.Index + m.Length;
         }
-        if (pos < text.Length)
-            p.Inlines.Add(new Run { Text = text[pos..] });
         if (p.Inlines.Count == 0)
             p.Inlines.Add(new Run { Text = "" });
     }
+
 }
