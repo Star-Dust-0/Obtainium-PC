@@ -536,8 +536,9 @@ jobs:
           if ($fdRow -eq $null) { Shot 'fdroid-row-missing'; throw 'F-Droid row not found after import' }
           try { $fdRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'F-Droid client' $win3 | Out-Null }
           Start-Sleep 3
-          ClickNamed 'Options' 'F-Droid client options'
+          ClickNamedIn 'Options' $win3
           Start-Sleep 2; AssertAlive 'fdroid-options'
+          if ((FindNamed 'F-Droid client options' $root) -eq $null) { Shot 'fdroid-options-nav'; throw 'options page did not open for F-Droid client' }
           if ((FindNamed 'Filter versions by regular expression' $root) -eq $null) { Shot 'fdroid-options-missing'; throw 'F-Droid source option editors did not render' }
           Shot '29-fdroid-options'
           ClickNamedIn 'Apps' $win3
@@ -557,8 +558,9 @@ jobs:
           if ($frRow -eq $null) { Shot 'farsroid-row-missing'; throw 'Farsroid row not found after import' }
           try { $frRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Farsroid smoke' $win3 | Out-Null }
           Start-Sleep 3
-          ClickNamed 'Options' 'Farsroid smoke options'
+          ClickNamedIn 'Options' $win3
           Start-Sleep 2; AssertAlive 'farsroid-options'
+          if ((FindNamed 'Farsroid smoke options' $root) -eq $null) { Shot 'farsroid-options-nav'; throw 'options page did not open for Farsroid smoke' }
           if ((FindNamed 'Auto-select first of multiple APKs' $root) -eq $null) { Shot 'farsroid-options-missing'; throw 'Farsroid source option editors did not render' }
           Shot '30-farsroid-options'
           ClickNamedIn 'Apps' $win3
