@@ -503,7 +503,7 @@ jobs:
           $dlgCond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgCond2) -eq $null) { Shot 'dialog-light-missing'; throw 'import dialog missing after light switch' }
           Shot '25-dialog-light'
-          $cancel2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cancelCond)
+          $cancel2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Cancel')))
           if ($cancel2 -ne $null) { try { $cancel2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
           Start-Sleep 2
 
