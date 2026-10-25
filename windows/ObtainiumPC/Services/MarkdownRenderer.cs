@@ -29,7 +29,6 @@ public static class MarkdownRenderer
 
     public static RichTextBlock Render(string markdown)
     {
-        _footnoteNumbers = footnoteDefs.Select((d, i) => (d.Id, i)).ToDictionary(x => x.Id, x => x.i + 1);
         var block = new RichTextBlock
         {
             TextWrapping = TextWrapping.Wrap,
@@ -58,6 +57,7 @@ public static class MarkdownRenderer
             kept.Add(raw);
         }
         lines = kept.ToArray();
+        _footnoteNumbers = footnoteDefs.Select((d, i) => (d.Id, i)).ToDictionary(x => x.Id, x => x.i + 1);
         Paragraph? currentList = null;
         var inFence = false;
         Paragraph? fencePara = null;
