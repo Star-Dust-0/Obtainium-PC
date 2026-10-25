@@ -476,9 +476,9 @@ jobs:
           # on the runner) is flagged and can be ignored and restored.
           ClickNamedIn 'Update Health' $win2
           Start-Sleep 3
-          $dots = FindNamed ([char]0x2026) $root
+          $dots = FindNamed '…' $root
           if ($dots -eq $null) { Shot 'health-no-rows'; throw 'no flagged update-health rows to ignore' }
-          try { $dots.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial ([char]0x2026) $win2 | Out-Null }
+          try { $dots.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial '…' $win2 | Out-Null }
           Start-Sleep 2
           $ign = FindNamed 'Ignore permanently' $root
           if ($ign -eq $null) { Shot 'health-menu-missing'; throw 'update-health ignore menu did not open' }
