@@ -879,6 +879,14 @@ jobs:
           Shot '31-filter-dialog'
           (FindNamed 'Apply' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
+          # Group collapse is orthogonal to filtering upstream
+          # (lib/pages/apps.dart:923: expanded comes only from collapsedGroups),
+          # so a collapsed group keeps its matching row hidden. Toggle the
+          # GitHub group until the row renders (two toggles converge from
+          # either starting state and always end expanded).
+          ClickNamedIn 'GitHub' $win3
+          Start-Sleep 2
+          if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
           if ((FindNamed 'Notepad++' $win3) -eq $null) { Shot 'filter-kept-missing'; throw 'name filter hid the matching app' }
           if ((FindNamed 'F-Droid client' $win3) -ne $null) { Shot 'filter-not-narrowing'; throw 'name filter did not narrow the list' }
           Shot '31b-filter-applied'
@@ -886,6 +894,10 @@ jobs:
           Start-Sleep 2
           (FindNamed 'Clear' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
+          # Same collapse orthogonality: expand F-Droid for the row assert.
+          ClickNamedIn 'F-Droid' $win3
+          Start-Sleep 2
+          if ((FindNamed 'F-Droid client' $win3) -eq $null) { ClickNamedIn 'F-Droid' $win3; Start-Sleep 2 }
           if ((FindNamed 'F-Droid client' $win3) -eq $null) { Shot 'filter-clear-failed'; throw 'Clear did not restore the full list' }
           Shot '32-filter-cleared'
           'filter dialog verified'
@@ -944,7 +956,11 @@ jobs:
           if ($batchDl -eq $null) { Shot 'bulk-button-missing'; throw 'Download updates button not found' }
           try { $batchDl.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Download updates' $root | Out-Null }
           Start-Sleep 2
-          if ((FindNamed 'Download 2?' $root) -eq $null) { Shot 'bulk-confirm-missing'; throw 'bulk download confirmation did not list the set' }
+          # Only updateable apps enter the bulk set (BatchDownload_Click
+          # filters IsAppUpdateable): ShareX qualifies; Notepad++ was updated
+          # to latest by the real install earlier in this run, so the count
+          # is 1 unless it somehow stayed updateable (2).
+          if ((FindNamed 'Download 1?' $root) -eq $null -and (FindNamed 'Download 2?' $root) -eq $null) { Shot 'bulk-confirm-missing'; throw 'bulk download confirmation did not list the set' }
           Shot '34-bulk-confirm'
           (FindNamed 'Cancel' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 1
