@@ -559,6 +559,15 @@ jobs:
           # proved page chrome on an empty page).
           ClickNamedIn 'Logs' $win2
           Start-Sleep 3; AssertAlive 'logs-dark-populated'
+          # Entries render newest-first inside a virtualized ItemsRepeater, so
+          # the (oldest) seeded entries only exist in the UIA tree once the
+          # page is scrolled to the bottom.
+          $spCond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsScrollPatternAvailableProperty, $true)
+          $scrollers2 = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond2)
+          $best2 = $null; $bestH2 = 0
+          foreach ($el in $scrollers2) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $bestH2) { $bestH2 = $h; $best2 = $el } }
+          if ($best2 -ne $null) { try { $best2.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
+          Start-Sleep 2
           $seedEntry = $null
           foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
             if ($el.Current.Name -and $el.Current.Name.Contains('smoke seed warning entry')) { $seedEntry = $el; break }
