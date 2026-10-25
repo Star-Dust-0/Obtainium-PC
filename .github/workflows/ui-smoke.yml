@@ -380,8 +380,17 @@ jobs:
           if ($combos.Count -lt 2) { throw 'language combo not found on Settings page' }
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win2 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'العربية' $root | Out-Null
+          # The full locale list is virtualized; off-screen items are absent
+          # from UIA. العربية is 3rd from the end: END, UP x2, ENTER.
+          [System.Windows.Forms.SendKeys]::SendWait('{END}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
+          if ((FindNamed 'التطبيقات' $win3) -eq $null) { Shot 'arabic-nav-missing'; throw 'Arabic nav label missing after keyboard selection' }
           AssertAlive 'arabic-switch'
           $found = $false
           foreach ($w in 1..15) {
@@ -817,7 +826,11 @@ jobs:
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'Français' $root | Out-Null
+          # Keyboard selection (virtualized list): Français is index 10.
+          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
+          Start-Sleep -Milliseconds 400
+          foreach ($i in 1..10) { [System.Windows.Forms.SendKeys]::SendWait('{DOWN}'); Start-Sleep -Milliseconds 150 }
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           if ((FindNamed 'Applications' $win3) -eq $null) { Shot 'language-french-missing'; throw 'French nav label missing after language switch' }
           Shot '27-language-french'
