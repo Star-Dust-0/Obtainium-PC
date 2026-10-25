@@ -3,8 +3,8 @@
     x:Class="ObtainiumPC.Pages.AddAppPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Padding="36,24,36,24">
-        <StackPanel MaxWidth="560" Spacing="12">
+    <Grid Padding="28,24,28,24">
+        <StackPanel MaxWidth="920" Spacing="12">
             <TextBlock Text="Add App" Style="{StaticResource TitleTextBlockStyle}"/>
             <TextBlock Text="Paste the source URL of the app you want to track. GitHub, GitLab, Codeberg, and SourceForge are detected automatically; pick an override source (for example HTML) for anything else." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBox x:Name="UrlBox" PlaceholderText="https://github.com/owner/repository"/>

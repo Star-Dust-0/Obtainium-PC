@@ -54,7 +54,7 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" ZoomMode="Disabled">
-        <Grid ColumnSpacing="12" Padding="36,20,36,8" VerticalAlignment="Center">
+        <Grid ColumnSpacing="12" Padding="28,20,28,8" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -77,7 +77,7 @@
             <ToggleButton Grid.Column="7" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </Grid>
         </ScrollViewer>
-        <Grid x:Name="SearchRow" Grid.Row="1" Padding="36,0,36,8">
+        <Grid x:Name="SearchRow" Grid.Row="1" Padding="28,0,28,8">
             <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
         </Grid>
         <ListView x:Name="AppsList" Grid.Row="2" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="28,4,28,20" ItemTemplateSelector="{StaticResource RowSelector}">

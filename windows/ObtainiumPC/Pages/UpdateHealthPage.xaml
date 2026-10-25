@@ -7,7 +7,7 @@
     mc:Ignorable="d">
 
     <ScrollViewer>
-        <StackPanel MaxWidth="900" Margin="24" Spacing="12">
+        <StackPanel MaxWidth="920" Margin="28,24" Spacing="12">
             <TextBlock Text="Update Health" Style="{ThemeResource TitleTextBlockStyle}"/>
 
             <TextBlock Text="Detection" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
