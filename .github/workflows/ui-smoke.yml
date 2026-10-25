@@ -412,6 +412,18 @@ jobs:
           }
           if (-not $found) { Shot 'arabic-missing'; throw 'Arabic nav label not found after language switch' }
           Shot '15-arabic-rtl-settings'
+          $burgerEl = $null
+          foreach ($bn in 'Open Navigation','Close Navigation') { $burgerEl = FindNamed $bn $win2; if ($burgerEl -ne $null) { break } }
+          if ($burgerEl -ne $null) {
+            $bbr = $burgerEl.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($bbr.X + $bbr.Width/2), [int]($bbr.Y + $bbr.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 2
+            Shot '15b-arabic-rtl-nav-pane'
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 1
+          } else { "WARNING: burger not found for 15b-arabic-rtl-nav-pane - pane pixel evidence missing" }
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"ar"') { throw 'language not persisted to settings.json' }
           'language persisted as ar'
@@ -467,6 +479,18 @@ jobs:
           }
           if (-not $found) { DumpNames $win2 'english-restore-final'; Shot 'english-missing'; throw 'English nav label not found after switching back' }
           Shot '17-back-to-english'
+          $burgerEl = $null
+          foreach ($bn in 'Open Navigation','Close Navigation') { $burgerEl = FindNamed $bn $win2; if ($burgerEl -ne $null) { break } }
+          if ($burgerEl -ne $null) {
+            $bbr = $burgerEl.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($bbr.X + $bbr.Width/2), [int]($bbr.Y + $bbr.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 2
+            Shot '17b-english-nav-pane'
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 1
+          } else { "WARNING: burger not found for 17b-english-nav-pane - pane pixel evidence missing" }
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"en"') { throw 'language not persisted back to en' }
           'language reverted to en'
