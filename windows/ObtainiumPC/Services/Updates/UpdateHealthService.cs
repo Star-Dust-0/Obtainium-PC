@@ -103,9 +103,13 @@ public static class UpdateHealthService
     {
         UpdateHealthReason.StaleRelease => $"Latest release is older than {config.StaleReleaseDays} days",
         UpdateHealthReason.StaleVersion => $"Version has not changed in {config.StaleVersionDays} days",
-        UpdateHealthReason.FailedChecks => $"{app.ConsecutiveFailedChecks} consecutive failed update checks",
+        UpdateHealthReason.FailedChecks => app.ConsecutiveFailedChecks == 1
+            ? "1 update check failed in a row"
+            : $"{app.ConsecutiveFailedChecks} update checks failed in a row",
         UpdateHealthReason.Archived => "Repository is archived",
-        UpdateHealthReason.FilteredReleases => $"{app.NewerReleasesFilteredOut ?? 0} newer releases filtered out",
+        UpdateHealthReason.FilteredReleases => (app.NewerReleasesFilteredOut ?? 0) == 1
+            ? "1 newer release filtered out"
+            : $"{app.NewerReleasesFilteredOut ?? 0} newer releases filtered out",
         _ => reason.ToString(),
     };
 
