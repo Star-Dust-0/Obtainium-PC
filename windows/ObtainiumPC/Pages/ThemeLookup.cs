@@ -16,6 +16,17 @@ public static class ThemeLookup
 
     public static Style? Style(string key) => TryGet<Style>(key);
 
+    /// Effective dark-ness of the applied theme, keyed off the saved setting
+    /// (ActualTheme on the window root proved unreliable - read Light while a
+    /// dark UI was on screen). "default" follows the system background.
+    public static bool IsDark => App.Settings.Theme switch
+    {
+        "dark" => true,
+        "light" => false,
+        _ => new Windows.UI.ViewManagement.UISettings()
+                .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background).B < 128,
+    };
+
     // Application.Resources always resolves theme-dictionary values to the
     // default (light) entry, so programmatic card/foreground lookups rendered
     // light-on-dark. Resolve the Dark/Light dictionary against the window
@@ -32,14 +43,7 @@ public static class ThemeLookup
         // the runner): its keys are [Default, Light, HighContrast] and the
         // dark values live under "Default" (the framework's default theme is
         // dark). Dark therefore resolves via "Dark" first, then "Default".
-        string[] themeKeys = App.Settings.Theme switch
-        {
-            "dark" => new[] { "Dark", "Default" },
-            "light" => new[] { "Light" },
-            _ => new Windows.UI.ViewManagement.UISettings()
-                    .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background).B < 128
-                ? new[] { "Dark", "Default" } : new[] { "Light" },
-        };
+        string[] themeKeys = IsDark ? new[] { "Dark", "Default" } : new[] { "Light" };
         foreach (var themeKey in themeKeys)
             if (FindInThemeDictionaries<T>(app.Resources, themeKey, key) is { } themed)
                 return themed;

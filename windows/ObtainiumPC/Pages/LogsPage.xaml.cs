@@ -37,8 +37,7 @@ public sealed partial class LogsPage : Page
             AppLogLevel.Warning => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 77)),
             AppLogLevel.Debug => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 150, 150)),
             _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                App.MainWindowInstance?.Content is Microsoft.UI.Xaml.FrameworkElement root
-                    && root.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark
+                ThemeLookup.IsDark
                     ? Windows.UI.Color.FromArgb(255, 230, 230, 230)
                     : Windows.UI.Color.FromArgb(255, 30, 30, 30)),
         };
