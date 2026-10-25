@@ -541,7 +541,22 @@ public sealed class GitHubSource : AppSourceBase
                 useLatestAssetDateAsReleaseDate, age, additionalSettings);
             if (targetRelease != null) break;
         }
-        if (targetRelease == null) throw new NoReleasesException();
+        if (targetRelease == null)
+        {
+            // Releases exist but none carries an installable (Windows) asset: say so
+            // instead of the misleading "No releases found". Applies only when no
+            // release at all has an accepted asset, so user filters/prerelease/age
+            // exclusions keep the original message. trackOnly never reaches here
+            // (it keeps releases without assets).
+            var published = releases.Where(r => r != null && r["draft"]?.GetValue<bool>() != true).ToList();
+            if (published.Count > 0 && !published.Any(r =>
+                    FindReleaseAssetUrls(r, includeZips, includeTarballs).Any(a =>
+                        AssetFilterService.IsAppOrContainerFile(PairFrom(a?["final_url"]).Key, includeZips, includeTarballs))))
+                throw new NoAppAssetException(
+                    "Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). " +
+                    "Turn on track-only for this app to follow its version without installing.");
+            throw new NoReleasesException();
+        }
 
         var version = targetRelease["version"]?.GetValue<string>();
         var releaseDate = GetReleaseDateFromRelease(targetRelease, useLatestAssetDateAsReleaseDate);

@@ -46,6 +46,7 @@ public sealed class NoReleasesException : ObtainiumSourceException
 public sealed class NoAppAssetException : ObtainiumSourceException
 {
     public NoAppAssetException() : base("No installable asset found for this app") { }
+    public NoAppAssetException(string message) : base(message) { }
 }
 
 public sealed class RepositoryRenamedException : ObtainiumSourceException

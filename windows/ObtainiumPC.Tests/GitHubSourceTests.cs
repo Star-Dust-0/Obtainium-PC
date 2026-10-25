@@ -107,4 +107,43 @@ public class GitHubSourceTests
         Assert.Equal("v2.5.0", details.Version);
         Assert.Contains(details.AssetUrls, a => a.Key == "app-2.5.0-win-x64.exe");
     }
+
+    private const string ApkOnlyReleases = """
+        [
+          {
+            "tag_name": "v1.7.3", "name": "v1.7.3", "prerelease": false, "draft": false,
+            "published_at": "2026-09-01T00:00:00Z", "body": "apk only",
+            "assets": [
+              { "name": "app-arm64-v8a-release.apk",
+                "url": "https://api.github.com/repos/owner/app/releases/assets/9",
+                "browser_download_url": "https://github.com/owner/app/releases/download/v1.7.3/app-arm64-v8a-release.apk" }
+            ]
+          }
+        ]
+        """;
+
+    private static GitHubSource ApkOnlySource() => new(
+        new GitHubSourceConfig(CheckRepoRename: false, UpdateHealthArchivedEnabled: false),
+        FixtureHttpHandler.Client(new FixtureHttpHandler().Respond(ReleasesUrl, ApkOnlyReleases)));
+
+    [Fact]
+    public async Task Releases_without_any_windows_installer_asset_throw_a_distinct_error()
+    {
+        var ex = await Assert.ThrowsAsync<NoAppAssetException>(
+            () => ApkOnlySource().GetLatestAssetDetailsAsync(RepoUrl, NoSettings));
+        Assert.Contains("none has a Windows installer asset", ex.Message);
+        Assert.DoesNotContain("No releases found", ex.Message);
+    }
+
+    [Fact]
+    public async Task TrackOnly_still_resolves_an_apk_only_repo_and_lists_the_apk_as_an_asset()
+    {
+        var settings = new Dictionary<string, JsonElement>
+        {
+            ["trackOnly"] = JsonSerializer.SerializeToElement(true),
+        };
+        var details = await ApkOnlySource().GetLatestAssetDetailsAsync(RepoUrl, settings);
+        Assert.Equal("v1.7.3", details.Version);
+        Assert.Contains(details.AllAssetUrls, a => a.Key == "app-arm64-v8a-release.apk");
+    }
 }
