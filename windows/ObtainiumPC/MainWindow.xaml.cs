@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -146,6 +147,17 @@ namespace ObtainiumPC
             // translate them too when the pane is open during the switch.
             Services.Localization.Localizer.TranslatePopupNavItems(this);
             Services.Localization.Localizer.Apply(NavView);
+            // The visible expanded pane does not re-render item text after a
+            // Content change (ui-smoke run 40219244737: the in-tree items held
+            // English while the open pane still rendered Arabic). Resetting
+            // MenuItems forces the items host to re-materialize every item
+            // container from the current text.
+            var selTag = (NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem)?.Tag as string;
+            var freshItems = new System.Collections.Generic.List<object>(NavView.MenuItems);
+            NavView.MenuItems = freshItems;
+            NavView.SelectedItem = freshItems.FirstOrDefault(i =>
+                (i as Microsoft.UI.Xaml.Controls.NavigationViewItem)?.Tag as string == selTag);
+            Services.Logging.AppLogger.Info($"menu-items reset done, selection restored: {selTag}");
             var dbg = new System.Text.StringBuilder("apply-localization nav-items end state: ");
             foreach (var mi in NavView.MenuItems)
                 if (mi is Microsoft.UI.Xaml.Controls.NavigationViewItem nvi2)
