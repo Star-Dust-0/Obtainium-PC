@@ -640,9 +640,14 @@ jobs:
           if ((FindNamed 'Options' $win3) -eq $null) { Shot 'track-only-detail-missing'; throw 'Obtainium detail page not reached' }
           Shot '28e-github-track-only-detail'
 
+          # Track-only detail action must read Download, never Install: the
+          # flow is a manual download, so an Install label would promise an
+          # installation the platform cannot perform.
+          if ((FindNamed 'Download' $win3) -eq $null) { Shot 'track-only-action-label'; throw 'track-only detail action button is not labeled Download' }
+          if ((FindNamed 'Install' $win3) -ne $null) { Shot 'track-only-install-label'; throw 'track-only detail still offers an Install action' }
           # Manual download: the picker must offer the APK, the download must
           # complete, and the Android-package note (no install launch) must show.
-          ClickNamedIn 'Install' $win3
+          ClickNamedIn 'Download' $win3
           Start-Sleep 2
           $apkRadio = $null
           foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {

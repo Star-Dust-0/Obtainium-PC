@@ -21,6 +21,12 @@
                     <AppBarButton x:Name="InstallButton" Label="Install" Click="Update_Click" Visibility="Collapsed">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE8B5;"/></AppBarButton.Icon>
                     </AppBarButton>
+                    <!-- Track-only apps only download (upstream lib/pages/app.dart marks them
+                         installed/updated; the port keeps the authorized manual download flow,
+                         so the action must not promise installation). -->
+                    <AppBarButton x:Name="DownloadButton" Label="Download" Click="Update_Click" Visibility="Collapsed">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE896;"/></AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton Label="Options" Click="Options_Click" ToolTipService.ToolTip="Per-app options">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE70F;"/></AppBarButton.Icon>
                     </AppBarButton>

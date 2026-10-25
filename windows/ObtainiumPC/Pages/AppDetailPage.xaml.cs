@@ -101,10 +101,17 @@ namespace ObtainiumPC.Pages
             // go stale; both buttons share Update_Click.
             var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
                 _app.InstalledVersion, _app.LatestVersion);
+            // Track-only apps never install from here: the flow is a manual
+            // download, so a third pre-templated button says Download instead
+            // of Install/Update (an enabled "Install" promise is misleading -
+            // upstream labels the mark action markInstalled/markUpdated, but
+            // the port keeps the authorized manual-download flow).
             UpdateButton.IsEnabled = actionEnabled;
             InstallButton.IsEnabled = actionEnabled;
-            UpdateButton.Visibility = firstInstall ? Visibility.Collapsed : Visibility.Visible;
-            InstallButton.Visibility = firstInstall ? Visibility.Visible : Visibility.Collapsed;
+            DownloadButton.IsEnabled = actionEnabled;
+            UpdateButton.Visibility = !trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
+            InstallButton.Visibility = !trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
+            DownloadButton.Visibility = trackOnlyApp ? Visibility.Visible : Visibility.Collapsed;
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
