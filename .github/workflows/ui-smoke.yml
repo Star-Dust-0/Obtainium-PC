@@ -620,9 +620,15 @@ jobs:
           # The group re-collapses when the refresh reloads the rows; expand it,
           # then click the row by exact name (the title bar's 'Obtainium-PC'
           # also starts with the prefix, so ClickPartial is ambiguous here).
-          ClickNamedIn 'GitHub' $win3
-          Start-Sleep 2
-          $obtRow2 = FindNamed 'Obtainium' $win3
+          # Toggle-click until the row appears (a single click raced a reload
+          # re-collapse once already).
+          $obtRow2 = $null
+          foreach ($attempt in 1..5) {
+            $obtRow2 = FindNamed 'Obtainium' $win3
+            if ($obtRow2 -ne $null) { break }
+            try { ClickNamedIn 'GitHub' $win3 } catch {}
+            Start-Sleep 2
+          }
           if ($obtRow2 -eq $null) { Shot 'track-only-row-missing'; throw 'Obtainium row not found after expanding the GitHub group' }
           try { $obtRow2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
             $r2 = $obtRow2.Current.BoundingRectangle
