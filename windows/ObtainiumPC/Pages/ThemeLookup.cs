@@ -42,8 +42,15 @@ public static class ThemeLookup
         return themed ?? fallback;
     }
 
+    private static bool _structureDumped;
+
     private static T? FindInThemeDictionaries<T>(ResourceDictionary dict, string themeKey, string key) where T : class
     {
+        if (!_structureDumped)
+        {
+            _structureDumped = true;
+            DumpStructure(dict, 0);
+        }
         if (dict.ThemeDictionaries.TryGetValue(themeKey, out var themed)
             && themed is ResourceDictionary themeDict
             && ThemeLookupCore.TryGet<T>(themeDict, key) is { } hit)
@@ -52,5 +59,18 @@ public static class ThemeLookup
             if (FindInThemeDictionaries<T>(merged, themeKey, key) is { } mergedHit)
                 return mergedHit;
         return null;
+    }
+
+    private static void DumpStructure(ResourceDictionary dict, int depth)
+    {
+        var themeKeys = string.Join(",", dict.ThemeDictionaries.Keys);
+        Services.Logging.AppLogger.Debug(
+            $"ThemeLookupDict depth={depth} type={dict.GetType().Name} themeKeys=[{themeKeys}]");
+        foreach (var tk in dict.ThemeDictionaries.Keys)
+            if (dict.ThemeDictionaries[tk] is ResourceDictionary td)
+                Services.Logging.AppLogger.Debug(
+                    $"ThemeLookupThemeDict {tk}: hasCard={td.ContainsKey("CardBackgroundFillColorDefaultBrush")} hasTextSec={td.ContainsKey("TextFillColorSecondaryBrush")} merged={td.MergedDictionaries.Count}");
+        foreach (var merged in dict.MergedDictionaries)
+            DumpStructure(merged, depth + 1);
     }
 }
