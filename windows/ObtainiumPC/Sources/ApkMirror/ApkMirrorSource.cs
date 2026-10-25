@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.ApkMirror;
 
@@ -39,7 +40,7 @@ public sealed class ApkMirrorSource : AppSourceBase
 
     public ApkMirrorSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "APKMirror";

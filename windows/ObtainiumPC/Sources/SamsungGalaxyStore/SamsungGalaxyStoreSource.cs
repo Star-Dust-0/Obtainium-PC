@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.SamsungGalaxyStore;
 
@@ -45,7 +46,7 @@ public sealed class SamsungGalaxyStoreSource : AppSourceBase
 
     public SamsungGalaxyStoreSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "Samsung Galaxy Store";

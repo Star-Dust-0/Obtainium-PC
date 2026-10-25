@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.LiteApks;
 
@@ -18,7 +19,7 @@ public sealed class LiteApksSource : AppSourceBase
 
     public LiteApksSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

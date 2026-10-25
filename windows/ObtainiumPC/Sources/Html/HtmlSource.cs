@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using ObtainiumPC.Services.Versioning;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Html;
 
@@ -35,7 +36,7 @@ public sealed class HtmlSource : AppSourceBase
 
     public HtmlSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "HTML";

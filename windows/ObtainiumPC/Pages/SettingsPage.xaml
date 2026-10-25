@@ -35,6 +35,12 @@
                 <ToggleSwitch x:Name="OnlyCheckInstalledToggle" Header="Only check installed and track-only apps for updates" Toggled="OnlyCheckInstalledToggle_Toggled"/>
                 <ToggleSwitch x:Name="PrereleasesDefaultToggle" Header="Include pre-releases by default" Toggled="PrereleasesDefaultToggle_Toggled"/>
                 <ToggleSwitch x:Name="HideTrackOnlyWarningToggle" Header="Don't show 'track-only' warnings" Toggled="HideTrackOnlyWarningToggle_Toggled"/>
+                <!-- en.json showAppDowngradeError / skipBulkUpdateConfirmation /
+                     parallelDownloads / enableCertificatePinning -->
+                <ToggleSwitch x:Name="ShowDowngradeErrorToggle" Header="Show app downgrade errors" Toggled="ShowDowngradeErrorToggle_Toggled"/>
+                <ToggleSwitch x:Name="SkipBulkConfirmToggle" Header="Skip update/install confirmation dialog" Toggled="SkipBulkConfirmToggle_Toggled"/>
+                <ToggleSwitch x:Name="ParallelDownloadsToggle" Header="Allow parallel downloads" Toggled="ParallelDownloadsToggle_Toggled"/>
+                <ToggleSwitch x:Name="CertPinningToggle" Header="Enable certificate pinning" Toggled="CertPinningToggle_Toggled"/>
                 <ToggleSwitch x:Name="AddWithoutCheckToggle" Header="Offer to add apps without a version check when the source fails" Toggled="AddWithoutCheckToggle_Toggled"/>
 
                 <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>

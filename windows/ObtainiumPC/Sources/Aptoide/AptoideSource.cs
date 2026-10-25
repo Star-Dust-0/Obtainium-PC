@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Aptoide;
 
@@ -16,7 +17,7 @@ public sealed class AptoideSource : AppSourceBase
 
     public AptoideSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

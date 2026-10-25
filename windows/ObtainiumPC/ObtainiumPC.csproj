@@ -24,4 +24,13 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Upstream CA roots for optional certificate pinning
+         (lib/services/http_service.dart _certificatePins). Linked in place;
+         upstream files are preserved untouched. -->
+    <Content Include="..\..\assets\ca-certs\*.crt">
+      <Link>ca-certs\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

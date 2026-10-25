@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text.Json;
 using HtmlAgilityPack;
 using ObtainiumPC.Sources.Html;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Farsroid;
 
@@ -17,7 +18,7 @@ public sealed class FarsroidSource : AppSourceBase
 
     public FarsroidSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.VivoAppStore;
 
@@ -18,7 +19,7 @@ public sealed class VivoAppStoreSource : AppSourceBase
 
     public VivoAppStoreSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

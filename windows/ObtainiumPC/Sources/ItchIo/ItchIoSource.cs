@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.ItchIo;
 
@@ -18,7 +19,7 @@ public sealed class ItchIoSource : AppSourceBase
     public ItchIoSource(HttpClient? http = null)
     {
         // No automatic redirects: the flow manages cookies across steps.
-        _http = http ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

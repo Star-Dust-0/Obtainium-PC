@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Tencent;
 
@@ -15,7 +16,7 @@ public sealed class TencentSource : AppSourceBase
 
     public TencentSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Sources;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Services.BulkImport;
 
@@ -17,7 +18,7 @@ public static class GitHubStarsService
     public static async Task<List<StarredRepo>> GetStarredReposAsync(
         string username, AppSettings settings, CancellationToken ct = default)
     {
-        using var http = new HttpClient();
+        using var http = ObtainiumHttp.CreateClient();
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         if (!string.IsNullOrEmpty(settings.GitHubPersonalAccessToken))
             http.DefaultRequestHeaders.Authorization =

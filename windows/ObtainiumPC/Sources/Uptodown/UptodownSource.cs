@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Uptodown;
 
@@ -34,7 +35,7 @@ public sealed class UptodownSource : AppSourceBase
 
     public UptodownSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "Uptodown";

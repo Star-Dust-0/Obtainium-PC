@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.GitLab;
 
@@ -28,7 +29,7 @@ public sealed class GitLabSource : AppSourceBase
 
     private static HttpClient CreateDefaultClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        var client = ObtainiumHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }

@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Xml.Linq;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.FDroid;
 
@@ -34,7 +35,7 @@ public sealed class FDroidRepoSource : AppSourceBase
 
     public FDroidRepoSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

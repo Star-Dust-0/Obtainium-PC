@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.ApkPure;
 
@@ -19,7 +20,7 @@ public sealed class ApkPureSource : AppSourceBase
 
     public ApkPureSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "APKPure";

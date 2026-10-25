@@ -76,6 +76,10 @@ namespace ObtainiumPC.Pages
             OnlyCheckInstalledToggle.IsOn = s.OnlyCheckInstalledOrTrackOnlyApps;
             PrereleasesDefaultToggle.IsOn = s.IncludePrereleasesByDefault;
             HideTrackOnlyWarningToggle.IsOn = s.HideTrackOnlyWarning;
+            ShowDowngradeErrorToggle.IsOn = s.ShowAppDowngradeError;
+            SkipBulkConfirmToggle.IsOn = s.SkipBulkUpdateConfirmation;
+            ParallelDownloadsToggle.IsOn = s.ParallelDownloads;
+            CertPinningToggle.IsOn = s.EnableCertificatePinning;
             GlobalVersionRegexBox.Text = s.GlobalVersionExtractionRegEx ?? "";
             GlobalMatchGroupBox.Text = s.GlobalMatchGroupToUse ?? "";
             GlobalAssetFilterBox.Text = s.GlobalAssetFilterRegEx ?? "";
@@ -159,6 +163,10 @@ namespace ObtainiumPC.Pages
         private void OnlyCheckInstalledToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.OnlyCheckInstalledOrTrackOnlyApps = OnlyCheckInstalledToggle.IsOn; Save(); }
         private void PrereleasesDefaultToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.IncludePrereleasesByDefault = PrereleasesDefaultToggle.IsOn; Save(); }
         private void HideTrackOnlyWarningToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideTrackOnlyWarning = HideTrackOnlyWarningToggle.IsOn; Save(); }
+        private void ShowDowngradeErrorToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.ShowAppDowngradeError = ShowDowngradeErrorToggle.IsOn; Save(); }
+        private void SkipBulkConfirmToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.SkipBulkUpdateConfirmation = SkipBulkConfirmToggle.IsOn; Save(); }
+        private void ParallelDownloadsToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.ParallelDownloads = ParallelDownloadsToggle.IsOn; Save(); }
+        private void CertPinningToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.EnableCertificatePinning = CertPinningToggle.IsOn; Save(); }
         private void AddWithoutCheckToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.AllowAddingAppsWithoutCheck = AddWithoutCheckToggle.IsOn; Save(); }
         public sealed class CategoryRow
         {

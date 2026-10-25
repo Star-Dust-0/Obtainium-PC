@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.NeutronCode;
 
@@ -28,7 +29,7 @@ public sealed class NeutronCodeSource : AppSourceBase
 
     private static HttpClient CreateDefaultClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        var client = ObtainiumHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }

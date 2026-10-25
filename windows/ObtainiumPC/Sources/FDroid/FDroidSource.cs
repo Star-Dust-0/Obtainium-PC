@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.FDroid;
 
@@ -23,7 +24,7 @@ public class FDroidSource : AppSourceBase
 
     public FDroidSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

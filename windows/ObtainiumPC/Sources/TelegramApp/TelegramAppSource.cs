@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.TelegramApp;
 
@@ -18,7 +19,7 @@ public sealed class TelegramAppSource : AppSourceBase
 
     public TelegramAppSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

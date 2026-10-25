@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ObtainiumPC.Services.Versioning;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.GitHub;
 
@@ -34,7 +35,7 @@ public sealed class GitHubSource : AppSourceBase
 
     private static HttpClient CreateDefaultClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        var client = ObtainiumHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }
@@ -205,7 +206,7 @@ public sealed class GitHubSource : AppSourceBase
         var host = new Uri(standardUrl).Host.ToLowerInvariant();
         if (host != Hosts[0] && host != "www." + Hosts[0]) return null;
         var apiUrl = ConvertStandardUrlToApiUrl(standardUrl);
-        using var noRedirect = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        using var noRedirect = ObtainiumHttp.CreateClient(false);
         noRedirect.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         var req = BuildRequest(apiUrl, additionalSettings);
         var res = await noRedirect.SendAsync(req, ct);

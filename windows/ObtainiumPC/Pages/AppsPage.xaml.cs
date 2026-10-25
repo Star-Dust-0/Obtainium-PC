@@ -264,9 +264,36 @@ base.OnNavigatedTo(e);
         {
             var sel = SelectedApps().Where(a => App.Updater.IsAppUpdateable(a)).ToList();
             if (sel.Count == 0) return;
+            // lib/pages/apps.dart:283 skipBulkUpdateConfirmation (default
+            // false): confirm the bulk set before obtaining anything.
+            if (!App.Settings.SkipBulkUpdateConfirmation)
+            {
+                var confirm = new ThemedContentDialog
+                {
+                    Title = Services.Localization.Loc.T("Download") + " " + sel.Count + "?",
+                    Content = new ScrollViewer
+                    {
+                        MaxHeight = 360,
+                        Content = new TextBlock { Text = string.Join("\n", sel.Select(a => a.FinalName)), TextWrapping = TextWrapping.Wrap },
+                    },
+                    PrimaryButtonText = Services.Localization.Loc.T("Download"),
+                    CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                    XamlRoot = this.XamlRoot,
+                };
+                if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            }
             var results = new List<string>();
+            var picks = new List<(ObtainiumPC.Models.TrackedApp App, KeyValuePair<string, string> Asset)>();
             foreach (var app in sel)
             {
+                // showAppDowngradeError gate (see AppDetailPage.Update_Click).
+                if (App.Settings.ShowAppDowngradeError
+                    && app.InstalledVersion != null && app.LatestVersion != null
+                    && Services.Versioning.VersionService.CompareVersionsNumerically(app.InstalledVersion, app.LatestVersion) > 0)
+                {
+                    results.Add(app.FinalName + ": update would downgrade " + app.InstalledVersion + " -> " + app.LatestVersion + "; blocked");
+                    continue;
+                }
                 var assets = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
                 if (assets.Count == 0)
                 {
@@ -292,36 +319,80 @@ base.OnNavigatedTo(e);
                     results.Add(app.FinalName + ": skipped");
                     continue;
                 }
-                var asset = assets[picked];
-                var bar = new ProgressBar { Minimum = 0, Maximum = 100, Width = 320 };
-                var progDlg = new ThemedContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
-                var showOp = progDlg.ShowAsync();
-                try
+                picks.Add((app, assets[picked]));
+            }
+            // One download pipeline per app; errors land in results per app.
+            async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress)
+            {
+                var url = asset.Value;
+                SourceCatalog.TryResolve(app.Url, App.Settings, out var dlSource);
+                if (dlSource != null)
+                    url = await dlSource.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
+                var pat = url.Contains("github.com") || url.Contains("githubusercontent.com")
+                    ? App.Settings.GitHubPersonalAccessToken : null;
+                var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
+                var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers);
+                app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
+                results.Add(app.FinalName + ": downloaded " + asset.Key);
+                // Same per-asset installability gate as the detail page: an
+                // Android package never reaches the installer.
+                if (dlSource?.SupportsInstall != false
+                    && AssetFilterService.IsAppOrContainerFile(asset.Key)) DownloadService.OpenInstaller(path);
+            }
+            // lib/providers/apps_provider_install.dart:1205 parallelDownloads
+            // (default true): bulk downloads run concurrently when allowed;
+            // install launches still serialize on the UI thread as each
+            // download completes (upstream uses a serial install chain).
+            if (App.Settings.ParallelDownloads && picks.Count > 1)
+            {
+                var panel = new StackPanel { Spacing = 6 };
+                var bars = new Dictionary<string, ProgressBar>();
+                foreach (var (app, _) in picks)
                 {
+                    panel.Children.Add(new TextBlock { Text = app.FinalName, FontSize = 12 });
+                    var b = new ProgressBar { Minimum = 0, Maximum = 100, Width = 360 };
+                    bars[app.Id] = b;
+                    panel.Children.Add(b);
+                }
+                var dlg = new ThemedContentDialog { Title = Services.Localization.Loc.T("Downloads"), Content = panel, XamlRoot = this.XamlRoot };
+                var showAll = dlg.ShowAsync();
+                await Task.WhenAll(picks.Select(async p =>
+                {
+                    var bar = bars[p.App.Id];
                     var progress = new Progress<(long Received, long? Total)>(pr =>
                     {
                         if (pr.Total is > 0) bar.Value = Math.Min(100, (double)pr.Received / pr.Total.Value * 100);
                     });
-                    var url = asset.Value;
-                    SourceCatalog.TryResolve(app.Url, App.Settings, out var dlSource);
-                    if (dlSource != null)
-                        url = await dlSource.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
-                    var pat = url.Contains("github.com") || url.Contains("githubusercontent.com")
-                        ? App.Settings.GitHubPersonalAccessToken : null;
-                    var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
-                    var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers);
-                    app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
-                    results.Add(app.FinalName + ": downloaded " + asset.Key);
-                    if (dlSource?.SupportsInstall != false) DownloadService.OpenInstaller(path);
-                }
-                catch (Exception ex)
+                    try { await DownloadOneAsync(p.App, p.Asset, progress); }
+                    catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + ex.Message); }
+                }));
+                dlg.Hide();
+                try { await showAll; } catch { }
+            }
+            else
+            {
+                foreach (var (app, asset) in picks)
                 {
-                    results.Add(app.FinalName + ": failed - " + ex.Message);
-                }
-                finally
-                {
-                    progDlg.Hide();
-                    try { await showOp; } catch { }
+                    var bar = new ProgressBar { Minimum = 0, Maximum = 100, Width = 320 };
+                    var progDlg = new ThemedContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
+                    var showOp = progDlg.ShowAsync();
+                    try
+                    {
+                        var progress = new Progress<(long Received, long? Total)>(pr =>
+                        {
+                            if (pr.Total is > 0) bar.Value = Math.Min(100, (double)pr.Received / pr.Total.Value * 100);
+                        });
+                        await DownloadOneAsync(app, asset, progress);
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Add(app.FinalName + ": failed - " + ex.Message);
+                    }
+                    finally
+                    {
+                        progDlg.Hide();
+                        try { await showOp; } catch { }
+                    }
                 }
             }
             await App.SaveAppsAsync();

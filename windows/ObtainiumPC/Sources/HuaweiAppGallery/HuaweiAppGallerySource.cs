@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.HuaweiAppGallery;
 
@@ -40,7 +41,7 @@ public sealed class HuaweiAppGallerySource : AppSourceBase
 
     public HuaweiAppGallerySource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "Huawei AppGallery";

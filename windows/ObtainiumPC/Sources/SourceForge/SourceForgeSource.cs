@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using ObtainiumPC.Services.Versioning;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.SourceForge;
 
@@ -22,7 +23,7 @@ public sealed class SourceForgeSource : AppSourceBase
 
     private static HttpClient CreateDefaultClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        var client = ObtainiumHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }

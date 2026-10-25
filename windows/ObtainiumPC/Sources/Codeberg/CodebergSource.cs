@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ObtainiumPC.Sources.GitHub;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Codeberg;
 
@@ -74,7 +75,7 @@ public sealed class CodebergSource : AppSourceBase
         var urlSetting = GetQueryString(querySettings, "url");
         if (urlSetting != null && Uri.TryCreate(urlSetting, UriKind.Absolute, out var u) && !string.IsNullOrEmpty(u.Host))
             host = u.Host;
-        using var http = new HttpClient();
+        using var http = ObtainiumHttp.CreateClient();
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         var token = GetQueryString(querySettings, "forgejo-creds") ?? GetQueryString(querySettings, "github-creds");
         if (token != null)

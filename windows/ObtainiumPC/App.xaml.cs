@@ -15,6 +15,13 @@ namespace ObtainiumPC
         public static Window? MainWindowInstance { get; private set; }
 
         public static AppSettings Settings { get; private set; } = new AppSettings();
+
+        static App()
+        {
+            // Services.Http.ObtainiumHttp reads the pinning flag through this
+            // provider so the pure-logic test project compiles without App.
+            Services.Http.ObtainiumHttp.PinningEnabled = () => Settings.EnableCertificatePinning;
+        }
         public static AppStore Store { get; private set; } = new AppStore();
         public static AppUpdateService Updater { get; private set; } = new AppUpdateService(Settings);
         public static List<TrackedApp> TrackedApps { get; private set; } = new();

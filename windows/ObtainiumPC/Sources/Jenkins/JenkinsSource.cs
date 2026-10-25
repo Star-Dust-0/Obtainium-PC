@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.Jenkins;
 
@@ -15,7 +16,7 @@ public sealed class JenkinsSource : AppSourceBase
 
     public JenkinsSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
     }
 

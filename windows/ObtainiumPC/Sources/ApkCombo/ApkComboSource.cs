@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using HtmlAgilityPack;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.ApkCombo;
 
@@ -20,7 +21,7 @@ public sealed class ApkComboSource : AppSourceBase
     {
         // Follow redirects manually is not needed; plain client with no
         // default UA so the curl-style one is the only one sent.
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
     }
 
     public override string Name => "APKCombo";

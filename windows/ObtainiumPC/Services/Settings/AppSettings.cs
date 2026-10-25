@@ -50,6 +50,14 @@ public sealed class AppSettings
     public bool IncludePrereleasesByDefault { get; set; }
     // lib/providers/settings_provider.dart hideTrackOnlyWarning (default false)
     public bool HideTrackOnlyWarning { get; set; }
+    // lib/providers/settings_provider.dart showAppDowngradeError (default true)
+    public bool ShowAppDowngradeError { get; set; } = true;
+    // lib/providers/settings_provider.dart skipBulkUpdateConfirmation (default false)
+    public bool SkipBulkUpdateConfirmation { get; set; }
+    // lib/providers/settings_provider.dart parallelDownloads (default true)
+    public bool ParallelDownloads { get; set; } = true;
+    // lib/providers/settings_provider.dart enableCertificatePinning (default false)
+    public bool EnableCertificatePinning { get; set; }
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;
     public string? GitHubReqPrefix { get; set; }

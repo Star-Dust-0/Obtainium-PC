@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Sources.CoolApk;
 
@@ -22,10 +23,10 @@ public sealed class CoolApkSource : AppSourceBase
 
     public CoolApkSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient();
+        _http = http ?? ObtainiumHttp.CreateClient();
         // The download endpoint answers with a redirect to the real APK URL;
         // follow it manually. When a client is injected (tests) it serves both.
-        _noRedirect = http ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        _noRedirect = http ?? ObtainiumHttp.CreateClient(false);
     }
 
     public override string Name => "CoolApk";

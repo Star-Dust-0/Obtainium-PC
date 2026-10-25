@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http;
+using ObtainiumPC.Services.Http;
 
 namespace ObtainiumPC.Services.Download;
 
@@ -14,7 +15,7 @@ public sealed class DownloadService
 
     private static HttpClient CreateClient()
     {
-        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true });
+        var client = ObtainiumHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }

@@ -172,6 +172,25 @@ namespace ObtainiumPC.Pages
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
             if (_app == null) return;
+            // lib/providers/apps_provider_install.dart:802 showAppDowngradeError
+            // (default true): block an update that would downgrade. Android
+            // compares APK versionCodes; the port compares versions
+            // numerically when comparable - incomparable versions cannot be
+            // proven a downgrade and pass through.
+            if (App.Settings.ShowAppDowngradeError
+                && _app.InstalledVersion != null && _app.LatestVersion != null
+                && Services.Versioning.VersionService.CompareVersionsNumerically(_app.InstalledVersion, _app.LatestVersion) > 0)
+            {
+                var blocked = new ThemedContentDialog
+                {
+                    Title = Services.Localization.Loc.T("Downgrade blocked"),
+                    Content = _app.FinalName + ": " + Services.Localization.Loc.T("the installed version") + " " + _app.InstalledVersion + " " + Services.Localization.Loc.T("is newer than the latest release") + " " + _app.LatestVersion + ". " + Services.Localization.Loc.T("The update was blocked."),
+                    CloseButtonText = Services.Localization.Loc.T("OK"),
+                    XamlRoot = XamlRoot,
+                };
+                await blocked.ShowAsync();
+                return;
+            }
             // Upstream confirmAppFileUrl(pickAnyAsset: true) offers
             // apkUrls + otherAssetUrls.
             var assets = _app.AssetUrls.Concat(_app.OtherAssetUrls).ToList();
