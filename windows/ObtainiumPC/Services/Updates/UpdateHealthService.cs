@@ -110,7 +110,10 @@ public static class UpdateHealthService
     };
 
     public static string DaysLabel(int days) => days < 1 ? "Disabled" : $"{days} days";
-    public static string CountLabel(int count, string unit) => count < 1 ? "Disabled" : $"{count} {unit}";
+    // Upstream uses plural('checks'/'releases', n): "1 check" / "N checks".
+    public static string CountLabel(int count, string unit) => count < 1
+        ? "Disabled"
+        : $"{count} {(count == 1 && unit.EndsWith('s') ? unit[..^1] : unit)}";
 
     /// Network/availability errors should not count as app-level failures
     /// (matches upstream shouldCountFailedCheck).

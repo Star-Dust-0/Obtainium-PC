@@ -491,12 +491,20 @@ jobs:
           if ($ign -eq $null) { Shot 'health-menu-missing'; throw 'update-health ignore menu did not open' }
           $ign.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
+          # Bring the Ignored row above the fold for real row pixels.
+          $rest0 = FindNamed 'Restore' $root
+          if ($rest0 -ne $null) { try { $rest0.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {} }
+          Start-Sleep 1
           Shot '27-health-ignored'
           $rest = FindNamed 'Restore' $root
           if ($rest -eq $null) { Shot 'health-ignore-failed'; throw 'ignored app did not move to the Ignored section' }
+          try { $rest.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {}
           $rest.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
           if ((FindNamed 'Restore' $root) -ne $null) { Shot 'health-restore-failed'; throw 'restore did not return the app to the flagged list' }
+          $dots2 = FindNamed '…' $root
+          if ($dots2 -ne $null) { try { $dots2.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {} }
+          Start-Sleep 1
           Shot '28-health-restored'
           'update-health ignore/restore verified'
           ClickNamedIn 'Apps' $win2
