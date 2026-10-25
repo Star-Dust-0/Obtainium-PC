@@ -23,8 +23,18 @@ public static class ThemeLookup
     private static T? TryGet<T>(string key) where T : class
     {
         if (Application.Current is not { } app) return null;
-        var themeKey = App.MainWindowInstance?.Content is FrameworkElement root
-            && root.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        // The saved setting is the source of truth the window itself applies;
+        // ActualTheme on the window root proved unreliable here (read Light
+        // while the dark UI was on screen). For "default", follow the system
+        // background color.
+        var themeKey = App.Settings.Theme switch
+        {
+            "dark" => "Dark",
+            "light" => "Light",
+            _ => new Windows.UI.ViewManagement.UISettings()
+                    .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background).B < 128
+                ? "Dark" : "Light",
+        };
         var themed = FindInThemeDictionaries<T>(app.Resources, themeKey, key);
         var fallback = themed == null ? ThemeLookupCore.TryGet<T>(app.Resources, key) : null;
         Services.Logging.AppLogger.Debug(
