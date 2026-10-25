@@ -123,6 +123,10 @@ jobs:
       - name: Drive the update through the real UI
         shell: pwsh
         run: |
+          $ssl = "$env:RUNNER_TEMP\ssl"
+          Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden -RedirectStandardOutput "$ssl\srv.out" -RedirectStandardError "$ssl\srv.err"
+          Start-Sleep 3
+          "fixture alive in drive step: " + (Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/x/y/releases').StatusCode
           $ErrorActionPreference = 'Stop'
           $script:rootFor = $null
           New-Item -ItemType Directory -Force shots | Out-Null
