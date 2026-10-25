@@ -210,6 +210,15 @@ jobs:
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
             return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
           }
+          function DumpNames($scope, $tag) {
+            # Evidence for name-miss failures: what UIA actually sees.
+            try {
+              $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              $names = @()
+              foreach ($el in $all) { $n = $el.Current.Name; if ($n) { $names += $n }; if ($names.Count -ge 40) { break } }
+              "UIA names at ${tag}: $($names -join ' | ')"
+            } catch { "UIA name dump failed at ${tag}: $($_.Exception.Message)" }
+          }
           function AssertAlive($tag) {
             $p.Refresh()
             if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" }
@@ -427,7 +436,23 @@ jobs:
             Start-Sleep 1
             if ((FindNamed 'Apps' $win2) -ne $null) { $found = $true; break }
           }
-          if (-not $found) { Shot 'english-missing'; throw 'English nav label not found after switching back' }
+          if (-not $found) {
+            # The page can be fully re-localized (Settings renders English)
+            # while the collapsed nav pane's item names go stale in UIA (run
+            # 40203139396: app alive, English UI, 'Apps' missing 15s). Dump
+            # what UIA sees, refind the window, open the pane to force the
+            # names live, and re-poll - loudly, never silently.
+            DumpNames $win2 'english-restore-first-poll'
+            $win2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond2)
+            $burger = FindNamed 'Open Navigation' $win2
+            if ($burger -ne $null) { try { $burger.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {}; Start-Sleep 2 }
+            foreach ($w in 1..10) {
+              Start-Sleep 1
+              if ((FindNamed 'Apps' $win2) -ne $null) { $found = $true; break }
+            }
+            if ($found) { "WARNING: English nav names needed pane-open recovery after the language restore (see the UIA dump above)" }
+          }
+          if (-not $found) { DumpNames $win2 'english-restore-final'; Shot 'english-missing'; throw 'English nav label not found after switching back' }
           Shot '17-back-to-english'
           $savedSettings = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw
           if ($savedSettings -notmatch '"Language"\s*:\s*"en"') { throw 'language not persisted back to en' }
@@ -865,7 +890,7 @@ jobs:
           Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
-          if ((FindNamed 'Settings' $win3) -eq $null) { Shot 'language-english-restore'; throw 'English nav label missing after restore' }
+          if ((FindNamed 'Settings' $win3) -eq $null) { DumpNames $win3 'english-restore-after-french'; Shot 'language-english-restore'; throw 'English nav label missing after restore' }
           'French language selection verified'
 
           # Full filter dialog (AppsFilter): a name filter narrows the list;
