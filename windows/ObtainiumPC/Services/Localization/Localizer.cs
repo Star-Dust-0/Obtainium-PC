@@ -35,8 +35,12 @@ public static class Localizer
     public static void ApplyToItems(System.Collections.Generic.IList<object> items)
     {
         foreach (var item in items)
-            if (item is NavigationViewItem nvi && nvi.Content is string)
-                Translate(nvi);
+            if (item is NavigationViewItem nvi && nvi.Content is string s)
+            {
+                var after = FromOriginal(nvi, s);
+                Logging.AppLogger.Info($"apply-items nvi tag={nvi.Tag} [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
+                nvi.Content = after;
+            }
     }
 
     private static void Walk(DependencyObject parent)
@@ -123,8 +127,13 @@ public static class Localizer
                 if (ib.Message is string ibm && !string.IsNullOrEmpty(ibm)) ib.Message = FromOriginal(ib, ibm);
                 break;
             case NavigationViewItem { Content: string } nvi:
-                nvi.Content = FromOriginal(nvi, (string)nvi.Content);
+            {
+                var before = (string)nvi.Content;
+                var after = FromOriginal(nvi, before);
+                Logging.AppLogger.Info($"walk-nvi tag={nvi.Tag} [{before}] -> [{after}] lang={Loc.ResolvedLanguage}");
+                nvi.Content = after;
                 break;
+            }
             case HyperlinkButton { Content: string } hb:
                 hb.Content = FromOriginal(hb, (string)hb.Content);
                 break;

@@ -124,14 +124,24 @@ namespace ObtainiumPC
         // pages are recreated from their XAML literals by re-navigation.
         public void ApplyLocalization()
         {
-            Services.Localization.Localizer.Apply(NavView);
-            // The tree walk only reaches realized visuals; nav item containers
-            // can be unrealized or mid re-template after the flow-direction
-            // flip, so translate the persistent item objects too (ui-smoke:
-            // switching back to English left the nav labels in Arabic while
-            // the re-navigated page was already English).
+            try
+            {
+            // Translate the persistent item objects first: the tree walk only
+            // reaches realized visuals; nav item containers can be unrealized
+            // or mid re-template after the flow-direction flip, so the walk
+            // alone can miss them and leave stale labels after a language
+            // switch (ui-smoke scenario 17 evidence).
             Services.Localization.Localizer.ApplyToItems(NavView.MenuItems);
             Services.Localization.Localizer.ApplyToItems(NavView.FooterMenuItems);
+            Services.Localization.Localizer.Apply(NavView);
+            var dbg = new System.Text.StringBuilder("apply-localization nav-items end state: ");
+            foreach (var mi in NavView.MenuItems)
+                if (mi is Microsoft.UI.Xaml.Controls.NavigationViewItem nvi2)
+                    dbg.Append($"[{nvi2.Tag}]={nvi2.Content}; ");
+            foreach (var mi in NavView.FooterMenuItems)
+                if (mi is Microsoft.UI.Xaml.Controls.NavigationViewItem nvi3)
+                    dbg.Append($"[{nvi3.Tag}]={nvi3.Content}; ");
+            Services.Logging.AppLogger.Info(dbg.ToString());
             var current = NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem;
             var pageType = current?.Tag switch
             {
@@ -145,6 +155,12 @@ namespace ObtainiumPC
             };
             if (pageType != null)
                 ContentFrame.Navigate(pageType);
+            }
+            catch (System.Exception ex)
+            {
+                Services.Logging.AppLogger.Error("ApplyLocalization failed", ex);
+                throw;
+            }
         }
 
         private void NavView_Loaded(object sender, RoutedEventArgs e)
