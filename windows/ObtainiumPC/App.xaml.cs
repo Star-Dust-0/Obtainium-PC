@@ -93,8 +93,36 @@ namespace ObtainiumPC
             Updater = new AppUpdateService(Settings);
             Services.Logging.AppLogger.PurgeOld();
             TrackedApps = await Store.LoadAsync();
+            HandleFirstRun();
             ReconcileExternalUninstalls();
             Initialized = true;
+        }
+
+        // lib/main.dart first-run handling: register Obtainium-PC itself so it
+        // updates through its own pipeline (see SelfUpdate).
+        private static void HandleFirstRun()
+        {
+            try
+            {
+                if (Settings.FirstRunHandled) return;
+                string? osName = null;
+                try
+                {
+                    osName = Services.Detection.InstalledAppsService.ListInstalledApps()
+                        .FirstOrDefault(i => string.Equals(i.DisplayName, Services.Updates.SelfUpdate.OwnName,
+                            StringComparison.OrdinalIgnoreCase))?.DisplayName;
+                }
+                catch { }
+                var added = Services.Updates.SelfUpdate.EnsureTracked(
+                    TrackedApps, Services.Updates.SelfUpdate.RunningVersion(), osName);
+                Settings.FirstRunHandled = true;
+                Settings.Save();
+                if (added != null) _ = SaveAppsAsync();
+            }
+            catch (Exception ex)
+            {
+                Services.Logging.AppLogger.Warn("first-run self registration failed", ex);
+            }
         }
 
         // lib/providers/apps_provider_lifecycle.dart reconcileInstallStatus at

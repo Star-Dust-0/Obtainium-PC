@@ -12,6 +12,8 @@ public sealed class AppSettings
     public string? GlobalVersionExtractionRegEx { get; set; }
     public string? GlobalMatchGroupToUse { get; set; }
     public string? GlobalAssetFilterRegEx { get; set; }
+    // lib/main.dart checkAndFlipFirstRun: first run registers the app itself.
+    public bool FirstRunHandled { get; set; }
     public bool HideDowngrades { get; set; }
     public int MinimumUpdateAgeDays { get; set; }
     public int UpdateIntervalMinutes { get; set; } = 360;

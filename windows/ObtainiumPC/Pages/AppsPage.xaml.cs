@@ -405,6 +405,11 @@ base.OnNavigatedTo(e);
                 }
                 picks.Add((app, assets[picked]));
             }
+            // Upstream moves Obtainium itself to the end of the install line:
+            // its own installer closes this app, so it is launched only after
+            // every other app has been downloaded and handed to its installer.
+            picks = Services.Updates.SelfUpdate.OrderSelfLast(picks, p => p.App);
+            string? selfInstallPath = null;
             // One download pipeline per app; errors land in results per app.
             async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress)
             {
@@ -421,7 +426,11 @@ base.OnNavigatedTo(e);
                 // Same per-asset installability gate as the detail page: an
                 // Android package never reaches the installer.
                 if (Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
-                    dlSource?.SupportsInstall, asset.Key)) DownloadService.OpenInstaller(path);
+                    dlSource?.SupportsInstall, asset.Key))
+                {
+                    if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
+                    else DownloadService.OpenInstaller(path);
+                }
             }
             // lib/providers/apps_provider_install.dart:1205 parallelDownloads
             // (default true): bulk downloads run concurrently when allowed;
@@ -479,7 +488,9 @@ base.OnNavigatedTo(e);
                     }
                 }
             }
+            // Persist before handing over to our own installer (it closes this app).
             await App.SaveAppsAsync();
+            if (selfInstallPath != null) DownloadService.OpenInstaller(selfInstallPath);
             ReloadRows();
             ExitSelection();
             var summary = new ThemedContentDialog
