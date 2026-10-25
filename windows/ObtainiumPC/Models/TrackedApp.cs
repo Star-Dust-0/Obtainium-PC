@@ -16,6 +16,15 @@ public sealed class TrackedApp
     [JsonPropertyName("author")] public string Author { get; set; } = "";
     [JsonPropertyName("name")] public string Name { get; set; } = "";
     [JsonPropertyName("installedVersion")] public string? InstalledVersion { get; set; }
+    // External-uninstall reconcile provenance (lib/providers/
+    // apps_provider_lifecycle.dart reconcileInstallStatus): how the recorded
+    // install was established - "os" (registry-detected; the exact matched
+    // DisplayName is kept in OsMatchedName) or "manual" (mark-installed /
+    // mark-updated bookkeeping). null on legacy records; only "os" records
+    // are eligible for external-uninstall clearing, and only when the exact
+    // recorded identity verifiably disappears with a fully successful probe.
+    [JsonPropertyName("installedVersionSource")] public string? InstalledVersionSource { get; set; }
+    [JsonPropertyName("osMatchedName")] public string? OsMatchedName { get; set; }
     [JsonPropertyName("latestVersion")] public string? LatestVersion { get; set; }
 
     // The original schema stores asset lists and settings as JSON-encoded strings

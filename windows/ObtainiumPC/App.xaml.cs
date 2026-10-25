@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using ObtainiumPC.Models;
@@ -88,7 +89,53 @@ namespace ObtainiumPC
             Updater = new AppUpdateService(Settings);
             Services.Logging.AppLogger.PurgeOld();
             TrackedApps = await Store.LoadAsync();
+            ReconcileExternalUninstalls();
             Initialized = true;
+        }
+
+        // lib/providers/apps_provider_lifecycle.dart reconcileInstallStatus at
+        // app load: a tracked app whose OS-confirmed install verifiably
+        // disappeared from the registry gets its recorded installedVersion
+        // cleared (it renders as not-installed again). Conservative Windows
+        // rules live in ExternalUninstallService; a partial/failed probe or
+        // any ambiguity preserves the recorded state. The destructive
+        // upstream half (removeOnExternalUninstall deleting the tracking
+        // record) is intentionally NOT implemented.
+        private static void ReconcileExternalUninstalls()
+        {
+            try
+            {
+                var probe = Services.Detection.InstalledAppsService.ProbeInstalledApps();
+                if (!probe.AllHivesRead) return; // incomplete probe proves nothing
+                bool DetectionAllowed(Models.TrackedApp app)
+                {
+                    if (app.GetSettingBool("trackOnly")) return false;
+                    if (!app.GetSettingBool("versionDetection", true)) return false;
+                    try
+                    {
+                        if (Sources.SourceCatalog.TryResolve(app.Url, Settings, out var src)
+                            && src is { VersionDetectionDisallowed: true }) return false;
+                    }
+                    catch { return false; }
+                    return true;
+                }
+                var names = probe.Apps.Select(a => a.DisplayName).ToList();
+                var removed = Services.Detection.ExternalUninstallService
+                    .FindExternallyRemoved(TrackedApps, names, DetectionAllowed);
+                if (removed.Count == 0) return;
+                foreach (var app in TrackedApps.Where(a => removed.Contains(a.Id)))
+                {
+                    Services.Logging.AppLogger.Info(
+                        $"External uninstall detected for {app.FinalName} ({app.Id}): recorded install cleared");
+                    app.InstalledVersion = null;
+                }
+                _ = SaveAppsAsync();
+            }
+            catch (Exception ex)
+            {
+                // A reconcile failure must never touch recorded state.
+                Services.Logging.AppLogger.Error("External-uninstall reconcile failed", ex);
+            }
         }
 
         public static async Task SaveAppsAsync()

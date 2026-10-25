@@ -126,6 +126,14 @@ public sealed class AppUpdateService
             // cosmetic differences (leading "v", packaging qualifiers) and
             // adopt latestVersion when the real version is the same release.
             // Without this, "8.9.8.1" vs tag "v8.9.8.1" shows a false update.
+            if (detected != null)
+            {
+                // A Strong+ registry match confirms the install at OS level:
+                // record provenance + the exact matched identity for the
+                // external-uninstall reconcile (ExternalUninstallService).
+                currentApp.InstalledVersionSource = "os";
+                currentApp.OsMatchedName = detected.Info.DisplayName;
+            }
             if (realInstalled != null && currentApp.InstalledVersion == null)
                 currentApp.InstalledVersion = realInstalled;
             var corrected = Versioning.VersionService.ReconcileTrackedVersion(

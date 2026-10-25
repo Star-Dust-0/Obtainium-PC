@@ -313,6 +313,8 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             // install already matches the latest version is a no-op.
             if (_app.InstalledVersion == _app.LatestVersion) return;
             _app.InstalledVersion = _app.LatestVersion;
+            _app.InstalledVersionSource = "manual";
+            _app.OsMatchedName = null;
             await App.SaveAppsAsync();
             Render();
         }
@@ -321,6 +323,8 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
         {
             if (_app == null) return;
             _app.InstalledVersion = _app.LatestVersion;
+            _app.InstalledVersionSource = "manual";
+            _app.OsMatchedName = null;
             await App.SaveAppsAsync();
             PostDownloadPanel.Visibility = Visibility.Collapsed;
             Render();
@@ -344,6 +348,8 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             if (match is not { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong })
                 return false;
             if (string.IsNullOrEmpty(match.Info.DisplayVersion)) return false;
+            _app.InstalledVersionSource = "os";
+            _app.OsMatchedName = match.Info.DisplayName;
             var realInstalled = match.Info.DisplayVersion;
             var before = _app.InstalledVersion;
             if (before == null) _app.InstalledVersion = realInstalled;
@@ -472,6 +478,8 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             if (_app == null) return;
             // lib/pages/app.dart resetInstallStatus.
             _app.InstalledVersion = null;
+            _app.InstalledVersionSource = null;
+            _app.OsMatchedName = null;
             await App.SaveAppsAsync();
             Render();
         }

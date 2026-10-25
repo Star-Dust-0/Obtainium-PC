@@ -22,6 +22,26 @@ public static class InstalledAppsService
 
     private static string Normalize(string name) => NonAlnum.Replace(name.ToLowerInvariant(), "");
 
+    public static string NormalizeName(string name) => Normalize(name);
+
+    public sealed record InstalledAppsProbe(IReadOnlyList<InstalledAppInfo> Apps, bool AllHivesRead);
+
+    /// <summary>
+    /// Lists installed programs and reports whether EVERY hive was readable.
+    /// External-uninstall decisions require a complete probe: a DisplayName
+    /// missing from a partial listing proves nothing.
+    /// </summary>
+    public static InstalledAppsProbe ProbeInstalledApps()
+    {
+        if (!OperatingSystem.IsWindows()) return new InstalledAppsProbe(new List<InstalledAppInfo>(), false);
+        var results = new List<InstalledAppInfo>();
+        var ok = true;
+        ok &= ReadHive(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ok &= ReadHive(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ok &= ReadHive(Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        return new InstalledAppsProbe(results, ok);
+    }
+
     public static IReadOnlyList<InstalledAppInfo> ListInstalledApps()
     {
         var results = new List<InstalledAppInfo>();
@@ -32,12 +52,12 @@ public static class InstalledAppsService
         return results;
     }
 
-    private static void ReadHive(RegistryKey root, string path, List<InstalledAppInfo> results)
+    private static bool ReadHive(RegistryKey root, string path, List<InstalledAppInfo> results)
     {
         try
         {
             using var key = root.OpenSubKey(path);
-            if (key == null) return;
+            if (key == null) return false;
             foreach (var subName in key.GetSubKeyNames())
             {
                 try
@@ -55,8 +75,9 @@ public static class InstalledAppsService
                 }
                 catch { /* unreadable subkey - skip */ }
             }
+            return true;
         }
-        catch { /* hive unavailable - skip */ }
+        catch { /* hive unavailable - incomplete probe */ return false; }
     }
 
     public enum MatchConfidence { None, Weak, Strong, Exact }
