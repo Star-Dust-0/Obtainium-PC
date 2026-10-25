@@ -47,7 +47,7 @@ public static class Localizer
             // dynamic texts (versions, counts) are never frozen.
             if (!IsKey(current)) return current;
             holder.Text = current;
-            holder.Lang = Loc.Language;
+            holder.Lang = Loc.ResolvedLanguage;
         }
         else if (current == Loc.TranslateAs(holder.Text, holder.Lang))
         {
@@ -56,13 +56,13 @@ public static class Localizer
             // under the current language (this is what makes switching
             // back from Arabic to English work: the Arabic text is not a
             // key, so without the remembered language it looked dynamic).
-            holder.Lang = Loc.Language;
+            holder.Lang = Loc.ResolvedLanguage;
         }
         else if (IsKey(current))
         {
             // Dynamic label moved to another known key (e.g. Enable/Disable).
             holder.Text = current;
-            holder.Lang = Loc.Language;
+            holder.Lang = Loc.ResolvedLanguage;
         }
         else
         {

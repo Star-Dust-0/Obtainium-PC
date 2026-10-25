@@ -14,9 +14,6 @@ namespace ObtainiumPC.Pages
         private static readonly (string Label, string Value)[] ThemeOptions =
             { ("System default", "system"), ("Light", "light"), ("Dark", "dark") };
 
-        private static readonly (string Label, string Value)[] LanguageOptions =
-            { ("English", "en"), ("العربية", "ar") };
-
         private static readonly (string Label, int Minutes)[] IntervalOptions =
             { ("15 minutes", 15), ("30 minutes", 30), ("1 hour", 60), ("6 hours", 360), ("12 hours", 720), ("1 day", 1440) };
 
@@ -57,8 +54,17 @@ namespace ObtainiumPC.Pages
             GroupByCombo.SelectedIndex = App.Settings.GroupBy == "category" ? 1 : App.Settings.GroupBy == "source" ? 2 : 0;
             CollapseGroupsToggle.IsOn = App.Settings.CollapseGroupsOnStartup;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
-            foreach (var (label, value) in LanguageOptions) LanguageCombo.Items.Add(new ComboBoxItem { Content = label, Tag = value });
-            LanguageCombo.SelectedIndex = App.Settings.Language == "ar" ? 1 : 0;
+            // Upstream _LocaleDropdown: "Follow system" + supportedLocales.
+            LanguageCombo.Items.Add(new ComboBoxItem { Content = Services.Localization.Loc.T("Follow system"), Tag = "" });
+            var langIdx = 0;
+            var li = 1;
+            foreach (var (tag, name) in Services.Localization.LocTranslations.SupportedLanguages)
+            {
+                LanguageCombo.Items.Add(new ComboBoxItem { Content = name, Tag = tag });
+                if (App.Settings.Language == tag) langIdx = li;
+                li++;
+            }
+            LanguageCombo.SelectedIndex = langIdx;
 
             foreach (var (label, minutes) in IntervalOptions) UpdateIntervalCombo.Items.Add(new ComboBoxItem { Content = label, Tag = minutes });
             var ii = Array.FindIndex(IntervalOptions, o => o.Minutes == s.UpdateIntervalMinutes);

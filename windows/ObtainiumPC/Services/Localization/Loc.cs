@@ -5,16 +5,37 @@ namespace ObtainiumPC.Services.Localization;
 
 /// <summary>
 /// Gettext-style localization: the English literal is the key; untranslated
-/// strings pass through unchanged. Languages: en (default), ar (formal
-/// Arabic, RTL). Persisted in AppSettings.Language.
+/// strings pass through unchanged. All upstream languages
+/// (assets/translations/*.json, lib/main.dart supportedLocales) are reused
+/// mechanically via the generated LocTranslations table; port-only Arabic
+/// strings live in the ArOverlay below and take precedence for ar.
+/// "" means follow the system locale (upstream forcedLocale = null);
+/// unresolved/unknown locales fall back to English. RTL: ar, fa.
 /// </summary>
 public static class Loc
 {
-    public static string Language = "en";
+    /// "" = follow system (upstream forcedLocale null), else a supported tag.
+    public static string Language = "";
 
     public static event Action? Changed;
 
-    public static bool IsRtl => Language == "ar";
+    public static bool IsRtl => ResolvedLanguage is "ar" or "fa";
+
+    /// The effective language tag after system-locale resolution.
+    public static string ResolvedLanguage =>
+        Language.Length > 0 ? Language : SystemLanguage();
+
+    private static string SystemLanguage()
+    {
+        try
+        {
+            var tag = Windows.System.UserProfile.GlobalizationPreferences.Languages.Count > 0
+                ? Windows.System.UserProfile.GlobalizationPreferences.Languages[0]
+                : null;
+            return LocaleResolution.Resolve(tag);
+        }
+        catch { return "en"; }
+    }
 
     public static void SetLanguage(string language)
     {
@@ -23,15 +44,22 @@ public static class Loc
         Changed?.Invoke();
     }
 
-    public static string T(string en) =>
-        Language == "ar" && Ar.TryGetValue(en, out var ar) ? ar : en;
+    public static string T(string en) => TranslateAs(en, ResolvedLanguage);
 
     /// Translate a key as if the given language were active (used to detect
     /// an element still showing the previous language's translation).
-    public static string TranslateAs(string en, string language) =>
-        language == "ar" && Ar.TryGetValue(en, out var ar) ? ar : en;
+    public static string TranslateAs(string en, string language)
+    {
+        if (language.Length == 0 || language == "en") return en;
+        if (language == "ar" && ArOverlay.TryGetValue(en, out var ar)) return ar;
+        if (LocTranslations.ByLang.TryGetValue(language, out var dict)
+            && dict.TryGetValue(en, out var v)) return v;
+        return en;
+    }
 
-    private static readonly Dictionary<string, string> Ar = new()
+    // Port-only Arabic strings (UI text with no upstream en.json entry).
+    // Upstream ar.json entries come from the generated table instead.
+    private static readonly Dictionary<string, string> ArOverlay = new()
     {
         // Navigation + page titles
         ["Apps"] = "التطبيقات",
