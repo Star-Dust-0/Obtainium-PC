@@ -1084,17 +1084,28 @@ jobs:
           Start-Sleep 2
           if ((FindNamed 'Filter' $win3) -eq $null) { Shot 'nav-back-failed'; throw 'detail Back button did not return to the Apps list' }
           # Re-open the same detail, then re-tap the already-selected Apps item.
-          $nppRow = FindNamed 'Notepad++' $win3
-          $nppItem = $nppRow
-          while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
-          $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
-          try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
-          $nr = $nppTarget.Current.BoundingRectangle
-          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($nr.X + $nr.Width/2), [int]($nr.Y + $nr.Height/2))
-          Start-Sleep -Milliseconds 300
-          [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
-          Start-Sleep 3
-          if ((FindNamed 'Remove' $win3) -eq $null) { Shot 'nav-reopen-failed'; throw 'detail page did not reopen for the re-tap check' }
+          # GoBack re-creates the Apps page (uncached), so groups are back to
+          # their collapsed default - converge the group open, then click and
+          # retry until the detail actually renders.
+          $reopened = $false
+          foreach ($try in 1..3) {
+            foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+            $nppRow = FindNamed 'Notepad++' $win3
+            if ($nppRow -eq $null) { continue }
+            $nppItem = $nppRow
+            while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
+            $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
+            try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+            $nr = $nppTarget.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($nr.X + $nr.Width/2), [int]($nr.Y + $nr.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 3
+            if ((FindNamed 'Remove' $win3) -ne $null) { $reopened = $true; break }
+          }
+          if (-not $reopened) { Shot 'nav-reopen-failed'; throw 'detail page did not reopen for the re-tap check' }
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
           if ((FindNamed 'Filter' $win3) -eq $null) { Shot 'nav-retap-failed'; throw 're-tapping the selected Apps nav item did not return to the list' }
