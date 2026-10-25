@@ -92,7 +92,7 @@ public sealed class Apk4FreeSource : AppSourceBase
             foreach (var link in htmlDlPage.DocumentNode.SelectNodes("//a") ?? Enumerable.Empty<HtmlNode>())
             {
                 var href = link.GetAttributeValue("href", null)?.Trim();
-                if (href == null || !AssetFilterService.IsAppOrContainerFile(href)) continue;
+                if (href == null || !AssetFilterService.IsApkOrContainerFile(new Uri(new Uri("https://apk4free.net"), href).AbsolutePath)) continue;
                 var linkText = link.InnerText.Trim();
                 if (linkText.Length == 0) linkText = href.Split('/').Last();
                 apkUrls.Add(new KeyValuePair<string, string>(linkText, href));

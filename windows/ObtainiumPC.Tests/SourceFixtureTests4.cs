@@ -61,7 +61,7 @@ public class TrackOnlyStoreFixtureTests
     [Fact]
     public async Task Aptoide_reads_app_id_then_api_details()
     {
-        var store = "https://cool-app.en.aptoide.com";
+        var store = "https://cool-app.en.aptoide.com/";
         var h = new FixtureHttpHandler()
             .Respond(store, """<script>{"app": {"id": 4242, "x": 1}}</script>""")
             .Respond("https://ws2.aptoide.com/api/7/getApp/app_id/4242", """
@@ -79,7 +79,7 @@ public class TrackOnlyStoreFixtureTests
     [Fact]
     public async Task Aptoide_missing_id_or_version_surface_distinct_errors()
     {
-        var store = "https://cool-app.en.aptoide.com";
+        var store = "https://cool-app.en.aptoide.com/";
         await Assert.ThrowsAsync<NoReleasesException>(() =>
             new AptoideSource(Http(new FixtureHttpHandler().Respond(store, "<html>no app here</html>"))).GetLatestAssetDetailsAsync(store, None));
         var noVer = new FixtureHttpHandler()
@@ -221,5 +221,21 @@ public class TrackOnlyStoreFixtureTests
         var page = "https://sj.qq.com/appdetail/com.cool.app";
         var h = new FixtureHttpHandler().Respond("https://a.app.qq.com/o/simple.jsp?pkgname=com.cool.app", "<html></html>");
         await Assert.ThrowsAsync<NoReleasesException>(() => new TencentSource(Http(h)).GetLatestAssetDetailsAsync(page, None));
+    }
+}
+
+public class TrackOnlyApkLinkRegressionTests
+{
+    [Fact]
+    public async Task Apk4Free_fallback_link_scan_keeps_apk_links_not_windows_installers()
+    {
+        var store = "https://apk4free.net/cool-app";
+        var h = new FixtureHttpHandler()
+            .Respond(store, "<html><div class=\"version\">1.2.3</div><a href=\"https://apk4free.net/cool-app/download/\">d</a></html>")
+            .Respond("https://apk4free.net/cool-app/download/",
+                "<html><a href=\"https://cdn.apk4free.net/files/cool-1.2.3.apk\">Cool</a><a href=\"/x/setup.exe\">exe</a></html>");
+        var d = await new Apk4FreeSource(FixtureHttpHandler.Client(h))
+            .GetLatestAssetDetailsAsync(store, new Dictionary<string, JsonElement>());
+        Assert.Equal("https://cdn.apk4free.net/files/cool-1.2.3.apk", Assert.Single(d.AssetUrls).Value);
     }
 }

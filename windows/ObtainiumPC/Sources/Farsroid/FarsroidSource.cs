@@ -72,6 +72,12 @@ public sealed class FarsroidSource : AppSourceBase
         {
             ["skipSort"] = JsonSerializer.SerializeToElement(true),
         };
+        // Farsroid hosts APK packages; the HTML link grabber otherwise keeps
+        // only Windows installers and would drop every link (track-only).
+        if (!(additionalSettings.TryGetValue("customLinkFilterRegex", out var clf)
+              && clf.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(clf.GetString())))
+            settingsWithSkipSort["customLinkFilterRegex"] =
+                JsonSerializer.SerializeToElement(@"\.(apk|xapk|apkm|apks)([?#]|$)");
         var apkLinks = _html.GrabLinksCommon(content, new Uri(apiUrl), settingsWithSkipSort)
             .Select(l => new KeyValuePair<string, string>(new Uri(l.Key).AbsolutePath.Split('/').Last(), l.Key))
             .ToList();
