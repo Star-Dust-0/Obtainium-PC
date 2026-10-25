@@ -36,13 +36,18 @@
                     <AppBarButton x:Name="MarkUpdatedAction" Label="Mark updated" Click="MarkTrackOnly_Click" Visibility="Collapsed">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon>
                     </AppBarButton>
-                    <!-- Freshly-shown already-disabled AppBarButtons keep the
-                         enabled visual state (stale CommonStates on first
-                         template, same family as 40139280718; 28h pixel
-                         review). A baked-disabled twin is swapped in instead
-                         of toggling IsEnabled on a newly-visible button. -->
-                    <AppBarButton x:Name="MarkUpdatedDisabledAction" Label="Mark updated" Visibility="Collapsed" IsEnabled="False">
-                        <AppBarButton.Icon><FontIcon Glyph="&#xE73E;"/></AppBarButton.Icon>
+                    <!-- A freshly-shown disabled AppBarButton keeps the
+                         enabled visual state whether IsEnabled was set in
+                         code or baked in XAML while collapsed (stale
+                         CommonStates on first template, same family as
+                         40139280718; 28h pixel review on run 40186712354:
+                         label luminance 243 vs 116 for a real disabled
+                         button). Local Foreground values beat visual-state
+                         setters, so the disabled twin pins the disabled
+                         brush explicitly on label and icon. -->
+                    <AppBarButton x:Name="MarkUpdatedDisabledAction" Label="Mark updated" Visibility="Collapsed" IsEnabled="False"
+                                  Foreground="{ThemeResource TextFillColorDisabledBrush}">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE73E;" Foreground="{ThemeResource TextFillColorDisabledBrush}"/></AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton Label="Options" Click="Options_Click" ToolTipService.ToolTip="Per-app options">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE70F;"/></AppBarButton.Icon>

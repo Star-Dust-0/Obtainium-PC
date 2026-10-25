@@ -138,10 +138,12 @@ namespace ObtainiumPC.Pages
             // installedVersion = latestVersion, no download, no install). Same
             // hasAction gating: disabled once the recorded install matches
             // latest; reset-install takes over from there (lib/pages/app.dart:600).
-            // Disabled-looking mark states use the baked-disabled twin: a
-            // freshly-shown button with IsEnabled set in code keeps the
-            // enabled visual state (stale CommonStates on first template,
-            // same family as 40139280718; 28h pixel review). The actionable
+            // Disabled-looking mark states use the baked-disabled twin with
+            // an explicitly pinned disabled Foreground: a freshly-shown
+            // button keeps the enabled visual state regardless of when
+            // IsEnabled was set (stale CommonStates on first template, same
+            // family as 40139280718; 28h pixel review on run 40186712354).
+            // The actionable
             // variants are enabled by construction and only show when
             // actionEnabled; MarkTrackOnly_Click still no-ops when the
             // recorded install matches latest.
