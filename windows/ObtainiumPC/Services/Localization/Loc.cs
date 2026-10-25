@@ -132,7 +132,7 @@ public static class Loc
 
         // Source errors (SourceErrorText)
         ["Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). Turn on track-only for this app to follow its version without installing."] =
-            "تم العثور على إصدارات، لكن لا يحتوي أيٌّ منها على ملف تثبيت لنظام Windows (‎.exe أو .msi أو .msix أو .appx أو .appinstaller). فعّل «التتبع فقط» لهذا التطبيق لمتابعة إصداره دون تثبيته.",
+            "تم العثور على إصدارات، لكن لا يحتوي أيٌّ منها على ملف تثبيت لنظام Windows (\u200E.exe\u060C \u200E.msi\u060C \u200E.msix\u060C \u200E.appx\u060C \u200E.appinstaller\u200E). فعّل «التتبع فقط» لهذا التطبيق لمتابعة إصداره دون تثبيته.",
 
         ["Server request failed (HTTP {0})"] = "فشل طلب الخادم (HTTP {0})",
         ["Invalid URL for source {0}"] = "رابط غير صالح للمصدر {0}",
