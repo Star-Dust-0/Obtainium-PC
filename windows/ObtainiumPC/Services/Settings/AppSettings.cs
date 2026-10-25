@@ -64,6 +64,16 @@ public sealed class AppSettings
     public string? GitLabPersonalAccessToken { get; set; }
     public string? ForgejoPersonalAccessToken { get; set; }
 
+    // lib/providers/settings_provider.dart exportSettings (default 1, values
+    // outside 0-2 reset to 1): the manual export level AND the level
+    // auto-export-on-changes uses. Level 2 is the only one carrying secrets.
+    private int _exportSettingsLevel = 1;
+    public int ExportSettingsLevel
+    {
+        get => _exportSettingsLevel;
+        set => _exportSettingsLevel = value is > 2 or < 0 ? 1 : value;
+    }
+
     // Update-health detection thresholds (upstream defaults).
     public int UpdateHealthStaleReleaseDays { get; set; } = 180;
     public int UpdateHealthStaleVersionDays { get; set; } = 180;

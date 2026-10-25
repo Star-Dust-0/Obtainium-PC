@@ -14,6 +14,17 @@ namespace ObtainiumPC.Pages
         public ImportExportPage()
         {
             this.InitializeComponent();
+            // Persisted like upstream settings_provider exportSettings; the
+            // same level drives auto-export on changes.
+            ExportLevelCombo.SelectedIndex = App.Settings.ExportSettingsLevel;
+            ExportLevelCombo.SelectionChanged += (_, _) =>
+            {
+                if (ExportLevelCombo.SelectedIndex >= 0)
+                {
+                    App.Settings.ExportSettingsLevel = ExportLevelCombo.SelectedIndex;
+                    App.Settings.Save();
+                }
+            };
             Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
             Loaded += (s2, e2) =>
             {

@@ -38,3 +38,36 @@ jobs:
         with:
           name: ObtainiumPC-Setup-win-x64
           path: installer-out/
+      - name: Installer smoke (install / upgrade-in-place / uninstall registration, user data preserved)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem installer-out\*.exe | Select-Object -First 1
+          if ($null -eq $setup) { throw 'installer exe missing' }
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC'
+          $data = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          # The /VERYSILENT flags drive OUR OWN packaging in CI; this is the
+          # harness installing our product, unrelated to the app's
+          # interactive-only boundary for downloaded third-party installers.
+          & $setup.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "install exit $LASTEXITCODE" }
+          if (-not (Test-Path (Join-Path $dir 'ObtainiumPC.exe'))) { throw 'exe missing after install' }
+          $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          if ($null -eq $reg) { throw 'uninstall registry entry missing after install' }
+          "installed at $dir; registered version: $($reg.DisplayVersion)"
+          New-Item -ItemType Directory -Force $data | Out-Null
+          Set-Content (Join-Path $data 'settings.json') '{"Theme":2,"Language":"en"}'
+          Set-Content (Join-Path $data 'apps.json') '[]'
+          & $setup.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "upgrade-in-place exit $LASTEXITCODE" }
+          if ((Get-Content (Join-Path $data 'settings.json') -Raw) -notmatch '"Theme":2') { throw 'user settings lost on upgrade-in-place' }
+          if (-not (Test-Path (Join-Path $data 'apps.json'))) { throw 'user store lost on upgrade-in-place' }
+          'upgrade-in-place preserved user data'
+          $unins = Join-Path $dir 'unins000.exe'
+          if (-not (Test-Path $unins)) { throw 'uninstaller missing' }
+          & $unins /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "uninstall exit $LASTEXITCODE" }
+          if (Test-Path (Join-Path $dir 'ObtainiumPC.exe')) { throw 'exe still present after uninstall' }
+          if (-not (Test-Path (Join-Path $data 'settings.json'))) { throw 'user data removed by uninstall' }
+          $reg2 = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          if ($null -ne $reg2) { throw 'uninstall registry entry left behind' }
+          'uninstall clean: program files and registry entry removed, user data preserved'

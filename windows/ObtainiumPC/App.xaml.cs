@@ -196,7 +196,17 @@ namespace ObtainiumPC
             {
                 try
                 {
-                    var json = Services.Store.AppStore.Export(TrackedApps.ToList(), null, 0, "0.1.0");
+                    // Upstream auto-export uses the persisted exportSettings
+                    // level (apps_provider_import_export.dart generateExportJSON);
+                    // AppStore.Export strips credentials below level 2.
+                    var level = Settings.ExportSettingsLevel;
+                    System.Collections.Generic.Dictionary<string, object?>? settings = null;
+                    if (level > 0)
+                    {
+                        var el = System.Text.Json.JsonSerializer.SerializeToElement(Settings);
+                        settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
+                    }
+                    var json = Services.Store.AppStore.Export(TrackedApps.ToList(), settings, level, "0.1.0");
                     System.IO.File.WriteAllText(Settings.AutoExportPath!, json);
                 }
                 catch (Exception ex)

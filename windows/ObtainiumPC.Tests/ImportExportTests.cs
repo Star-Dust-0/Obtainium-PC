@@ -84,12 +84,32 @@ public class ImportExportTests
         Assert.DoesNotContain("gh-secret", stripped);
         Assert.DoesNotContain("gl-secret", stripped);
         Assert.DoesNotContain("fj-secret", stripped);
-        Assert.Contains(""Theme"", stripped);
+        Assert.Contains("\"Theme\"", stripped);
+        // Per-app source-option secrets must be absent from the raw emitted
+        // document too - not only after a re-import (SampleApp carries
+        // github-creds = user:secret in its additionalSettings).
+        Assert.DoesNotContain("user:secret", stripped);
+        Assert.DoesNotContain("github-creds", stripped);
 
         var withSecrets = AppStore.Export(new[] { SampleApp() }, settings, 2, "1.0.0-test");
         Assert.Contains("gh-secret", withSecrets);
         Assert.Contains("gl-secret", withSecrets);
         Assert.Contains("fj-secret", withSecrets);
+    }
+
+    [Fact]
+    public void Export_level_setting_defaults_to_stripped_and_clamps_like_upstream()
+    {
+        // lib/providers/settings_provider.dart exportSettings: default 1
+        // (apps + settings, credentials stripped), out-of-range resets to 1.
+        // Auto-export uses this level, so a default auto-export can never
+        // contain credentials; level 2 requires an explicit selection.
+        var s = new Services.Settings.AppSettings();
+        Assert.Equal(1, s.ExportSettingsLevel);
+        s.ExportSettingsLevel = 2; Assert.Equal(2, s.ExportSettingsLevel);
+        s.ExportSettingsLevel = 9; Assert.Equal(1, s.ExportSettingsLevel);
+        s.ExportSettingsLevel = -1; Assert.Equal(1, s.ExportSettingsLevel);
+        s.ExportSettingsLevel = 0; Assert.Equal(0, s.ExportSettingsLevel);
     }
 
     [Fact]
