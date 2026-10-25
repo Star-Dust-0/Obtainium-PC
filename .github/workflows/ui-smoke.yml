@@ -617,8 +617,21 @@ jobs:
           if ($obt -eq $null) { Shot 'track-only-app-missing'; throw 'deeplink-smoke-1 missing from apps.json' }
           if ([string]::IsNullOrEmpty($obt.latestVersion)) { Shot 'track-only-no-version'; throw 'track-only GitHub check did not resolve a version for the APK-only repo' }
           if ($obt.otherAssetUrls -notlike '*.apk*') { Shot 'track-only-no-apk'; throw 'APK assets not exposed for the track-only GitHub app' }
-          ClickPartial 'Obtainium' $win3 | Out-Null
+          # The group re-collapses when the refresh reloads the rows; expand it,
+          # then click the row by exact name (the title bar's 'Obtainium-PC'
+          # also starts with the prefix, so ClickPartial is ambiguous here).
+          ClickNamedIn 'GitHub' $win3
+          Start-Sleep 2
+          $obtRow2 = FindNamed 'Obtainium' $win3
+          if ($obtRow2 -eq $null) { Shot 'track-only-row-missing'; throw 'Obtainium row not found after expanding the GitHub group' }
+          try { $obtRow2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+            $r2 = $obtRow2.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r2.X + $r2.Width/2), [int]($r2.Y + $r2.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          }
           Start-Sleep 3; AssertAlive 'track-only-detail'
+          if ((FindNamed 'Options' $win3) -eq $null) { Shot 'track-only-detail-missing'; throw 'Obtainium detail page not reached' }
           Shot '28e-github-track-only-detail'
 
           # Manual download: the picker must offer the APK, the download must
