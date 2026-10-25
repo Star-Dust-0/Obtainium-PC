@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -17,13 +18,53 @@ namespace ObtainiumPC
             SystemBackdrop = new MicaBackdrop();
             // Below ~700px the Apps header controls can no longer all fit even
             // with the search box flexing; clamp instead of clipping them.
-            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
-            {
-                presenter.PreferredMinimumWidth = 700;
-                presenter.PreferredMinimumHeight = 480;
-            }
+            SetMinimumTrackSize();
             Activated += MainWindow_Activated;
         }
+
+        // OverlappedPresenter has no min-size API in this SDK; clamp via
+        // WM_GETMINMAXINFO instead (DPI-scaled physical pixels).
+        private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        private WndProcDelegate? _newWndProc;
+        private IntPtr _oldWndProc;
+        private const int WM_GETMINMAXINFO = 0x0024;
+        private const int GWLP_WNDPROC = -4;
+
+        private struct POINT { public int x; public int y; }
+        private struct MINMAXINFO
+        {
+            public POINT ptReserved;
+            public POINT ptMaxSize;
+            public POINT ptMaxPosition;
+            public POINT ptMinTrackSize;
+            public POINT ptMaxTrackSize;
+        }
+
+        private void SetMinimumTrackSize()
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            _newWndProc = WndProc;
+            _oldWndProc = SetWindowLongPtrW(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(_newWndProc));
+        }
+
+        private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+        {
+            if (msg == WM_GETMINMAXINFO)
+            {
+                var scale = GetDpiForWindow(hWnd) / 96.0;
+                var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+                mmi.ptMinTrackSize = new POINT { x = (int)(700 * scale), y = (int)(480 * scale) };
+                Marshal.StructureToPtr(mmi, lParam, false);
+            }
+            return CallWindowProcW(_oldWndProc, hWnd, msg, wParam, lParam);
+        }
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+        private static extern IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+        [DllImport("user32.dll", EntryPoint = "CallWindowProcW")]
+        private static extern IntPtr CallWindowProcW(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hWnd);
 
         private async void MainWindow_Activated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)
         {
