@@ -54,17 +54,26 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" ZoomMode="Disabled">
-        <StackPanel Orientation="Horizontal" Spacing="12" Padding="36,20,36,8" VerticalAlignment="Center">
+        <Grid ColumnSpacing="12" Padding="36,20,36,8" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="100"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
             <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
-            <Button x:Name="RefreshButton" ToolTipService.ToolTip="Check for updates" Click="Refresh_Click" VerticalAlignment="Center">
+            <Button Grid.Column="1" x:Name="RefreshButton" ToolTipService.ToolTip="Check for updates" Click="Refresh_Click" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE72C;" FontSize="14"/>
             </Button>
-            <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
-            <AutoSuggestBox x:Name="SearchBoxInline" PlaceholderText="Search apps" Width="220" MinWidth="140" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" Visibility="Collapsed"/>
-            <ToggleButton x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
-            <ComboBox x:Name="CategoryCombo" MinWidth="120" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
-            <ToggleButton x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
-        </StackPanel>
+            <ProgressRing Grid.Column="2" x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
+            <AutoSuggestBox Grid.Column="3" x:Name="SearchBoxInline" PlaceholderText="Search apps" MaxWidth="320" HorizontalAlignment="Stretch" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" Visibility="Collapsed"/>
+            <ToggleButton Grid.Column="4" x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="5" x:Name="CategoryCombo" MinWidth="120" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
+            <ToggleButton Grid.Column="6" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
+        </Grid>
         </ScrollViewer>
         <Grid x:Name="SearchRow" Grid.Row="1" Padding="36,0,36,8">
             <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>

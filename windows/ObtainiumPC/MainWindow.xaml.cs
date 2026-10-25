@@ -15,6 +15,13 @@ namespace ObtainiumPC
             this.InitializeComponent();
             Title = "Obtainium-PC";
             SystemBackdrop = new MicaBackdrop();
+            // Below ~700px the Apps header controls can no longer all fit even
+            // with the search box flexing; clamp instead of clipping them.
+            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            {
+                presenter.PreferredMinimumWidth = 700;
+                presenter.PreferredMinimumHeight = 480;
+            }
             Activated += MainWindow_Activated;
         }
 
