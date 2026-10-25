@@ -59,21 +59,6 @@ jobs:
           # it only raises the GitHub API rate limit for the live check.
           $settings = @{ UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json'); UpdateHealthFailedChecksCount = 1 }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
-          # Seed one log entry per level (numeric enum: Info=1, Warning=2,
-          # Error=3 - AppLogger uses default System.Text.Json enum handling) so
-          # the Logs page renders populated cards for the dark-theme capture.
-          # Dated ahead of the run on purpose: the Logs page renders
-          # newest-first inside a virtualized ItemsRepeater, and only realized
-          # (on-screen) cards exist in the UIA tree. Seeds at the bottom of the
-          # list proved unreachable for the UIA assert (two failed runs);
-          # top-of-list seeds are deterministic.
-          $now = (Get-Date).AddHours(2).ToString('o')
-          $logLines = @(
-            ('{{"Timestamp":"{0}","Level":1,"Message":"smoke seed info entry","Error":null}}' -f $now),
-            ('{{"Timestamp":"{0}","Level":2,"Message":"smoke seed warning entry","Error":null}}' -f $now),
-            ('{{"Timestamp":"{0}","Level":3,"Message":"smoke seed error entry","Error":"System.Exception: smoke seeded"}}' -f $now)
-          )
-          $logLines | Set-Content (Join-Path $dir 'logs.jsonl')
       - name: Launch and capture
         shell: pwsh
         run: |
@@ -562,6 +547,18 @@ jobs:
           # Populated Logs page in dark theme: seeded entries exercise the
           # per-entry card brush and level colors (the earlier Logs shots only
           # proved page chrome on an empty page).
+          # Append one entry per level (numeric enum: Info=1, Warning=2,
+          # Error=3) to the live log store. The Logs page orders by FILE
+          # position reversed, not by timestamp, so seeds must be the last
+          # lines written before the page loads to render at the top - the
+          # virtualized ItemsRepeater only realizes on-screen cards for UIA.
+          $nowLog = (Get-Date).ToString('o')
+          $logLines = @(
+            ('{{"Timestamp":"{0}","Level":1,"Message":"smoke seed info entry","Error":null}}' -f $nowLog),
+            ('{{"Timestamp":"{0}","Level":2,"Message":"smoke seed warning entry","Error":null}}' -f $nowLog),
+            ('{{"Timestamp":"{0}","Level":3,"Message":"smoke seed error entry","Error":"System.Exception: smoke seeded"}}' -f $nowLog)
+          )
+          $logLines | Add-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl')
           ClickNamedIn 'Logs' $win2
           Start-Sleep 3; AssertAlive 'logs-dark-populated'
           $seedEntry = $null
