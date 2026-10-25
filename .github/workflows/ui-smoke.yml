@@ -940,10 +940,22 @@ jobs:
           # Downgrade gate on the detail page (showAppDowngradeError default
           # on): recorded 999.0 vs a real latest must be blocked with the
           # downgrade dialog, never downloaded.
+          # Wait for the list to render after the back-navigation, then
+          # converge the GitHub group open (collapse state can reset across
+          # navigations) and open the row via scroll + real click.
+          foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
+          if ((FindNamed 'Mumble' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'Mumble' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
           $dgRow = FindNamed 'Mumble' $win3
-          if ($dgRow -eq $null) { ClickPartial 'Mumble' $win3 | Out-Null; Start-Sleep 2; $dgRow = FindNamed 'Mumble' $win3 }
           if ($dgRow -eq $null) { Shot 'dg-row-missing'; throw 'Mumble row not found' }
-          try { $dgRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Mumble' $win3 | Out-Null }
+          $dgItem = $dgRow
+          while ($dgItem -ne $null -and $dgItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $dgItem = $walker.GetParent($dgItem) }
+          $dgTarget = if ($dgItem -ne $null) { $dgItem } else { $dgRow }
+          try { $dgTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+          $dgr = $dgTarget.Current.BoundingRectangle
+          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($dgr.X + $dgr.Width/2), [int]($dgr.Y + $dgr.Height/2))
+          Start-Sleep -Milliseconds 300
+          [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
           Start-Sleep 3
           ClickNamedIn 'Update' $win3
           Start-Sleep 2
@@ -957,7 +969,11 @@ jobs:
 
           # Bulk download confirmation (skipBulkUpdateConfirmation default
           # off): the confirm dialog must list the set before any download;
-          # cancelling starts nothing.
+          # cancelling starts nothing. Same render wait + group convergence
+          # before touching rows.
+          foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
+          if ((FindNamed 'ShareX' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'ShareX' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
           ClickNamedIn 'Select' $win3
           Start-Sleep 1
           ClickPartial 'Notepad++' $win3 | Out-Null
