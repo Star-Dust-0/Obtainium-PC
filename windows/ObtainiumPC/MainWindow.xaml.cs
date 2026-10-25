@@ -17,11 +17,40 @@ namespace ObtainiumPC
             this.InitializeComponent();
             Title = "Obtainium-PC";
             try { AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico")); } catch { /* icon is cosmetic */ }
-            SystemBackdrop = new MicaBackdrop();
+            // Mica Alt is the default material (user requirement, same as the
+            // sibling apps); MicaBackdrop falls back to a solid theme color
+            // where Mica is unsupported.
+            SystemBackdrop = new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt };
+            ExtendsContentIntoTitleBar = true;
+            AppWindow.TitleBar.PreferredHeightOption = Microsoft.UI.Windowing.TitleBarHeightOption.Collapsed;
+            SetTitleBar(AppTitleBar);
+            AppWindow.Changed += (_, _) => UpdateMaximizeGlyph();
             // Below ~700px the Apps header controls can no longer all fit even
             // with the search box flexing; clamp instead of clipping them.
             SetMinimumTrackSize();
             Activated += MainWindow_Activated;
+        }
+
+        private void MinimizeCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p) p.Minimize();
+        }
+
+        private void MaximizeCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p)
+            {
+                if (p.State == Microsoft.UI.Windowing.OverlappedPresenterState.Maximized) p.Restore(); else p.Maximize();
+                UpdateMaximizeGlyph();
+            }
+        }
+
+        private void CloseCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Close();
+
+        private void UpdateMaximizeGlyph()
+        {
+            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p)
+                MaximizeCaptionGlyph.Glyph = p.State == Microsoft.UI.Windowing.OverlappedPresenterState.Maximized ? "\uE923" : "\uE922";
         }
 
         // OverlappedPresenter has no min-size API in this SDK; clamp via
@@ -136,6 +165,10 @@ namespace ObtainiumPC
             Services.Localization.Localizer.ApplyToItems(NavView.MenuItems);
             Services.Localization.Localizer.ApplyToItems(NavView.FooterMenuItems);
             Services.Localization.Localizer.Apply(NavView);
+            Services.Localization.Localizer.Apply(TitleBarRoot);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(MinimizeCaption, Services.Localization.Loc.T("Minimize"));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(MaximizeCaption, Services.Localization.Loc.T("Maximize or restore"));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CloseCaption, Services.Localization.Loc.T("Close"));
             var current = NavView.SelectedItem as Microsoft.UI.Xaml.Controls.NavigationViewItem;
             var pageType = current?.Tag switch
             {

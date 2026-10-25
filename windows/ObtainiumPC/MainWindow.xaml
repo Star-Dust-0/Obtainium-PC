@@ -5,11 +5,47 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:local="using:ObtainiumPC">
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Same custom title bar as Fluent Prayer Times / Sakhr Dictionary / TLS
+             Tunnel: native caption collapsed, XAML caption buttons that follow
+             the app theme and mirror with the layout direction. -->
+        <Grid x:Name="TitleBarRoot" Canvas.ZIndex="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid x:Name="AppTitleBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Image Source="ms-appx:///Assets/AppIcon.png" Width="20" Height="20" Margin="14,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="Obtainium-PC" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/>
+            </Grid>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="MinimizeCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MinimizeCaption_Click" AutomationProperties.Name="Minimize">
+                    <FontIcon Glyph="&#xE921;" FontSize="10"/>
+                </Button>
+                <Button x:Name="MaximizeCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MaximizeCaption_Click" AutomationProperties.Name="Maximize or restore">
+                    <FontIcon x:Name="MaximizeCaptionGlyph" Glyph="&#xE922;" FontSize="10"/>
+                </Button>
+                <Button x:Name="CloseCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="CloseCaption_Click" AutomationProperties.Name="Close">
+                    <FontIcon Glyph="&#xE8BB;" FontSize="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
     <muxc:NavigationView
         x:Name="NavView"
-        PaneDisplayMode="LeftCompact"
-        CompactModeThresholdWidth="640"
-        ExpandedModeThresholdWidth="1100"
+        Grid.Row="1"
+        PaneDisplayMode="Left"
+        IsPaneOpen="True"
+        OpenPaneLength="220"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         SelectionChanged="NavView_SelectionChanged"
@@ -31,10 +67,18 @@
             <muxc:NavigationViewItem Content="Logs" Tag="logs">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8A5;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
+        </muxc:NavigationView.MenuItems>
+        <muxc:NavigationView.FooterMenuItems>
             <muxc:NavigationViewItem Content="Settings" Tag="settings">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
-        </muxc:NavigationView.MenuItems>
-        <Frame x:Name="ContentFrame"/>
+        </muxc:NavigationView.FooterMenuItems>
+        <!-- Inset rounded content surface, as in Fluent TLS Tunnel. -->
+        <Border Margin="0,0,16,16" CornerRadius="8"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <Frame x:Name="ContentFrame"/>
+        </Border>
     </muxc:NavigationView>
+    </Grid>
 </Window>
