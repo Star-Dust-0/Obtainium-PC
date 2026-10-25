@@ -22,11 +22,11 @@ public static class MarkdownInlineParser
     private static readonly Regex InlineRegex = new(
         @"(?<img>!\[(?<imgalt>[^\]]*)\]\((?<imgurl>[^)\s]+)\))"
         + @"|(?<link>\[(?<linktext>[^\]]+)\]\((?<linkurl>[^)\s]+)\))"
-        + @"|(?<bolditalic>(\*\*\*(?<bitext>[^*]+)\*\*\*)|(?<bitextu>(?<![\w])___(?<bitext2>[^_]+)___(?![\w]))))"
-        + @"|(?<bold>(\*\*(?<boldtext>[^*]+)\*\*)|(?<boldtextu>(?<![\w])__(?<boldtext2>[^_]+)__(?![\w]))))"
-        + @"|(?<italic>(\*(?<italictext>[^*]+)\*)|(?<italictextu>(?<![\w])_(?<italictext2>[^_]+)_(?![\w]))))"
-        + @"|(?<strike>~~(?<striketext>[^~]+)~~)"
-        + @"|(?<code>`(?<codetext>[^`]+)`)"
+        + @"|\*\*\*(?<bitext>[^*]+)\*\*\*|(?<![\w])___(?<bitext2>[^_]+)___(?![\w])"
+        + @"|\*\*(?<boldtext>[^*]+)\*\*|(?<![\w])__(?<boldtext2>[^_]+)__(?![\w])"
+        + @"|\*(?<italictext>[^*]+)\*|(?<![\w])_(?<italictext2>[^_]+)_(?![\w])"
+        + @"|~~(?<striketext>[^~]+)~~"
+        + @"|`(?<codetext>[^`]+)`"
         + @"|(?<bare>https?://[^\s<>\)\]]+)",
         RegexOptions.Compiled);
 
