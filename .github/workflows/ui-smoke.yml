@@ -904,13 +904,31 @@ jobs:
 
           # Light-theme twin check: the disabled Mark updated twin must render
           # with the disabled brush under Light as well (28h covered Dark).
+          # Two hazards here: the Obtainium row can sit clipped at the list
+          # edge (its center below the viewport), and a prefix search matches
+          # the 'Obtainium-PC' title-bar text before the row. Use the
+          # exact-name element only: scroll its ListItem ancestor into view,
+          # then real-click ITS center, retrying until the detail renders.
           $obtRow = FindNamed 'Obtainium' $win3
-          if ($obtRow -eq $null) { ClickPartial 'Obtainium' $win3 | Out-Null; Start-Sleep 2; $obtRow = FindNamed 'Obtainium' $win3 }
           if ($obtRow -eq $null) { Shot 'light-row-missing'; throw 'Obtainium row not found for the light mark check' }
-          try { $obtRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Obtainium' $win3 | Out-Null }
-          Start-Sleep 3
+          $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+          $opened = $false
+          foreach ($try in 1..4) {
+            $obtRow = FindNamed 'Obtainium' $win3
+            if ($obtRow -eq $null) { break }
+            $item = $obtRow
+            while ($item -ne $null -and $item.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $item = $walker.GetParent($item) }
+            $target = if ($item -ne $null) { $item } else { $obtRow }
+            try { $target.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+            $r = $target.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            Start-Sleep 2
+            if ((FindNamed 'Mark updated' $win3) -ne $null) { $opened = $true; break }
+          }
+          if (-not $opened) { Shot 'light-mark-missing'; throw 'Mark updated action missing in light theme' }
           $markUpdLight = FindNamed 'Mark updated' $win3
-          if ($markUpdLight -eq $null) { Shot 'light-mark-missing'; throw 'Mark updated action missing in light theme' }
           if ($markUpdLight.Current.IsEnabled -ne $false) { Shot 'light-mark-enabled'; throw 'Mark updated enabled in light theme although installed matches latest' }
           $dlLight = FindNamed 'Download' $win3
           if ($dlLight -eq $null -or $dlLight.Current.IsEnabled -ne $true) { Shot 'light-download-disabled'; throw 'Download must stay enabled in light theme' }
