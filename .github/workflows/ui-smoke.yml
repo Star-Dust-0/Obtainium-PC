@@ -582,6 +582,13 @@ jobs:
           $sj | ConvertTo-Json -Depth 6 | Set-Content $settingsPath
           Stop-Process -Id $p.Id -Force
           Start-Sleep 2
+          # Flip the deep-link-imported Obtainium app to track-only while the
+          # app is stopped: the APK-only repo must then track versions and
+          # expose its APK assets for manual download instead of erroring.
+          $appsPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $appsPath -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'deeplink-smoke-1') { $a.additionalSettings = '{"trackOnly":true}' } }
+          ConvertTo-Json -InputObject $aj -Depth 6 | Set-Content $appsPath
           $p = Start-Process $exe -PassThru
           Start-Sleep 6
           $wcond3 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
@@ -598,6 +605,24 @@ jobs:
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -eq $null) { Shot 'group-expand-failed'; throw 'group did not expand on header click' }
           Shot '24-groups-expanded'
           'group collapse verified'
+
+          # Track-only GitHub app with APK-only releases: check must succeed
+          # (version tracked) and the APK assets must land in otherAssetUrls
+          # for the manual-download picker (Android tracking/download scope).
+          Start-Process $exe -ArgumentList 'obtainium://refresh?id=deeplink-smoke-1'
+          Start-Sleep 20
+          AssertAlive 'track-only-refresh'
+          $aj2 = Get-Content $appsPath -Raw | ConvertFrom-Json
+          $obt = $aj2 | Where-Object { $_.id -eq 'deeplink-smoke-1' }
+          if ($obt -eq $null) { Shot 'track-only-app-missing'; throw 'deeplink-smoke-1 missing from apps.json' }
+          if ([string]::IsNullOrEmpty($obt.latestVersion)) { Shot 'track-only-no-version'; throw 'track-only GitHub check did not resolve a version for the APK-only repo' }
+          if ($obt.otherAssetUrls -notlike '*.apk*') { Shot 'track-only-no-apk'; throw 'APK assets not exposed for the track-only GitHub app' }
+          ClickPartial 'Obtainium' $win3 | Out-Null
+          Start-Sleep 3; AssertAlive 'track-only-detail'
+          Shot '28e-github-track-only-detail'
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          'GitHub track-only APK tracking verified'
 
           # Source option editors render at runtime: F-Droid and Farsroid apps
           # imported via deep link, then their per-source options pages.
