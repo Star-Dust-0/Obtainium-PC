@@ -1,0 +1,211 @@
+name: UI smoke - localization focus (manual)
+
+# Focused ar->en expanded-pane repro for localization iterations: builds (or
+# reuses a build-windows artifact), launches the app, switches en->ar->en with
+# pane-open pixel + UIA evidence at each step. Runs in ~2 min instead of the
+# full 36-scenario suite. The full ui-smoke.yml remains the authoritative gate
+# before any user-ready claim.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build (default: main)'
+        required: false
+        default: 'main'
+      build_run_id:
+        description: 'Optional build-windows run id to reuse ObtainiumPC-win-x64 from (skips building)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  loc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        if: ${{ inputs.build_run_id == '' }}
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+        if: ${{ inputs.build_run_id == '' }}
+      - name: Restore
+        if: ${{ inputs.build_run_id == '' }}
+        run: msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+      - name: Build
+        if: ${{ inputs.build_run_id == '' }}
+        run: msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
+      - name: Reuse build artifact
+        if: ${{ inputs.build_run_id != '' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download ${{ inputs.build_run_id }} -n ObtainiumPC-win-x64 -D appbin
+          if (-not (Test-Path appbin\ObtainiumPC.exe)) { throw 'artifact reuse failed: ObtainiumPC.exe missing' }
+      - name: Focused ar/en pane repro
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Drawing, System.Windows.Forms, UIAutomationClient, UIAutomationTypes
+          $dwmSrc = 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
+          Add-Type -TypeDefinition $dwmSrc
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
+          $script:shotWin = $null
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $x=$b.X; $y=$b.Y; $w=$b.Width; $h=$b.Height
+            if ($script:shotWin -ne $null) {
+              try {
+                $hwnd = [IntPtr]$script:shotWin.Current.NativeWindowHandle
+                $fr = New-Object DwmFrame+RECT
+                if ($hwnd -ne [IntPtr]::Zero -and
+                    [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+                  $fw = $fr.Right - $fr.Left; $fh = $fr.Bottom - $fr.Top
+                  if ($fw -gt 50 -and $fh -gt 50) { $x=$fr.Left; $y=$fr.Top; $w=$fw; $h=$fh }
+                } else {
+                  $r=$script:shotWin.Current.BoundingRectangle
+                  if ($r.Width -gt 50 -and $r.Height -gt 50) { $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height }
+                }
+              } catch {}
+            }
+            $bmp=New-Object System.Drawing.Bitmap $w,$h
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x,$y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $w,$h))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+          }
+          function PollNamed($name, $scope, $seconds) {
+            foreach ($i in 1..$seconds) {
+              Start-Sleep 1
+              if ((FindNamed $name $scope) -ne $null) { return $true }
+            }
+            return $false
+          }
+          function ClickPaneToggle($win) {
+            $wrect = $win.Current.BoundingRectangle
+            $cands = @()
+            foreach ($bn in 'Open Navigation','Close Navigation') {
+              $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $bn)
+              $cands += @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond))
+            }
+            foreach ($c in $cands) {
+              $r = $c.Current.BoundingRectangle
+              $cx = $r.X + $r.Width/2; $cy = $r.Y + $r.Height/2
+              $insideX = ($cx -gt ($wrect.X + 8)) -and ($cx -lt ($wrect.X + $wrect.Width - 8))
+              $belowTitle = $cy -gt ($wrect.Y + 40)
+              $saneSize = ($r.Width -ge 20 -and $r.Width -le 80 -and $r.Height -ge 20 -and $r.Height -le 80)
+              if (-not ($insideX -and $belowTitle -and $saneSize)) { continue }
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]$cx, [int]$cy)
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              Start-Sleep 2
+              return $true
+            }
+            return $false
+          }
+          function DumpNames($scope, $tag) {
+            try {
+              $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              $names = @()
+              foreach ($el in $all) { $n = $el.Current.Name; if ($n) { $names += $n }; if ($names.Count -ge 40) { break } }
+              "UIA names at ${tag}: $($names -join ' | ')"
+            } catch { "UIA name dump failed at ${tag}: $($_.Exception.Message)" }
+          }
+          function ClickNamedIn($name, $scope) {
+            $el = $null
+            foreach ($attempt in 1..6) {
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -ne $null) { break }
+              Start-Sleep 1
+            }
+            if ($el -eq $null) { Shot "missing-$($name -replace '[^\w]','_')"; throw "element '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+              $r = $el.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            }
+          }
+          $exe = if (Test-Path 'appbin\ObtainiumPC.exe') { 'appbin\ObtainiumPC.exe' } else { 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe' }
+          $p = Start-Process $exe -PassThru
+          function AssertAlive($tag) {
+            $p.Refresh()
+            if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" }
+          }
+          Start-Sleep 12; AssertAlive 'launch'
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          if ($win -eq $null) { throw 'main window not found' }
+          $script:shotWin = $win
+          Shot '01-launch'
+
+          ClickNamedIn 'Settings' $win
+          Start-Sleep 3; AssertAlive 'settings'
+          $comboType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ComboBox)
+
+          # --- switch to Arabic (العربية is 3rd from the end) ---
+          $combos = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          if ($combos.Count -lt 2) { Shot 'combo-missing'; throw 'language combo not found on Settings page' }
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { throw 'language combo expand failed' }
+          Start-Sleep 2
+          [System.Windows.Forms.SendKeys]::SendWait('{END}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+          Start-Sleep 4; AssertAlive 'arabic-switch'
+          if (-not (PollNamed 'التطبيقات' $win 15)) { DumpNames $win 'ar-missing'; Shot 'ar-missing'; throw 'Arabic nav label not found after switch' }
+          Shot 'ar-settings'
+          if (ClickPaneToggle $win) {
+            Shot 'ar-pane-open'
+            DumpNames $win 'ar-pane-open'
+            Start-Sleep 1
+            $null = ClickPaneToggle $win
+          } else { "WARNING: guarded pane toggle not found for ar-pane-open" }
+
+          # --- switch back to English (index 1) ---
+          $combos = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          if ($combos.Count -lt 2) { Shot 'combo-missing-en'; throw 'language combo not found after ar switch' }
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { throw 'language combo expand failed (en)' }
+          Start-Sleep 2
+          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+          Start-Sleep 4; AssertAlive 'english-switch'
+          if (-not (PollNamed 'Apps' $win 15)) { DumpNames $win 'en-missing'; Shot 'en-missing'; throw 'English nav label not found after switching back' }
+          Shot 'en-settings'
+          if (ClickPaneToggle $win) {
+            Shot 'en-pane-open'
+            DumpNames $win 'en-pane-open'
+          } else { "WARNING: guarded pane toggle not found for en-pane-open" }
+          AssertAlive 'end'
+          'focused localization repro completed'
+      - name: Preserve app logs
+        if: always()
+        shell: pwsh
+        run: |
+          $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+          "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-loc-shots
+          path: shots/

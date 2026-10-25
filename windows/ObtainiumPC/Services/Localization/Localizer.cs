@@ -46,13 +46,27 @@ public static class Localizer
                 TranslateNavItem(nvi);
     }
 
+    // Stable tag -> localization-key mapping for the shell nav items, mirroring
+    // the XAML literals in MainWindow.xaml. This is the primary source: no
+    // state to lose, no reverse-translation guessing.
+    private static readonly System.Collections.Generic.Dictionary<string, string> NavKeySeed = new()
+    {
+        ["apps"] = "Apps",
+        ["addapp"] = "Add App",
+        ["updatehealth"] = "Update Health",
+        ["importexport"] = "Import / Export",
+        ["logs"] = "Logs",
+        ["settings"] = "Settings",
+    };
+
     private static void TranslateNavItem(NavigationViewItem nvi)
     {
         if (nvi.Content is not string s) return;
         if (nvi.Tag is not string tag) { Translate(nvi); return; }
         if (!NavOriginals.TryGetValue(tag, out var key))
         {
-            if (IsKey(s)) key = s;
+            if (NavKeySeed.TryGetValue(tag, out var seeded)) key = seeded;
+            else if (IsKey(s)) key = s;
             else if (Loc.TryReverse(s, out var reversed)) key = reversed;
             else return;
             NavOriginals[tag] = key;
