@@ -108,15 +108,6 @@ namespace ObtainiumPC.Pages
             // Windows has a per-app settings page only for packaged (MSIX) apps.
             // Until package detection lands, this stays honestly unavailable.
             OsSettingsButton.IsEnabled = false;
-            if (_app.ChangeLog is { Length: > 0 } log)
-            {
-                ChangeLogText.Text = log;
-                ChangeLogPanel.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                ChangeLogPanel.Visibility = Visibility.Collapsed;
-            }
         }
 
         private async Task<int> PickAssetAsync(IReadOnlyList<KeyValuePair<string, string>> assets, int preselect = 0)

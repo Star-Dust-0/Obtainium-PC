@@ -78,10 +78,6 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel x:Name="ChangeLogPanel" Spacing="6" Visibility="Collapsed">
-                    <TextBlock Text="Changelog" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                    <TextBlock x:Name="ChangeLogText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>
