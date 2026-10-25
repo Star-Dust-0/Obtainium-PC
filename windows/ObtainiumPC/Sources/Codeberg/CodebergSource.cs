@@ -20,10 +20,13 @@ public sealed record CodebergSourceConfig(
 public sealed class CodebergSource : AppSourceBase
 {
     private readonly CodebergSourceConfig _config;
+    private readonly HttpClient? _http;
 
-    public CodebergSource(CodebergSourceConfig? config = null)
+    /// <param name="http">Optional client (hermetic tests); null uses the shared app client.</param>
+    public CodebergSource(CodebergSourceConfig? config = null, HttpClient? http = null)
     {
         _config = config ?? new CodebergSourceConfig();
+        _http = http;
     }
 
     public override string Name => "Forgejo (Codeberg)";
@@ -126,7 +129,7 @@ public sealed class CodebergSource : AppSourceBase
             CheckRepoRename: false,
             UpdateHealthArchivedEnabled: false,
             GlobalMinimumUpdateAgeDays: _config.GlobalMinimumUpdateAgeDays,
-            ApiHost: "https://codeberg.org/api/v1"));
+            ApiHost: "https://codeberg.org/api/v1"), _http);
         return gh.FetchReleaseDetailsWithTagFallback(standardUrl, cleaned, cancellationToken);
     }
 }

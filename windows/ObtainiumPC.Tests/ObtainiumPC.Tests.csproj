@@ -52,6 +52,8 @@
     <Compile Include="..\ObtainiumPC\Sources\SourceHut\SourceHutSource.cs" Link="Sources\SourceHutSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\Html\HtmlSource.cs" Link="Sources\HtmlSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\DirectLink\DirectFileLinkSource.cs" Link="Sources\DirectFileLinkSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\GitLab\GitLabSource.cs" Link="Sources\GitLabSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Codeberg\CodebergSource.cs" Link="Sources\CodebergSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\CoolApk\CoolApkSource.cs" Link="Sources\CoolApkSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ApkPure\ApkPureSource.cs" Link="Sources\ApkPureSource.cs" />
