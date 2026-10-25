@@ -78,18 +78,52 @@ public static class Localizer
     /// The compact-overlay pane lives in a Popup - a separate visual tree the
     /// normal walk cannot reach. Called after a language switch and on every
     /// PaneOpened so the cached cloned containers pick up the new language.
-    public static void TranslatePopupNavItems(XamlRoot xamlRoot)
+    public static void TranslatePopupNavItems(Window window)
     {
         try
         {
-            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(xamlRoot))
+            System.Collections.Generic.IReadOnlyList<Popup> popups;
+            try
+            {
+                popups = VisualTreeHelper.GetOpenPopupsForXamlRoot(window.Content.XamlRoot);
+            }
+            catch (System.Exception ex1)
+            {
+                Logging.AppLogger.Warn("GetOpenPopupsForXamlRoot failed, trying window overload", ex1);
+                popups = VisualTreeHelper.GetOpenPopups(window);
+            }
+            Logging.AppLogger.Info($"open popups: {popups.Count}");
+            foreach (var popup in popups)
+            {
+                Logging.AppLogger.Info($"popup child: {popup.Child?.GetType().Name ?? "null"}");
                 if (popup.Child is DependencyObject child)
                     ApplyToNavContainers(child);
+            }
         }
         catch (System.Exception ex)
         {
             Logging.AppLogger.Warn("popup nav-item translation failed", ex);
         }
+    }
+
+    /// Diagnostic: log every NavigationViewItem in a subtree with its
+    /// identity, tag, content and ancestor chain, to locate where the
+    /// visible overlay-pane labels actually live.
+    public static void DumpNavItemHosts(DependencyObject root, string when)
+    {
+        try { WalkDump(root, when, new System.Collections.Generic.List<string>()); }
+        catch (System.Exception ex) { Logging.AppLogger.Warn("nvi-host dump failed", ex); }
+    }
+
+    private static void WalkDump(DependencyObject el, string when, System.Collections.Generic.List<string> path)
+    {
+        if (el is NavigationViewItem nvi)
+            Logging.AppLogger.Info($"nvi-host {when}: id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} tag={nvi.Tag} content=[{nvi.Content}] path={string.Join(">", path)}");
+        path.Add(el.GetType().Name);
+        var count = VisualTreeHelper.GetChildrenCount(el);
+        for (var i = 0; i < count; i++)
+            WalkDump(VisualTreeHelper.GetChild(el, i), when, path);
+        path.RemoveAt(path.Count - 1);
     }
 
     private static void Walk(DependencyObject parent)
