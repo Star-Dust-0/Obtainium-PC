@@ -325,8 +325,15 @@ jobs:
           # Arabic RTL: switch language via the Settings Language combo, verify
           # translated chrome + persistence, then switch back (reversibility).
           function ClickNamedIn($name, $scope) {
-            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
-            $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            # Retry: UIA lookups can race a page re-layout (one transient miss
+            # after the health page refresh cost a full run).
+            $el = $null
+            foreach ($attempt in 1..6) {
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -ne $null) { break }
+              Start-Sleep 1
+            }
             if ($el -eq $null) { throw "element '$name' not found" }
             try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
               $r = $el.Current.BoundingRectangle
