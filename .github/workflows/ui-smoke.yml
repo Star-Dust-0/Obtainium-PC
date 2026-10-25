@@ -491,9 +491,13 @@ jobs:
           if ($ign -eq $null) { Shot 'health-menu-missing'; throw 'update-health ignore menu did not open' }
           $ign.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
-          # Bring the Ignored row above the fold for real row pixels.
-          $rest0 = FindNamed 'Restore' $root
-          if ($rest0 -ne $null) { try { $rest0.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {} }
+          # Scroll the page to the bottom so the full Ignored row + button
+          # are inside the viewport for real row pixels (not just the top).
+          $spCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsScrollPatternAvailableProperty, $true)
+          $scrollers = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond)
+          $best = $null; $bestH = 0
+          foreach ($el in $scrollers) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $bestH) { $bestH = $h; $best = $el } }
+          if ($best -ne $null) { try { $best.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
           Start-Sleep 1
           Shot '27-health-ignored'
           $rest = FindNamed 'Restore' $root
@@ -502,8 +506,10 @@ jobs:
           $rest.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
           if ((FindNamed 'Restore' $root) -ne $null) { Shot 'health-restore-failed'; throw 'restore did not return the app to the flagged list' }
-          $dots2 = FindNamed '…' $root
-          if ($dots2 -ne $null) { try { $dots2.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {} }
+          $scrollers = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond)
+          $best = $null; $bestH = 0
+          foreach ($el in $scrollers) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $bestH) { $bestH = $h; $best = $el } }
+          if ($best -ne $null) { try { $best.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
           Start-Sleep 1
           Shot '28-health-restored'
           'update-health ignore/restore verified'

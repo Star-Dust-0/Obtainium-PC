@@ -100,7 +100,7 @@ public static class MarkdownRenderer
                 hr.Inlines.Add(new Run
                 {
                     Text = new string('─', 48),
-                    Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    Foreground = Pages.ThemeLookup.Brush("TextFillColorSecondaryBrush") ?? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
                 });
                 block.Blocks.Add(hr);
                 currentList = null;
@@ -114,7 +114,7 @@ public static class MarkdownRenderer
                 {
                     Margin = new Thickness(12, 2, 0, 2),
                     FontStyle = FontStyle.Italic,
-                    Foreground = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    Foreground = Pages.ThemeLookup.Brush("TextFillColorSecondaryBrush") ?? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
                 };
                 AddInlines(qp, StripHtml(line.TrimStart()[2..]));
                 block.Blocks.Add(qp);
@@ -196,7 +196,7 @@ public static class MarkdownRenderer
             var border = new Border
             {
                 BorderThickness = new Thickness(1),
-                BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+                BorderBrush = Pages.ThemeLookup.Brush("DividerStrokeColorDefaultBrush") ?? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["DividerStrokeColorDefaultBrush"],
                 Padding = new Thickness(8, 4, 8, 4),
             };
             var para = new Paragraph();

@@ -28,10 +28,7 @@ public sealed partial class LogsPage : Page
         var logs = AppLogger.GetLogs(DateTimeOffset.Now.AddDays(-_days)).Reverse().ToList();
         // ThemeResource brushes may not be present on Application.Resources;
         // index access throws when the key is missing.
-        Microsoft.UI.Xaml.Media.Brush? cardBrush = null;
-        if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var brushObj)
-            && brushObj is Microsoft.UI.Xaml.Media.Brush b)
-            cardBrush = b;
+        Microsoft.UI.Xaml.Media.Brush? cardBrush = ThemeLookup.Brush("CardBackgroundFillColorDefaultBrush");
         // lib/pages/logs.dart _levelColor: error / warning / debug / info get
         // distinct colors (upstream has no level filter, only colors).
         Microsoft.UI.Xaml.Media.Brush LevelBrush(AppLogLevel level) => level switch
@@ -40,7 +37,8 @@ public sealed partial class LogsPage : Page
             AppLogLevel.Warning => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 77)),
             AppLogLevel.Debug => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 150, 150)),
             _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Application.Current.RequestedTheme == ApplicationTheme.Dark
+                App.MainWindowInstance?.Content is Microsoft.UI.Xaml.FrameworkElement root
+                    && root.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark
                     ? Windows.UI.Color.FromArgb(255, 230, 230, 230)
                     : Windows.UI.Color.FromArgb(255, 30, 30, 30)),
         };

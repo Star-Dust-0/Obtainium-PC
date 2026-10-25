@@ -12,9 +12,32 @@ namespace ObtainiumPC.Pages;
 /// </summary>
 public static class ThemeLookup
 {
-    public static Brush? Brush(string key) =>
-        ThemeLookupCore.TryGet<Brush>(Application.Current is { } app ? app.Resources : null, key);
+    public static Brush? Brush(string key) => TryGet<Brush>(key);
 
-    public static Style? Style(string key) =>
-        ThemeLookupCore.TryGet<Style>(Application.Current is { } app ? app.Resources : null, key);
+    public static Style? Style(string key) => TryGet<Style>(key);
+
+    // Application.Resources always resolves theme-dictionary values to the
+    // default (light) entry, so programmatic card/foreground lookups rendered
+    // light-on-dark. Resolve the Dark/Light dictionary against the window
+    // root's ActualTheme first, then fall back to the unthemed lookup.
+    private static T? TryGet<T>(string key) where T : class
+    {
+        if (Application.Current is not { } app) return null;
+        var themeKey = App.MainWindowInstance?.Content is FrameworkElement root
+            && root.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        return FindInThemeDictionaries<T>(app.Resources, themeKey, key)
+            ?? ThemeLookupCore.TryGet<T>(app.Resources, key);
+    }
+
+    private static T? FindInThemeDictionaries<T>(ResourceDictionary dict, string themeKey, string key) where T : class
+    {
+        if (dict.ThemeDictionaries.TryGetValue(themeKey, out var themed)
+            && themed is ResourceDictionary themeDict
+            && ThemeLookupCore.TryGet<T>(themeDict, key) is { } hit)
+            return hit;
+        foreach (var merged in dict.MergedDictionaries)
+            if (FindInThemeDictionaries<T>(merged, themeKey, key) is { } mergedHit)
+                return mergedHit;
+        return null;
+    }
 }
