@@ -31,6 +31,8 @@ public sealed class VivoAppStoreSource : AppSourceBase
     };
     public override bool NaiveStandardVersionDetection => true;
     public override bool SupportsInstall => false;
+    // lib/app_sources/vivoappstore.dart: canSearch = true (h5 search endpoint).
+    public override bool CanSearch => true;
 
     private static string ParseVivoAppId(string url)
     {
@@ -61,6 +63,43 @@ public sealed class VivoAppStoreSource : AppSourceBase
             throw new NoReleasesException();
         }
         return doc.RootElement.Clone();
+    }
+
+    private const string AppSearchUrl =
+        "https://h5-api.appstore.vivo.com.cn/h5appstore/search/result-list?app_version=2100&page_index=1&apps_per_page=20&target=local&cfrom=2&key=";
+
+    // lib/app_sources/vivoappstore.dart search(): result-list endpoint,
+    // code==0 + data.appSearchResponse.result==true gate, value[] items.
+    public override async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>?> SearchAsync(
+        string query,
+        IReadOnlyDictionary<string, JsonElement> querySettings,
+        CancellationToken cancellationToken = default)
+    {
+        var searchUrl = AppSearchUrl + Uri.EscapeDataString(query);
+        var res = await _http.GetAsync(searchUrl, cancellationToken);
+        if ((int)res.StatusCode >= 400) throw new ObtainiumHttpException((int)res.StatusCode, searchUrl);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(cancellationToken));
+        if (!doc.RootElement.TryGetProperty("code", out var code) || code.GetInt32() != 0
+            || !doc.RootElement.TryGetProperty("data", out var data)
+            || data.ValueKind != JsonValueKind.Object
+            || !data.TryGetProperty("appSearchResponse", out var resp)
+            || resp.ValueKind != JsonValueKind.Object
+            || !resp.TryGetProperty("result", out var result)
+            || result.ValueKind != JsonValueKind.True)
+            throw new NoReleasesException();
+        var results = new Dictionary<string, IReadOnlyList<string>>();
+        if (resp.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in value.EnumerateArray())
+            {
+                var id = item.TryGetProperty("id", out var i) ? i.ToString() : null;
+                if (string.IsNullOrEmpty(id)) continue;
+                var title = item.TryGetProperty("title_zh", out var t) ? t.ToString() : "";
+                var developer = item.TryGetProperty("developer", out var d) ? d.ToString() : "";
+                results[AppDetailUrl + id] = new List<string> { title, developer };
+            }
+        }
+        return results;
     }
 
     public override async Task<AssetDetails> GetLatestAssetDetailsAsync(
