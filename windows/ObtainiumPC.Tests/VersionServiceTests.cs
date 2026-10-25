@@ -45,6 +45,28 @@ public class VersionServiceTests
         Assert.NotNull(result);
         Assert.Equal(expectedSign, Math.Sign(result!.Value));
     }
+
+    [Theory]
+    // Differing surface formats that share a common digit-run pattern must
+    // still compare (the comparison the downgrade gate relies on):
+    [InlineData("v1.2.3", "1.2.4", -1)]          // leading-v prefix vs bare
+    [InlineData("2026.10.25", "2026.9.30", 1)]   // date-style versions, unpadded month
+    [InlineData("v1.7.3", "v1.7.2", 1)]          // the proven-downgrade case
+    // Upstream semantics: only the most specific COMMON format is compared,
+    // so a two-segment and a three-segment version compare on two segments.
+    [InlineData("1.2", "1.2.1", 0)]
+    public void CompareVersionsNumerically_handles_differing_formats(string v1, string v2, int expectedSign)
+    {
+        var result = VersionService.CompareVersionsNumerically(v1, v2);
+        Assert.NotNull(result);
+        Assert.Equal(expectedSign, Math.Sign(result!.Value));
+    }
+
+    [Theory]
+    [InlineData("release-final", "1.2.3")]   // no digit runs at all
+    [InlineData("abc", "def")]
+    public void CompareVersionsNumerically_returns_null_when_incomparable(string v1, string v2)
+        => Assert.Null(VersionService.CompareVersionsNumerically(v1, v2));
 }
 
 public class DetailActionTests

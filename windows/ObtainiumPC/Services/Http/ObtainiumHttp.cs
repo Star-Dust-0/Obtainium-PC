@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace ObtainiumPC.Services.Http;
@@ -23,7 +24,9 @@ public static class ObtainiumHttp
         ["rustore.ru"] = new[] { "harica-tls-root-2021-rsa.crt", "harica-tls-root-2021-ecc.crt", "russian-mintsifry-root.crt" },
     };
 
-    private static string CertDir => Path.Combine(AppContext.BaseDirectory, "ca-certs");
+    // Tests override the cert directory with fabricated fixtures.
+    internal static string? CertDirOverride;
+    private static string CertDir => CertDirOverride ?? Path.Combine(AppContext.BaseDirectory, "ca-certs");
 
     /// Whether pinning is active. The app wires this to App.Settings at
     /// startup; kept injectable so the pure-logic test project (which links
@@ -44,16 +47,25 @@ public static class ObtainiumHttp
         return new HttpClient(handler);
     }
 
-    private static bool ValidateCertificate(
+    // Internal for unit tests; the handler callback is the production entry.
+    internal static bool ValidateCertificate(
         HttpRequestMessage request, X509Certificate2? cert, X509Chain? chain, SslPolicyErrors errors)
     {
         if (cert == null) return false;
         var host = request.RequestUri?.Host ?? "";
         var root = ExtractRootHost(host);
+        // Dart's HttpClient always verifies hostname and validity on top of a
+        // custom SecurityContext; a custom trust store here must never waive
+        // them. The default evaluation's name-mismatch bit is authoritative
+        // for the hostname check on every path below.
+        var nameMismatch = (errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0;
+        if (nameMismatch) return false;
         if (PinningEnabled())
         {
             var pinned = PinFiles.ContainsKey(host) ? host : PinFiles.ContainsKey(root) ? root : null;
             if (pinned != null)
+                // Trust ONLY the bundled roots for this host. X509Chain still
+                // enforces expiry/signatures; hostname was checked above.
                 return ValidateWithRoots(cert, PinFiles[pinned]);
         }
         if (errors == SslPolicyErrors.None) return true;
@@ -73,6 +85,8 @@ public static class ObtainiumHttp
             using var custom = new X509Chain();
             custom.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
             custom.ChainPolicy.RevocationMode = X509ChainRevocationMode.NoCheck;
+            // serverAuth EKU, as the platform TLS verifier requires.
+            custom.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1"));
             var roots = 0;
             foreach (var f in files)
             {

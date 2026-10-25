@@ -266,7 +266,7 @@ base.OnNavigatedTo(e);
             if (sel.Count == 0) return;
             // lib/pages/apps.dart:283 skipBulkUpdateConfirmation (default
             // false): confirm the bulk set before obtaining anything.
-            if (!App.Settings.SkipBulkUpdateConfirmation)
+            if (Services.Download.BatchDownloadPlanner.NeedsBulkConfirmation(sel.Count, App.Settings.SkipBulkUpdateConfirmation))
             {
                 var confirm = new ThemedContentDialog
                 {
@@ -287,9 +287,8 @@ base.OnNavigatedTo(e);
             foreach (var app in sel)
             {
                 // showAppDowngradeError gate (see AppDetailPage.Update_Click).
-                if (App.Settings.ShowAppDowngradeError
-                    && app.InstalledVersion != null && app.LatestVersion != null
-                    && Services.Versioning.VersionService.CompareVersionsNumerically(app.InstalledVersion, app.LatestVersion) > 0)
+                if (Services.Download.BatchDownloadPlanner.ShouldBlockDownload(
+                    App.Settings.ShowAppDowngradeError, app.InstalledVersion, app.LatestVersion))
                 {
                     results.Add(app.FinalName + ": update would downgrade " + app.InstalledVersion + " -> " + app.LatestVersion + "; blocked");
                     continue;
@@ -336,14 +335,14 @@ base.OnNavigatedTo(e);
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
                 // Same per-asset installability gate as the detail page: an
                 // Android package never reaches the installer.
-                if (dlSource?.SupportsInstall != false
-                    && AssetFilterService.IsAppOrContainerFile(asset.Key)) DownloadService.OpenInstaller(path);
+                if (Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
+                    dlSource?.SupportsInstall, asset.Key)) DownloadService.OpenInstaller(path);
             }
             // lib/providers/apps_provider_install.dart:1205 parallelDownloads
             // (default true): bulk downloads run concurrently when allowed;
             // install launches still serialize on the UI thread as each
             // download completes (upstream uses a serial install chain).
-            if (App.Settings.ParallelDownloads && picks.Count > 1)
+            if (Services.Download.BatchDownloadPlanner.UseParallelDownloads(picks.Count, App.Settings.ParallelDownloads))
             {
                 var panel = new StackPanel { Spacing = 6 };
                 var bars = new Dictionary<string, ProgressBar>();

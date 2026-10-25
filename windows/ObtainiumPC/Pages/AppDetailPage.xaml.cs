@@ -177,9 +177,8 @@ namespace ObtainiumPC.Pages
             // compares APK versionCodes; the port compares versions
             // numerically when comparable - incomparable versions cannot be
             // proven a downgrade and pass through.
-            if (App.Settings.ShowAppDowngradeError
-                && _app.InstalledVersion != null && _app.LatestVersion != null
-                && Services.Versioning.VersionService.CompareVersionsNumerically(_app.InstalledVersion, _app.LatestVersion) > 0)
+            if (Services.Download.BatchDownloadPlanner.ShouldBlockDownload(
+                App.Settings.ShowAppDowngradeError, _app.InstalledVersion, _app.LatestVersion))
             {
                 var blocked = new ThemedContentDialog
                 {
@@ -251,8 +250,8 @@ namespace ObtainiumPC.Pages
                 // from a general source (e.g. a track-only GitHub app) is still an
                 // Android package - saved for manual transfer, never launched as
                 // an installer on Windows.
-                var installable = dlSource?.SupportsInstall != false
-                    && Sources.AssetFilterService.IsAppOrContainerFile(asset.Key);
+                var installable = Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
+                    dlSource?.SupportsInstall, asset.Key);
                 if (installable)
                 {
                     DownloadService.OpenInstaller(path);
