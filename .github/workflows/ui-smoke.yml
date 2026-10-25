@@ -393,7 +393,7 @@ jobs:
           Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
-          if ((FindNamed 'التطبيقات' $win3) -eq $null) { Shot 'arabic-nav-missing'; throw 'Arabic nav label missing after keyboard selection' }
+          if ((FindNamed 'التطبيقات' $win2) -eq $null) { Shot 'arabic-nav-missing'; throw 'Arabic nav label missing after keyboard selection' }
           AssertAlive 'arabic-switch'
           $found = $false
           foreach ($w in 1..15) {
