@@ -620,9 +620,44 @@ jobs:
           ClickPartial 'Obtainium' $win3 | Out-Null
           Start-Sleep 3; AssertAlive 'track-only-detail'
           Shot '28e-github-track-only-detail'
+
+          # Manual download: the picker must offer the APK, the download must
+          # complete, and the Android-package note (no install launch) must show.
+          ClickNamedIn 'Install' $win3
+          Start-Sleep 2
+          $apkRadio = $null
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -and $el.Current.Name.EndsWith('.apk')) { $apkRadio = $el; break }
+          }
+          if ($apkRadio -eq $null) { Shot 'track-only-picker-missing'; throw 'asset picker did not offer the APK for the track-only GitHub app' }
+          Shot '28f-track-only-asset-picker'
+          try { $apkRadio.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch {
+            $r = $apkRadio.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+          }
+          Start-Sleep 1
+          $dlBtn = FindNamed 'Download' $root
+          if ($dlBtn -eq $null) { Shot 'track-only-download-btn'; throw 'asset picker Download button missing' }
+          $dlBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          # Poll for the download to finish (APK is tens of MB on runner network).
+          $done = $false
+          foreach ($w in 1..15) {
+            Start-Sleep 6
+            $note = $null
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -and $el.Current.Name.Contains('cannot install on Windows')) { $note = $el; break }
+            }
+            if ($note -ne $null) { $done = $true; break }
+          }
+          if (-not $done) { Shot 'track-only-download-timeout'; throw 'APK download did not complete with the Android-package note' }
+          $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.apk -ErrorAction SilentlyContinue
+          if ($apkFiles.Count -eq 0) { Shot 'track-only-file-missing'; throw 'downloaded APK not found in the downloads folder' }
+          Shot '28g-track-only-apk-downloaded'
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
-          'GitHub track-only APK tracking verified'
+          'GitHub track-only APK tracking+download verified'
 
           # Source option editors render at runtime: F-Droid and Farsroid apps
           # imported via deep link, then their per-source options pages.

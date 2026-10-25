@@ -194,7 +194,12 @@ namespace ObtainiumPC.Pages
                     downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
-                var installable = dlSource?.SupportsInstall != false;
+                // Installability is per-asset, not only per-source: an APK fetched
+                // from a general source (e.g. a track-only GitHub app) is still an
+                // Android package - saved for manual transfer, never launched as
+                // an installer on Windows.
+                var installable = dlSource?.SupportsInstall != false
+                    && Sources.AssetFilterService.IsAppOrContainerFile(asset.Key);
                 if (installable)
                 {
                     DownloadService.OpenInstaller(path);
