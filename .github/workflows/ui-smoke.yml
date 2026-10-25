@@ -413,7 +413,12 @@ jobs:
           $combos = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win2 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'English' $root | Out-Null
+          # Keyboard selection (virtualized list): English is index 1.
+          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           AssertAlive 'english-switch'
           $found = $false
@@ -802,7 +807,14 @@ jobs:
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'العربية' $root | Out-Null
+          # Keyboard selection (virtualized list): العربية is 3rd from the end.
+          [System.Windows.Forms.SendKeys]::SendWait('{END}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson2))
           Start-Sleep 4
@@ -819,7 +831,12 @@ jobs:
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'English' $root | Out-Null
+          # Keyboard selection (virtualized list): English is index 1.
+          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           AssertAlive 'dialog-roundtrip-done'
           'dialog theme+language round-trip verified'
@@ -840,7 +857,12 @@ jobs:
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          ClickPartial 'English' $root | Out-Null
+          # Keyboard selection (virtualized list): English is index 1.
+          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
+          Start-Sleep -Milliseconds 400
+          [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
+          Start-Sleep -Milliseconds 300
+          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           if ((FindNamed 'Settings' $win3) -eq $null) { Shot 'language-english-restore'; throw 'English nav label missing after restore' }
           'French language selection verified'
