@@ -3,14 +3,14 @@
     x:Class="ObtainiumPC.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Padding="28,24,28,24">
+    <Grid Padding="24,16,24,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}" MaxWidth="920" HorizontalAlignment="Stretch"/>
+        <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
         <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="6" MaxWidth="920">
+            <StackPanel Spacing="6">
                 <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
                 <ComboBox x:Name="ThemeCombo" Header="Theme" MinWidth="260" SelectionChanged="ThemeCombo_SelectionChanged"/>
                 <ComboBox x:Name="LanguageCombo" Header="Language" MinWidth="260" SelectionChanged="LanguageCombo_SelectionChanged"/>

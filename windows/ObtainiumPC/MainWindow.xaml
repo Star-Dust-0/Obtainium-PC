@@ -7,7 +7,7 @@
     xmlns:local="using:ObtainiumPC">
     <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
-            <RowDefinition Height="48"/>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -28,13 +28,13 @@
                 <TextBlock Grid.Column="1" Text="Obtainium-PC" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/>
             </Grid>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button x:Name="MinimizeCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MinimizeCaption_Click" AutomationProperties.Name="Minimize">
+                <Button x:Name="MinimizeCaption" Width="46" Height="32" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MinimizeCaption_Click" AutomationProperties.Name="Minimize">
                     <FontIcon Glyph="&#xE921;" FontSize="10"/>
                 </Button>
-                <Button x:Name="MaximizeCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MaximizeCaption_Click" AutomationProperties.Name="Maximize or restore">
+                <Button x:Name="MaximizeCaption" Width="46" Height="32" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="MaximizeCaption_Click" AutomationProperties.Name="Maximize or restore">
                     <FontIcon x:Name="MaximizeCaptionGlyph" Glyph="&#xE922;" FontSize="10"/>
                 </Button>
-                <Button x:Name="CloseCaption" Width="46" Height="48" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="CloseCaption_Click" AutomationProperties.Name="Close">
+                <Button x:Name="CloseCaption" Width="46" Height="32" CornerRadius="0" Background="Transparent" BorderThickness="0" Click="CloseCaption_Click" AutomationProperties.Name="Close">
                     <FontIcon Glyph="&#xE8BB;" FontSize="10"/>
                 </Button>
             </StackPanel>
@@ -73,12 +73,7 @@
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
         </muxc:NavigationView.FooterMenuItems>
-        <!-- Inset rounded content surface, as in Fluent TLS Tunnel. -->
-        <Border Margin="0,0,16,16" CornerRadius="8"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-            <Frame x:Name="ContentFrame"/>
-        </Border>
+        <Frame x:Name="ContentFrame"/>
     </muxc:NavigationView>
     </Grid>
 </Window>
