@@ -46,6 +46,12 @@
     <Compile Include="..\ObtainiumPC\Services\Localization\PluralRules.cs" Link="Services\Localization\PluralRules.cs" />
     <Compile Include="..\ObtainiumPC\Services\Detection\ExternalUninstallService.cs" Link="Services\Detection\ExternalUninstallService.cs" />
     <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Jenkins\JenkinsSource.cs" Link="Sources\JenkinsSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\SourceForge\SourceForgeSource.cs" Link="Sources\SourceForgeSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\NeutronCode\NeutronCodeSource.cs" Link="Sources\NeutronCodeSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\SourceHut\SourceHutSource.cs" Link="Sources\SourceHutSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\Html\HtmlSource.cs" Link="Sources\HtmlSource.cs" />
+    <Compile Include="..\ObtainiumPC\Sources\DirectLink\DirectFileLinkSource.cs" Link="Sources\DirectFileLinkSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\CoolApk\CoolApkSource.cs" Link="Sources\CoolApkSource.cs" />
     <Compile Include="..\ObtainiumPC\Sources\ApkPure\ApkPureSource.cs" Link="Sources\ApkPureSource.cs" />

@@ -56,7 +56,7 @@ namespace ObtainiumPC.Pages
         {
             base.OnNavigatedTo(e);
             await App.InitAsync();
-            OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = "Auto-detect", Tag = (string?)null });
+            OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = Services.Localization.Loc.T("Auto-detect"), Tag = (string?)null });
             foreach (var name in SourceCatalog.OverrideSourceNames)
                 OverrideSourceCombo.Items.Add(new ComboBoxItem { Content = name, Tag = (string?)name });
             OverrideSourceCombo.SelectedIndex = 0;
