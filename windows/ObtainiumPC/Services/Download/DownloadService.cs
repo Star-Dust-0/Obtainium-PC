@@ -48,6 +48,11 @@ public sealed class DownloadService
         using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         res.EnsureSuccessStatusCode();
         var total = res.Content.Headers.ContentLength;
+        // A web page (proxy/ISP block page, login or error page) is never an installer.
+        var mediaType = res.Content.Headers.ContentType?.MediaType;
+        if (mediaType != null && mediaType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)
+            && !fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The server returned a web page instead of the file.");
         await using var input = await res.Content.ReadAsStreamAsync(ct);
         await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None);
         var buffer = new byte[81920];
