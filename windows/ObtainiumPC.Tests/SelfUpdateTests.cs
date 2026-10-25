@@ -18,6 +18,7 @@ public class SelfUpdateTests
         Assert.Equal("manual", added.InstalledVersionSource);
         Assert.Equal("Setup", added.GetSettingString("apkFilterRegEx"));
         Assert.True(added.GetSettingBool("versionDetection"));
+        Assert.True(added.GetSettingBool("includePrereleases"));
     }
 
     [Fact]

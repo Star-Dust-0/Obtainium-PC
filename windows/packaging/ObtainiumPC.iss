@@ -42,6 +42,8 @@ UninstallDisplayName=Obtainium-PC
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+SetupIconFile=..\ObtainiumPC\Assets\AppIcon.ico
+UninstallDisplayIcon={app}\ObtainiumPC.exe
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

@@ -47,6 +47,8 @@ public static class SelfUpdate
             ["versionDetection"] = true,
             ["apkFilterRegEx"] = InstallerAssetFilter,
             ["invertAPKFilter"] = false,
+            // Releases are prereleases while the app is in trial; stable releases are still found.
+            ["includePrereleases"] = true,
         };
         var app = new TrackedApp
         {

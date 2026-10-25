@@ -16,6 +16,7 @@ namespace ObtainiumPC
         {
             this.InitializeComponent();
             Title = "Obtainium-PC";
+            try { AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico")); } catch { /* icon is cosmetic */ }
             SystemBackdrop = new MicaBackdrop();
             // Below ~700px the Apps header controls can no longer all fit even
             // with the search box flexing; clamp instead of clipping them.
