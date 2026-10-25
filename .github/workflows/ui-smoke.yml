@@ -794,6 +794,63 @@ jobs:
           AssertAlive 'dialog-roundtrip-done'
           'dialog theme+language round-trip verified'
 
+          # Representative non-RTL locale from the reused upstream tables:
+          # French must retranslate chrome (generated LocTranslations).
+          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'Français' $root | Out-Null
+          Start-Sleep 4
+          if ((FindNamed 'Applications' $win3) -eq $null) { Shot 'language-french-missing'; throw 'French nav label missing after language switch' }
+          Shot '27-language-french'
+          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
+          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
+          Start-Sleep 2
+          ClickPartial 'English' $root | Out-Null
+          Start-Sleep 4
+          if ((FindNamed 'Settings' $win3) -eq $null) { Shot 'language-english-restore'; throw 'English nav label missing after restore' }
+          'French language selection verified'
+
+          # Full filter dialog (AppsFilter): a name filter narrows the list;
+          # Clear restores it.
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          ClickNamedIn 'Filter' $win3
+          Start-Sleep 2
+          $nameBox = FindNamed 'App name' $root
+          if ($nameBox -eq $null) { Shot 'filter-dialog-missing'; throw 'filter dialog did not open' }
+          try { $nameBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Notepad') } catch { Shot 'filter-name-set'; throw 'could not type the name filter' }
+          Shot '31-filter-dialog'
+          (FindNamed 'Apply' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 2
+          if ((FindNamed 'Notepad++' $win3) -eq $null) { Shot 'filter-kept-missing'; throw 'name filter hid the matching app' }
+          if ((FindNamed 'F-Droid client' $win3) -ne $null) { Shot 'filter-not-narrowing'; throw 'name filter did not narrow the list' }
+          Shot '31b-filter-applied'
+          ClickNamedIn 'Filter' $win3
+          Start-Sleep 2
+          (FindNamed 'Clear' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 2
+          if ((FindNamed 'F-Droid client' $win3) -eq $null) { Shot 'filter-clear-failed'; throw 'Clear did not restore the full list' }
+          Shot '32-filter-cleared'
+          'filter dialog verified'
+
+          # Light-theme twin check: the disabled Mark updated twin must render
+          # with the disabled brush under Light as well (28h covered Dark).
+          $obtRow = FindNamed 'Obtainium' $win3
+          if ($obtRow -eq $null) { ClickPartial 'Obtainium' $win3 | Out-Null; Start-Sleep 2; $obtRow = FindNamed 'Obtainium' $win3 }
+          if ($obtRow -eq $null) { Shot 'light-row-missing'; throw 'Obtainium row not found for the light mark check' }
+          try { $obtRow.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Obtainium' $win3 | Out-Null }
+          Start-Sleep 3
+          $markUpdLight = FindNamed 'Mark updated' $win3
+          if ($markUpdLight -eq $null) { Shot 'light-mark-missing'; throw 'Mark updated action missing in light theme' }
+          if ($markUpdLight.Current.IsEnabled -ne $false) { Shot 'light-mark-enabled'; throw 'Mark updated enabled in light theme although installed matches latest' }
+          $dlLight = FindNamed 'Download' $win3
+          if ($dlLight -eq $null -or $dlLight.Current.IsEnabled -ne $true) { Shot 'light-download-disabled'; throw 'Download must stay enabled in light theme' }
+          Shot '28i-track-only-marked-installed-light'
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          'light-theme mark-disabled state verified'
+
           # Every launch above went through the single-instance redirect.
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "ObtainiumPC processes after deep links: $($procs.Count)"
