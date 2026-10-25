@@ -78,7 +78,7 @@ silently omitted.
 | Update Health page | ported | detection thresholds, flagged/ignored lists, ignore actions |
 | Settings page | mapped | theme, interval, min age, check-on-start, notifications, hide-downgrades, add-without-check, global regexes, source PATs, update-health thresholds, sort column+order, pin/bury toggles, list density, category registry with colors, repo-rename detection, about section with attribution |
 | Import / Export | ported | upstream schema v2, three credential levels, same-ID replace |
-| Apps list search/filter | mapped | name/author/URL query + updates-only toggle + category filter dropdown (upstream full filter dialog simplified, disclosed) |
+| Apps list search/filter | ported | name/author/URL query + updates-only toggle + category filter dropdown + full filter dialog (AppsFilter: name/author/id text, include up-to-date/non-installed, category multi-select, source dropdown - lib/components/app_list_tile.dart) |
 | Apps list categories/groups | ported | per-app categories, category registry with colors + Settings management, batch categorize, filter dropdown, row labels; collapsible group headers (none/category/source grouping, per-session collapse, collapse-on-startup toggle) |
 | Logs page | ported | JSONL store, day filter, copy, share (native share sheet), clear, level colors |
 | Crowdsourced app configs | ported | Add App links to apps.obtainium.imranr.dev - matches the pinned upstream exactly (add_app.dart openCrowdsourcedConfigs is itself an external-browser launch; no in-app picker exists upstream). Config sharing via generated redirect links is ported in the Apps batch share |

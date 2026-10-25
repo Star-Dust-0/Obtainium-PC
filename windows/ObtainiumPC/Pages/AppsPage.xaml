@@ -63,6 +63,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
             <Button Grid.Column="1" x:Name="RefreshButton" ToolTipService.ToolTip="Check for updates" Click="Refresh_Click" VerticalAlignment="Center">
@@ -72,7 +73,8 @@
             <AutoSuggestBox Grid.Column="3" x:Name="SearchBoxInline" PlaceholderText="Search apps" MaxWidth="320" HorizontalAlignment="Stretch" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" Visibility="Collapsed"/>
             <ToggleButton Grid.Column="4" x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="5" x:Name="CategoryCombo" MinWidth="120" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
-            <ToggleButton Grid.Column="6" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
+            <Button Grid.Column="6" x:Name="FilterButton" Content="Filter" Click="Filter_Click" VerticalAlignment="Center"/>
+            <ToggleButton Grid.Column="7" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </Grid>
         </ScrollViewer>
         <Grid x:Name="SearchRow" Grid.Row="1" Padding="36,0,36,8">

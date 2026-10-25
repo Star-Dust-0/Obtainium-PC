@@ -135,6 +135,9 @@ base.OnNavigatedTo(e);
 
         private void OnAppsUpdated(object? sender, EventArgs e) => ReloadRows();
 
+        // lib/components/app_list_tile.dart AppsFilter (the filter dialog model).
+        private readonly Services.Store.AppsFilter _filter = new();
+
         private void ReloadRows()
         {
             var query = (SearchBoxInline.Visibility == Visibility.Visible ? SearchBoxInline.Text : SearchBox.Text)?.Trim() ?? "";
@@ -151,10 +154,22 @@ base.OnNavigatedTo(e);
             sorted = Services.Store.AppSort.Reorder(sorted,
                 App.Settings.PinUpdates, App.Settings.BuryNonInstalled,
                 App.Updater.IsAppUpdateable);
+            var sourceNameCache = new Dictionary<string, string>();
             foreach (var app in sorted)
             {
                 var hasUpdate = App.Updater.IsAppUpdateable(app);
                 if (updatesOnly && !hasUpdate) continue;
+                if (!_filter.IsDefault)
+                {
+                    if (!sourceNameCache.TryGetValue(app.Url, out var srcName))
+                    {
+                        string srcName2 = "";
+                        try { if (SourceCatalog.TryResolve(app.Url, App.Settings, out var src) && src != null) srcName2 = src.Name; } catch { }
+                        srcName = srcName2;
+                        sourceNameCache[app.Url] = srcName;
+                    }
+                    if (!_filter.Matches(app, hasUpdate, srcName)) continue;
+                }
                 if (CategoryCombo.SelectedIndex > 0
                     && CategoryCombo.SelectedItem is string cat
                     && !app.Categories.Contains(cat)) continue;
@@ -245,6 +260,77 @@ base.OnNavigatedTo(e);
         private void FilterChanged(object sender, RoutedEventArgs e) => ReloadRows();
 
         private void CategoryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) => ReloadRows();
+
+        // lib/pages/apps.dart showFilterDialog (app_list_tile.dart AppsFilter).
+        private async void Filter_Click(object sender, RoutedEventArgs e)
+        {
+            var nameBox = new TextBox { Header = Services.Localization.Loc.T("App name"), Text = _filter.NameFilter };
+            var authorBox = new TextBox { Header = Services.Localization.Loc.T("Author"), Text = _filter.AuthorFilter };
+            var idBox = new TextBox { Header = Services.Localization.Loc.T("App ID"), Text = _filter.IdFilter };
+            var uptodateBox = new CheckBox { Content = Services.Localization.Loc.T("Up to date apps"), IsChecked = _filter.IncludeUptodate };
+            var nonInstalledBox = new CheckBox { Content = Services.Localization.Loc.T("Non-installed apps"), IsChecked = _filter.IncludeNonInstalled };
+            var catPanel = new StackPanel { Spacing = 4 };
+            var catBoxes = new List<CheckBox>();
+            foreach (var c in App.TrackedApps.SelectMany(a => a.Categories).Distinct().OrderBy(c => c))
+            {
+                var cb = new CheckBox { Content = c, IsChecked = _filter.CategoryFilter.Contains(c) };
+                catBoxes.Add(cb);
+                catPanel.Children.Add(cb);
+            }
+            var sourceCombo = new ComboBox { Header = Services.Localization.Loc.T("Source"), MinWidth = 220 };
+            sourceCombo.Items.Add(new ComboBoxItem { Content = Services.Localization.Loc.T("All"), Tag = "" });
+            foreach (var name in SourceCatalog.OverrideSourceNames.OrderBy(n => n))
+                sourceCombo.Items.Add(new ComboBoxItem { Content = name, Tag = name });
+            var sel = 0;
+            for (var i = 0; i < sourceCombo.Items.Count; i++)
+                if ((string)((ComboBoxItem)sourceCombo.Items[i]).Tag == _filter.SourceFilter) { sel = i; break; }
+            sourceCombo.SelectedIndex = sel;
+            var panel = new StackPanel { Spacing = 10 };
+            panel.Children.Add(nameBox);
+            panel.Children.Add(authorBox);
+            panel.Children.Add(idBox);
+            panel.Children.Add(uptodateBox);
+            panel.Children.Add(nonInstalledBox);
+            if (catPanel.Children.Count > 0)
+            {
+                panel.Children.Add(new TextBlock { Text = Services.Localization.Loc.T("Categories"), FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"] });
+                panel.Children.Add(catPanel);
+            }
+            panel.Children.Add(sourceCombo);
+            var dialog = new ThemedContentDialog
+            {
+                Title = Services.Localization.Loc.T("Filter"),
+                Content = new ScrollViewer { Content = panel, MaxHeight = 480 },
+                PrimaryButtonText = Services.Localization.Loc.T("Apply"),
+                SecondaryButtonText = Services.Localization.Loc.T("Clear"),
+                CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                XamlRoot = this.XamlRoot,
+            };
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                _filter.NameFilter = nameBox.Text;
+                _filter.AuthorFilter = authorBox.Text;
+                _filter.IdFilter = idBox.Text;
+                _filter.IncludeUptodate = uptodateBox.IsChecked == true;
+                _filter.IncludeNonInstalled = nonInstalledBox.IsChecked == true;
+                _filter.CategoryFilter = catBoxes.Where(cb => cb.IsChecked == true).Select(cb => (string)cb.Content).ToHashSet();
+                _filter.SourceFilter = (string)((ComboBoxItem)sourceCombo.SelectedItem).Tag;
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                _filter.NameFilter = "";
+                _filter.AuthorFilter = "";
+                _filter.IdFilter = "";
+                _filter.IncludeUptodate = true;
+                _filter.IncludeNonInstalled = true;
+                _filter.CategoryFilter = new System.Collections.Generic.HashSet<string>();
+                _filter.SourceFilter = "";
+            }
+            else return;
+            FilterButton.FontWeight = _filter.IsDefault ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold;
+            ReloadRows();
+        }
 
         private void ReloadCategoryCombo()
         {
