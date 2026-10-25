@@ -39,6 +39,8 @@
     <Compile Include="..\ObtainiumPC\Services\MarkdownInlineParser.cs" Link="Services\MarkdownInlineParser.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\LocTranslations.g.cs" Link="Services\Localization\LocTranslations.g.cs" />
     <Compile Include="..\ObtainiumPC\Services\Localization\LocaleResolution.cs" Link="Services\Localization\LocaleResolution.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Localization\LocPlurals.g.cs" Link="Services\Localization\LocPlurals.g.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Localization\PluralRules.cs" Link="Services\Localization\PluralRules.cs" />
     <Compile Include="..\ObtainiumPC\Services\Detection\ExternalUninstallService.cs" Link="Services\Detection\ExternalUninstallService.cs" />
     <Compile Include="..\ObtainiumPC\Services\Logging\AppLogger.cs" Link="Services\AppLogger.cs" />
     <Compile Include="..\ObtainiumPC\Sources\GitHub\GitHubSource.cs" Link="Sources\GitHubSource.cs" />

@@ -26,9 +26,8 @@ namespace ObtainiumPC.Pages
         public string Title { get; }
         public int Count { get; }
         public bool Expanded { get; }
-        public string CountText => Count == 1
-            ? string.Format(Services.Localization.Loc.T("{0} app"), Count)
-            : string.Format(Services.Localization.Loc.T("{0} apps"), Count);
+        // Upstream plural('apps', n) via easy_localization plural forms.
+        public string CountText => Services.Localization.Loc.Plural("{} Apps", Count);
         public string ChevronGlyph => Expanded ? "\uE70D" : "\uE76C";
     }
 
@@ -708,7 +707,9 @@ base.OnNavigatedTo(e);
             if (sel.Count == 0) return;
             var dialog = new ThemedContentDialog
             {
-                Title = sel.Count == 1 ? "Remove 1 app?" : $"Remove {sel.Count} apps?",
+                // lib/providers/apps_provider_lifecycle.dart:516
+                // plural('removeAppQuestion', apps.length).
+                Title = Services.Localization.Loc.Plural("Remove apps?", sel.Count),
                 Content = "The apps themselves are not uninstalled; Obtainium-PC just stops tracking them.",
                 PrimaryButtonText = "Remove",
                 CloseButtonText = "Cancel",

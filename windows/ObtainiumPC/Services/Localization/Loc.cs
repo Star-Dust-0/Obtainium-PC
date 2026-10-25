@@ -57,6 +57,33 @@ public static class Loc
         return en;
     }
 
+    /// <summary>
+    /// Upstream trPlural: select the correct plural form for the active
+    /// language (CLDR rules via PluralRules, missing forms fall back to
+    /// "other" like easy_localization, then to English). enOtherLiteral is
+    /// the English "other" value from upstream en.json - the port's gettext
+    /// key. The "{}" or "{0}" placeholder in the selected form is replaced
+    /// with the count.
+    /// </summary>
+    public static string Plural(string enOtherLiteral, int n)
+    {
+        var lang = ResolvedLanguage;
+        string form;
+        if (LocPlurals.ByLang.TryGetValue(lang, out var table)
+            && table.TryGetValue(enOtherLiteral, out var forms))
+        {
+            form = PluralRules.SelectForm(forms, lang, n, enOtherLiteral);
+        }
+        else if (LocPlurals.ByLang.TryGetValue("en", out var enTable)
+            && enTable.TryGetValue(enOtherLiteral, out var enForms))
+        {
+            // Unknown language: English plural selection still applies.
+            form = PluralRules.SelectForm(enForms, "en", n, enOtherLiteral);
+        }
+        else form = enOtherLiteral;
+        return form.Replace("{}", n.ToString()).Replace("{0}", n.ToString());
+    }
+
     // Port-only Arabic strings (UI text with no upstream en.json entry).
     // Upstream ar.json entries come from the generated table instead.
     private static readonly Dictionary<string, string> ArOverlay = new()
