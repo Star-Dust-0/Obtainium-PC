@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace ObtainiumPC.Services;
 
-public enum MarkdownInlineKind { Text, Bold, Italic, BoldItalic, Strikethrough, Code, Link, Image }
+public enum MarkdownInlineKind { Text, Bold, Italic, BoldItalic, Strikethrough, Code, Link, Image, FootnoteRef }
 
 public readonly record struct MarkdownSegment(MarkdownInlineKind Kind, string Text, string? Url);
 
@@ -21,12 +21,14 @@ public static class MarkdownInlineParser
     // before italic for the same reason.
     private static readonly Regex InlineRegex = new(
         @"(?<img>!\[(?<imgalt>[^\]]*)\]\((?<imgurl>[^)\s]+)\))"
+        + @"|(?<fnref>\[\^(?<fnid>[^\]]+)\])"
         + @"|(?<link>\[(?<linktext>[^\]]+)\]\((?<linkurl>[^)\s]+)\))"
         + @"|\*\*\*(?<bitext>[^*]+)\*\*\*|(?<![\w])___(?<bitext2>[^_]+)___(?![\w])"
         + @"|\*\*(?<boldtext>[^*]+)\*\*|(?<![\w])__(?<boldtext2>[^_]+)__(?![\w])"
         + @"|\*(?<italictext>[^*]+)\*|(?<![\w])_(?<italictext2>[^_]+)_(?![\w])"
         + @"|~~(?<striketext>[^~]+)~~"
         + @"|`(?<codetext>[^`]+)`"
+        + @"|:(?<emoji>[a-z0-9_+-]+):"
         + @"|(?<bare>https?://[^\s<>\)\]]+)",
         RegexOptions.Compiled);
 
@@ -52,7 +54,14 @@ public static class MarkdownInlineParser
         {
             if (m.Index < pos) continue; // overlap guard
             if (m.Index > pos) Text(text[pos..m.Index]);
-            if (m.Groups["img"].Success && IsWebUrl(m.Groups["imgurl"].Value))
+            if (m.Groups["fnref"].Success)
+                segments.Add(new MarkdownSegment(MarkdownInlineKind.FootnoteRef, m.Groups["fnid"].Value, null));
+            else if (m.Groups["emoji"].Success
+                && EmojiTable.Emojis.TryGetValue(m.Groups["emoji"].Value, out var emoji))
+                Text(emoji);
+            else if (m.Groups["emoji"].Success)
+                Text(m.Value); // unknown shortcode: keep raw text like upstream
+            else if (m.Groups["img"].Success && IsWebUrl(m.Groups["imgurl"].Value))
                 segments.Add(new MarkdownSegment(MarkdownInlineKind.Image, m.Groups["imgalt"].Value, m.Groups["imgurl"].Value));
             else if (m.Groups["link"].Success && IsWebUrl(m.Groups["linkurl"].Value))
                 segments.Add(new MarkdownSegment(MarkdownInlineKind.Link, m.Groups["linktext"].Value, m.Groups["linkurl"].Value));

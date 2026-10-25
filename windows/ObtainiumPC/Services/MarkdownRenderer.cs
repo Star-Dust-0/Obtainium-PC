@@ -29,12 +29,35 @@ public static class MarkdownRenderer
 
     public static RichTextBlock Render(string markdown)
     {
+        _footnoteNumbers = footnoteDefs.Select((d, i) => (d.Id, i)).ToDictionary(x => x.Id, x => x.i + 1);
         var block = new RichTextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             IsTextSelectionEnabled = true,
         };
         var lines = markdown.Replace("\r\n", "\n").Split('\n');
+        // FootnoteDefSyntax (upstream's gitHubFlavored set): collect
+        // [^id]: definition lines, render refs as superscript numbers and
+        // the definitions as a numbered section at the end.
+        var footnoteDefs = new List<(string Id, string Text)>();
+        var footnoteIds = new HashSet<string>();
+        var kept = new List<string>();
+        foreach (var raw in lines)
+        {
+            var def = Regex.Match(raw, @"^\[\^(?<id>[^\]]+)\]:\s*(?<text>.*)$");
+            if (def.Success)
+            {
+                var id = def.Groups["id"].Value;
+                if (!footnoteIds.Contains(id))
+                {
+                    footnoteIds.Add(id);
+                    footnoteDefs.Add((id, def.Groups["text"].Value));
+                }
+                continue;
+            }
+            kept.Add(raw);
+        }
+        lines = kept.ToArray();
         Paragraph? currentList = null;
         var inFence = false;
         Paragraph? fencePara = null;
@@ -184,8 +207,29 @@ public static class MarkdownRenderer
             block.Blocks.Add(para);
             currentList = null;
         }
+        if (footnoteDefs.Count > 0)
+        {
+            var hr = new Paragraph { Margin = new Thickness(0, 10, 0, 2) };
+            hr.Inlines.Add(new Run
+            {
+                Text = new string('─', 24),
+                Foreground = Pages.ThemeLookup.Brush("TextFillColorSecondaryBrush") ?? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TextFillColorSecondaryBrush"],
+            });
+            block.Blocks.Add(hr);
+            var n = 0;
+            foreach (var (id, text) in footnoteDefs)
+            {
+                n++;
+                var fp = new Paragraph { Margin = new Thickness(0, 1, 0, 1), FontSize = 12 };
+                fp.Inlines.Add(new Run { Text = n + ". ", FontWeight = FontWeights.SemiBold });
+                AddInlines(fp, StripHtml(text));
+                block.Blocks.Add(fp);
+            }
+        }
         return block;
     }
+
+    private static Dictionary<string, int> _footnoteNumbers = new();
 
     private static string[] SplitTableRow(string line)
     {
@@ -292,6 +336,17 @@ public static class MarkdownRenderer
                 case MarkdownInlineKind.Code:
                     p.Inlines.Add(new Run { Text = seg.Text, FontFamily = new FontFamily("Consolas") });
                     break;
+                case MarkdownInlineKind.FootnoteRef:
+                {
+                    var num = _footnoteNumbers.TryGetValue(seg.Text, out var fn) ? fn.ToString() : seg.Text;
+                    p.Inlines.Add(new Run
+                    {
+                        Text = "[" + num + "]",
+                        FontSize = (p.FontSize > 0 ? p.FontSize : 14) * 0.75,
+                        Foreground = Pages.ThemeLookup.Brush("AccentTextFillColorPrimaryBrush") ?? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+                    });
+                    break;
+                }
                 default:
                     p.Inlines.Add(new Run { Text = seg.Text });
                     break;

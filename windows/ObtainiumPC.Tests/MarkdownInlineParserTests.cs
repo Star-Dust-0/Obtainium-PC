@@ -97,3 +97,58 @@ public class MarkdownInlineParserSnakeCaseTests
         Assert.Equal("use some_var_name here", segs[0].Text);
     }
 }
+
+public class MarkdownInlineParserEmojiFootnoteTests
+{
+    [Fact]
+    public void Known_emoji_shortcode_becomes_emoji_text()
+    {
+        var segs = MarkdownInlineParser.Parse("fixed :bug: and :tada:");
+        Assert.Equal(4, segs.Count);
+        Assert.Equal("🐛", segs[1].Text);
+        Assert.Equal("🎉", segs[3].Text);
+    }
+
+    [Fact]
+    public void Plus_one_and_numeric_shortcodes_work()
+    {
+        var segs = MarkdownInlineParser.Parse(":+1: :100:");
+        Assert.Equal("👍", segs[0].Text);
+        Assert.Equal("💯", segs[2].Text);
+    }
+
+    [Fact]
+    public void Unknown_shortcode_stays_raw_like_upstream()
+    {
+        var segs = MarkdownInlineParser.Parse(":notarealEmoji99:");
+        Assert.Single(segs);
+        Assert.Equal(":notarealEmoji99:", segs[0].Text);
+    }
+
+    [Fact]
+    public void Emoji_table_is_the_upstream_markdown_package_table()
+    {
+        // dart-lang/markdown lib/src/emojis.dart, generated from
+        // https://api.github.com/emojis (2022-05-03).
+        Assert.True(EmojiTable.Emojis.Count > 1500);
+        Assert.Equal("👍", EmojiTable.Emojis["+1"]);
+        Assert.Equal("🎉", EmojiTable.Emojis["tada"]);
+    }
+
+    [Fact]
+    public void Footnote_reference_is_its_own_segment()
+    {
+        var segs = MarkdownInlineParser.Parse("claim[^1] more");
+        Assert.Equal(3, segs.Count);
+        Assert.Equal(MarkdownInlineKind.FootnoteRef, segs[1].Kind);
+        Assert.Equal("1", segs[1].Text);
+    }
+
+    [Fact]
+    public void Footnote_reference_does_not_eat_links()
+    {
+        var segs = MarkdownInlineParser.Parse("[^1](https://x.com)");
+        // footnote ref + leftover "(https://x.com)" as text, no crash
+        Assert.Equal(MarkdownInlineKind.FootnoteRef, segs[0].Kind);
+    }
+}
