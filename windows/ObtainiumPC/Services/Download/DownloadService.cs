@@ -91,6 +91,23 @@ public sealed class DownloadService
         && u.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase)
         && u.AbsolutePath.Contains("/releases/assets/", StringComparison.Ordinal);
 
+    /// When the release lists a SHA256SUMS-style asset, the download must match it;
+    /// a mismatch deletes the file and throws. No checksum asset = nothing to check.
+    public static async Task VerifyAgainstReleaseChecksumAsync(
+        string path, string fileName, IEnumerable<KeyValuePair<string, string>> releaseAssets, CancellationToken ct = default)
+    {
+        var sum = releaseAssets.FirstOrDefault(a =>
+            System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        if (sum.Value == null) return;
+        string? text = null;
+        try { text = await Http.GetStringAsync(sum.Value, ct); } catch { /* checksum file unavailable: cannot verify */ }
+        if (text != null && ChecksumMismatch(path, fileName, text))
+        {
+            TryDelete(path);
+            throw new InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
+        }
+    }
+
     private static void TryDelete(string path)
     {
         try { File.Delete(path); } catch { /* best effort */ }

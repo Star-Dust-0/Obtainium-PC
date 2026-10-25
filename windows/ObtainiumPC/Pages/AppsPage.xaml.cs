@@ -423,6 +423,7 @@ base.OnNavigatedTo(e);
                     ? App.Settings.GitHubPersonalAccessToken : null;
                 var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers);
+                await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
                 app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
                 // Same per-asset installability gate as the detail page: an

@@ -280,19 +280,7 @@ namespace ObtainiumPC.Pages
                 var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(
                     downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
-                // Cross-check against a published checksum file when the release has one.
-                var sumAsset = _app.AssetUrls.Concat(_app.OtherAssetUrls).FirstOrDefault(a =>
-                    System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
-                if (sumAsset.Value != null)
-                {
-                    string? sumText = null;
-                    try { sumText = await new System.Net.Http.HttpClient().GetStringAsync(sumAsset.Value); } catch { }
-                    if (sumText != null && DownloadService.ChecksumMismatch(path, asset.Key, sumText))
-                    {
-                        try { System.IO.File.Delete(path); } catch { }
-                        throw new System.IO.InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
-                    }
-                }
+                await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
                 // Installability is per-asset, not only per-source: an APK fetched
