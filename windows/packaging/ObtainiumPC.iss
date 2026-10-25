@@ -48,3 +48,8 @@ Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 
 [Icons]
 Name: "{group}\Obtainium-PC"; Filename: "{app}\ObtainiumPC.exe"
+
+[Run]
+; Relaunch after an interactive install/update (the app hands its own newer
+; installer to this wizard, which closes the running app first).
+Filename: "{app}\ObtainiumPC.exe"; Description: "Launch Obtainium-PC"; Flags: nowait postinstall skipifsilent
