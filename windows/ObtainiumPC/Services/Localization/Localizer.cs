@@ -72,85 +72,7 @@ public static class Localizer
             NavOriginals[tag] = key;
         }
         var after = Loc.T(key);
-        Logging.AppLogger.Info($"nav-item tag={tag} id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} key=[{key}] [{s}] -> [{after}] lang={Loc.ResolvedLanguage}");
         nvi.Content = after;
-    }
-
-    /// Translates every tagged NavigationViewItem in any subtree. The overlay
-    /// nav pane hosts cloned containers that keep the text they were created
-    /// with (run 40216021873: MenuItems provably English while the open pane
-    /// still rendered Arabic), so MenuItems translation alone cannot reach
-    /// them; the tag map translates the clones too.
-    public static void ApplyToNavContainers(DependencyObject root)
-    {
-        if (root is NavigationViewItem nvi) TranslateNavItem(nvi);
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-            ApplyToNavContainers(VisualTreeHelper.GetChild(root, i));
-    }
-
-    /// The compact-overlay pane lives in a Popup - a separate visual tree the
-    /// normal walk cannot reach. Called after a language switch and on every
-    /// PaneOpened so the cached cloned containers pick up the new language.
-    public static void TranslatePopupNavItems(Window window)
-    {
-        try
-        {
-            System.Collections.Generic.IReadOnlyList<Popup> popups;
-            try
-            {
-                popups = VisualTreeHelper.GetOpenPopupsForXamlRoot(window.Content.XamlRoot);
-            }
-            catch (System.Exception ex1)
-            {
-                Logging.AppLogger.Warn("GetOpenPopupsForXamlRoot failed, trying window overload", ex1);
-                popups = VisualTreeHelper.GetOpenPopups(window);
-            }
-            Logging.AppLogger.Info($"open popups: {popups.Count}");
-            foreach (var popup in popups)
-            {
-                Logging.AppLogger.Info($"popup child: {popup.Child?.GetType().Name ?? "null"}");
-                if (popup.Child is DependencyObject child)
-                    ApplyToNavContainers(child);
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Logging.AppLogger.Warn("popup nav-item translation failed", ex);
-        }
-    }
-
-    /// Diagnostic: log every NavigationViewItem in a subtree with its
-    /// identity, tag, content and ancestor chain, to locate where the
-    /// visible overlay-pane labels actually live.
-    public static void DumpNavItemHosts(DependencyObject root, string when)
-    {
-        try { WalkDump(root, when, new System.Collections.Generic.List<string>()); }
-        catch (System.Exception ex) { Logging.AppLogger.Warn("nvi-host dump failed", ex); }
-    }
-
-    private static string NavTexts(DependencyObject el)
-    {
-        var sb = new System.Text.StringBuilder();
-        void W(DependencyObject d)
-        {
-            if (d is TextBlock t) sb.Append($"{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(t)}:{t.Text}|");
-            var n = VisualTreeHelper.GetChildrenCount(d);
-            for (var i = 0; i < n; i++) W(VisualTreeHelper.GetChild(d, i));
-        }
-        W(el);
-        return sb.ToString();
-    }
-
-    private static void WalkDump(DependencyObject el, string when, System.Collections.Generic.List<string> path)
-    {
-        if (el is NavigationViewItem nvi)
-            Logging.AppLogger.Info($"nvi-host {when}: id={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(nvi)} tag={nvi.Tag} content=[{nvi.Content}] textblocks=[{NavTexts(nvi)}] path={string.Join(">", path)}");
-        path.Add(el.GetType().Name);
-        var count = VisualTreeHelper.GetChildrenCount(el);
-        for (var i = 0; i < count; i++)
-            WalkDump(VisualTreeHelper.GetChild(el, i), when, path);
-        path.RemoveAt(path.Count - 1);
     }
 
     private static void Walk(DependencyObject parent)
@@ -252,10 +174,7 @@ public static class Localizer
                 break;
             case NavigationViewItem { Content: string } nvi:
             {
-                var before = (string)nvi.Content;
-                var after = FromOriginal(nvi, before);
-                Logging.AppLogger.Info($"walk-nvi tag={nvi.Tag} [{before}] -> [{after}] lang={Loc.ResolvedLanguage}");
-                nvi.Content = after;
+                nvi.Content = FromOriginal(nvi, (string)nvi.Content);
                 break;
             }
             case HyperlinkButton { Content: string } hb:
