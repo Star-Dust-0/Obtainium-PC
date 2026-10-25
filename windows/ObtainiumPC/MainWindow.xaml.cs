@@ -158,6 +158,11 @@ namespace ObtainiumPC
             foreach (var fi in freshItems) NavView.MenuItems.Add(fi);
             NavView.SelectedItem = freshItems.FirstOrDefault(i =>
                 (i as Microsoft.UI.Xaml.Controls.NavigationViewItem)?.Tag as string == selTag);
+            // EXPERIMENT: force a full pane visual-state rebuild.
+            NavView.PaneDisplayMode = Microsoft.UI.Xaml.Controls.NavigationViewPaneDisplayMode.LeftMinimal;
+            NavView.UpdateLayout();
+            NavView.PaneDisplayMode = Microsoft.UI.Xaml.Controls.NavigationViewPaneDisplayMode.LeftCompact;
+            NavView.UpdateLayout();
             Services.Logging.AppLogger.Info($"menu-items reset done, selection restored: {selTag}");
             var dbg = new System.Text.StringBuilder("apply-localization nav-items end state: ");
             foreach (var mi in NavView.MenuItems)
