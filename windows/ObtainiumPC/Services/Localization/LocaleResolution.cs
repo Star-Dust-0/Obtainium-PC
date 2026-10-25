@@ -18,9 +18,15 @@ public static class LocaleResolution
             foreach (var (t, _) in langs)
                 if (string.Equals(systemTag, t, StringComparison.OrdinalIgnoreCase)) return t;
             var two = systemTag.Split('-')[0];
-            if (two.Equals("zh", StringComparison.OrdinalIgnoreCase)
-                && systemTag.Contains("Hant", StringComparison.OrdinalIgnoreCase))
-                return "zh-Hant-TW";
+            if (two.Equals("zh", StringComparison.OrdinalIgnoreCase))
+                // Upstream ships traditional (zh-Hant-TW) before simplified
+                // (zh), so a generic prefix match would wrongly send zh-CN to
+                // the traditional table. Traditional markers decide.
+                return systemTag.Contains("Hant", StringComparison.OrdinalIgnoreCase)
+                    || systemTag.Contains("-TW", StringComparison.OrdinalIgnoreCase)
+                    || systemTag.Contains("-HK", StringComparison.OrdinalIgnoreCase)
+                    || systemTag.Contains("-MO", StringComparison.OrdinalIgnoreCase)
+                    ? "zh-Hant-TW" : "zh";
             foreach (var (t, _) in langs)
                 if (t.Split('-')[0].Equals(two, StringComparison.OrdinalIgnoreCase)) return t;
         }

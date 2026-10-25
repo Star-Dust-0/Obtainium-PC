@@ -40,3 +40,13 @@ public class LocaleResolutionTests
         Assert.False(LocTranslations.ByLang.ContainsKey("en"));
     }
 }
+
+public class LocaleResolutionChineseTests
+{
+    [Theory]
+    [InlineData("zh-HK", "zh-Hant-TW")]
+    [InlineData("zh-MO", "zh-Hant-TW")]
+    [InlineData("zh-Hans-CN", "zh")]
+    public void Chinese_variants_map_by_script_and_region(string tag, string expected) =>
+        Assert.Equal(expected, LocaleResolution.Resolve(tag));
+}
