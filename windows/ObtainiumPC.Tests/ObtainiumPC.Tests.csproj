@@ -26,6 +26,7 @@
     <Compile Include="..\ObtainiumPC\Services\Download\BatchDownloadPlanner.cs" Link="Services\BatchDownloadPlanner.cs" />
     <Compile Include="..\ObtainiumPC\Services\Versioning\*.cs" LinkBase="Services\Versioning" />
     <Compile Include="..\ObtainiumPC\Services\Updates\UpdateHealthService.cs" Link="Services\UpdateHealthService.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Updates\SelfUpdate.cs" Link="Services\SelfUpdate.cs" />
     <Compile Include="..\ObtainiumPC\Services\Detection\InstalledAppsService.cs" Link="Services\InstalledAppsService.cs" />
     <Compile Include="..\ObtainiumPC\Sources\AppSourceBase.cs" Link="Sources\AppSourceBase.cs" />
     <Compile Include="..\ObtainiumPC\Sources\AssetFilterService.cs" Link="Sources\AssetFilterService.cs" />
