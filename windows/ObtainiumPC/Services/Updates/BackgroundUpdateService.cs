@@ -61,6 +61,12 @@ public sealed class BackgroundUpdateService
             foreach (var app in App.TrackedApps.Where(a => !a.Disabled).ToList())
             {
                 if (!manual && app.GetSettingBool("exemptFromBackgroundUpdates")) continue;
+                // lib/providers/apps_provider_updates.dart: when
+                // onlyCheckInstalledOrTrackOnlyApps is on, checks are limited
+                // to installed or track-only apps.
+                if (App.Settings.OnlyCheckInstalledOrTrackOnlyApps
+                    && app.InstalledVersion == null
+                    && !app.GetSettingBool("trackOnly")) continue;
                 try
                 {
                     await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);

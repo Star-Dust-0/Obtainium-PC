@@ -42,6 +42,14 @@ public sealed class AppSettings
     // lib/providers/settings_provider.dart groupBy: none | category | source.
     public string GroupBy { get; set; } = "none";
     public bool CollapseGroupsOnStartup { get; set; }
+    // lib/providers/settings_provider.dart checkUpdateOnDetailPage (default false)
+    public bool CheckUpdateOnDetailPage { get; set; }
+    // lib/providers/settings_provider.dart onlyCheckInstalledOrTrackOnlyApps (default false)
+    public bool OnlyCheckInstalledOrTrackOnlyApps { get; set; }
+    // lib/providers/settings_provider.dart includePrereleasesByDefault (default false)
+    public bool IncludePrereleasesByDefault { get; set; }
+    // lib/providers/settings_provider.dart hideTrackOnlyWarning (default false)
+    public bool HideTrackOnlyWarning { get; set; }
     public string? GitHubPersonalAccessToken { get; set; }
     public bool GitHubCheckRepoRename { get; set; } = true;
     public string? GitHubReqPrefix { get; set; }

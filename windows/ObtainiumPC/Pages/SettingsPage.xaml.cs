@@ -72,6 +72,10 @@ namespace ObtainiumPC.Pages
             HandleLinksToggle.IsOn = s.HandleObtainiumLinks;
             NotifyToggle.IsOn = s.NotifyUpdates;
             HideDowngradesToggle.IsOn = s.HideDowngrades;
+            CheckUpdateOnDetailToggle.IsOn = s.CheckUpdateOnDetailPage;
+            OnlyCheckInstalledToggle.IsOn = s.OnlyCheckInstalledOrTrackOnlyApps;
+            PrereleasesDefaultToggle.IsOn = s.IncludePrereleasesByDefault;
+            HideTrackOnlyWarningToggle.IsOn = s.HideTrackOnlyWarning;
             GlobalVersionRegexBox.Text = s.GlobalVersionExtractionRegEx ?? "";
             GlobalMatchGroupBox.Text = s.GlobalMatchGroupToUse ?? "";
             GlobalAssetFilterBox.Text = s.GlobalAssetFilterRegEx ?? "";
@@ -151,6 +155,10 @@ namespace ObtainiumPC.Pages
         }
         private void NotifyToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.NotifyUpdates = NotifyToggle.IsOn; Save(); }
         private void HideDowngradesToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideDowngrades = HideDowngradesToggle.IsOn; Save(); }
+        private void CheckUpdateOnDetailToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CheckUpdateOnDetailPage = CheckUpdateOnDetailToggle.IsOn; Save(); }
+        private void OnlyCheckInstalledToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.OnlyCheckInstalledOrTrackOnlyApps = OnlyCheckInstalledToggle.IsOn; Save(); }
+        private void PrereleasesDefaultToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.IncludePrereleasesByDefault = PrereleasesDefaultToggle.IsOn; Save(); }
+        private void HideTrackOnlyWarningToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.HideTrackOnlyWarning = HideTrackOnlyWarningToggle.IsOn; Save(); }
         private void AddWithoutCheckToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.AllowAddingAppsWithoutCheck = AddWithoutCheckToggle.IsOn; Save(); }
         public sealed class CategoryRow
         {

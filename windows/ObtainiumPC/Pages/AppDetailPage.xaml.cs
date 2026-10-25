@@ -31,6 +31,24 @@ namespace ObtainiumPC.Pages
                 return;
             }
             Render();
+            // lib/pages/app.dart:1252 checkUpdateOnDetailPage (default false):
+            // opening the detail page refreshes this app when the setting is on.
+            if (App.Settings.CheckUpdateOnDetailPage)
+                _ = RefreshThisAppAsync();
+        }
+
+        private async System.Threading.Tasks.Task RefreshThisAppAsync()
+        {
+            try
+            {
+                await App.Updater.CheckAppAsync(_app.Url, _app.AdditionalSettings, _app);
+                await App.SaveAppsAsync();
+                Render();
+            }
+            catch (Exception ex)
+            {
+                Services.Logging.AppLogger.Warn($"Detail-page update check failed for {_app.FinalName}", ex);
+            }
         }
 
         private void Render()

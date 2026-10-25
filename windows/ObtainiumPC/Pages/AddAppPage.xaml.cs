@@ -79,8 +79,48 @@ namespace ObtainiumPC.Pages
             {
                 var settings = new Dictionary<string, JsonElement>();
                 if (TrackOnlyBox.IsChecked == true)
+                {
+                    // lib/pages/add_app.dart getTrackOnlyConfirmationIfNeeded:
+                    // confirm the track-only choice unless the user asked to
+                    // hide the warning (hideTrackOnlyWarning). The port's copy
+                    // reflects that track-only downloads are manual here.
+                    if (!App.Settings.HideTrackOnlyWarning)
+                    {
+                        var dontShow = new CheckBox { Content = Services.Localization.Loc.T("Don't show this again") };
+                        var warn = new ThemedContentDialog
+                        {
+                            Title = Services.Localization.Loc.T("App is track-only"),
+                            Content = new StackPanel { Spacing = 8, Children = {
+                                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = Services.Localization.Loc.T("You have selected the 'track-only' option.") + "\n\n" + Services.Localization.Loc.T("The app will be tracked for updates; downloads are manual and cannot be installed on Windows.") },
+                                dontShow } },
+                            PrimaryButtonText = Services.Localization.Loc.T("Continue"),
+                            CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                            XamlRoot = this.XamlRoot,
+                        };
+                        if (await warn.ShowAsync() != ContentDialogResult.Primary) return;
+                        if (dontShow.IsChecked == true)
+                        {
+                            App.Settings.HideTrackOnlyWarning = true;
+                            App.Settings.Save();
+                        }
+                    }
                     settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
+                }
                 var overrideSource = (OverrideSourceCombo.SelectedItem as ComboBoxItem)?.Tag as string;
+                // lib/pages/add_app.dart:628 includePrereleasesByDefault: prefill
+                // the per-app includePrereleases option when the source offers it.
+                if (App.Settings.IncludePrereleasesByDefault)
+                {
+                    try
+                    {
+                        var src = SourceCatalog.Resolve(url, App.Settings, overrideSource);
+                        var hasPrereleaseToggle = src.AdditionalSourceAppSpecificSettingFormItems
+                            .SelectMany(r => r).Any(i => i.Key == "includePrereleases");
+                        if (hasPrereleaseToggle)
+                            settings["includePrereleases"] = JsonSerializer.SerializeToElement(true);
+                    }
+                    catch { /* invalid URLs fail later with the proper error */ }
+                }
                 ObtainiumPC.Models.TrackedApp app;
                 try
                 {
