@@ -934,14 +934,22 @@ jobs:
           $dlLight = FindNamed 'Download' $win3
           if ($dlLight -eq $null -or $dlLight.Current.IsEnabled -ne $true) { Shot 'light-download-disabled'; throw 'Download must stay enabled in light theme' }
           Shot '28i-track-only-marked-installed-light'
-          # Back-navigation can miss: keep clicking Apps until the list's
-          # Filter button renders (or give up with a shot).
-          $backOk = $false
-          foreach ($w in 1..5) {
+          # Back-navigation evidence: capture the FIRST attempt's result
+          # before any retry, so a slow/broken render is distinguishable
+          # from a missed harness click. Retries are bounded and counted; a
+          # retry succeeding must stay visible in the log, not silently pass.
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+          Shot '28j-back-to-apps-first-attempt'
+          $backTries = 1
+          $backOk = (FindNamed 'Filter' $win3) -ne $null
+          while (-not $backOk -and $backTries -lt 4) {
+            $backTries++
             ClickNamedIn 'Apps' $win3
             Start-Sleep 2
-            if ((FindNamed 'Filter' $win3) -ne $null) { $backOk = $true; break }
+            $backOk = (FindNamed 'Filter' $win3) -ne $null
           }
+          if ($backTries -gt 1) { "WARNING: back-nav needed $backTries attempts (first-attempt evidence in 28j shot) - possible app navigation/render issue, not just a missed click" }
           if (-not $backOk) { Shot 'back-nav-stuck'; throw 'could not navigate back to the Apps list after the light check' }
           'light-theme mark-disabled state verified'
 
