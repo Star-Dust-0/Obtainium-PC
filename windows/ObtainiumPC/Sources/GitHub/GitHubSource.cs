@@ -133,6 +133,10 @@ public sealed class GitHubSource : AppSourceBase
 
     private HttpRequestMessage BuildRequest(string url, IReadOnlyDictionary<string, JsonElement> additionalSettings)
     {
+        // Upstream ghReqPrefix: route GitHub API requests through the user's proxy as https://<prefix>/<url>.
+        var prefix = _config.GhReqPrefix;
+        if (!string.IsNullOrEmpty(prefix) && !url.StartsWith("https://" + prefix + "/", StringComparison.Ordinal))
+            url = "https://" + prefix + "/" + url;
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         var token = GetBool(additionalSettings, "skipAuth") ? null : GetTokenIfAny(additionalSettings);
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Authorization", "Token " + token);
