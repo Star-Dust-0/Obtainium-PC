@@ -78,7 +78,7 @@ jobs:
           $ssl = "$env:RUNNER_TEMP\ssl"; New-Item -ItemType Directory -Force $ssl | Out-Null
           $openssl = 'C:\Program Files\Git\usr\bin\openssl.exe'
           & $openssl req -x509 -newkey rsa:2048 -nodes -keyout "$ssl\key.pem" -out "$ssl\cert.pem" -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' 2>&1 | Out-Null
-          Import-Certificate -FilePath "$ssl\cert.pem" -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+          Import-Certificate -FilePath "$ssl\cert.pem" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
           $installer = (Resolve-Path inst-new\ObtainiumPC-Setup-win-x64.exe).Path
           @"
           import http.server, ssl, json, os, sys, re
@@ -116,7 +116,7 @@ jobs:
           srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
           srv.serve_forever()
           "@ | Set-Content "$ssl\server.py" -Encoding utf8
-          Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden
+          Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden -RedirectStandardOutput "$ssl\srv.out" -RedirectStandardError "$ssl\srv.err"
           Start-Sleep 3
           $r = Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/MohamedElnaggar00/Obtainium-PC/releases'
           "fixture self-check: $($r.StatusCode) $($r.Content.Substring(0,80))"
