@@ -8,7 +8,10 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+        <StackPanel Spacing="2">
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Appearance, update behavior and sources." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
         <Grid Grid.Row="1" Margin="0,12,0,0" SizeChanged="Split_SizeChanged">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SectionNavColumn" Width="0"/>

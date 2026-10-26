@@ -8,7 +8,10 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="Import / Export" Style="{StaticResource TitleTextBlockStyle}"/>
+        <StackPanel Spacing="2">
+            <TextBlock Text="Import / Export" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Back up, restore and move your tracked apps." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
         <ScrollViewer Grid.Row="1" Margin="0,12,0,0">
           <Grid>
             <Grid.ColumnDefinitions>

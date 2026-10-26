@@ -135,6 +135,9 @@ public static class Loc
         ["Flagged apps"] = "التطبيقات المُبلَّغ عنها",
         ["Ignored apps"] = "التطبيقات المتجاهَلة",
         ["The request failed. Details are in the logs."] = "فشل الطلب. التفاصيل في السجلات.",
+        ["Back up, restore and move your tracked apps."] = "انسخ تطبيقاتك المتتبعة احتياطيًا واستعدها وانقلها.",
+        ["Appearance, update behavior and sources."] = "المظهر وسلوك التحديث والمصادر.",
+        ["Apps whose update checks need attention."] = "التطبيقات التي تحتاج فحوصات التحديث الخاصة بها إلى انتباه.",
         ["Version detection (global defaults)"] = "اكتشاف الإصدار (الافتراضيات العامة)",
 
         // Source errors (SourceErrorText)

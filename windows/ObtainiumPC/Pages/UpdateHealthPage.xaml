@@ -9,6 +9,7 @@
     <ScrollViewer>
         <StackPanel Margin="24,16" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
             <TextBlock Text="Update Health" Style="{ThemeResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Apps whose update checks need attention." Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,-8,0,0"/>
 
             <TextBlock Text="Detection" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,12,0,0"/>
             <ComboBox x:Name="StaleReleaseCombo" Header="Flag when the latest release is older than" HorizontalAlignment="Stretch"/>
