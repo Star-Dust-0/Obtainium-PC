@@ -777,6 +777,21 @@ jobs:
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
           'populated logs dark verified'
+          # Bounded stress (dark): rapid page switches, group header clicks and
+          # page disposal, then the process must still be alive. 0xc000027b has
+          # been seen on this Logs -> Apps path.
+          foreach ($cycle in 1..20) {
+            foreach ($pg in @('Apps','Logs','Apps','Update Health','Apps','Settings','Logs','Apps')) {
+              ClickNamedIn $pg $win2
+              Start-Sleep -Milliseconds 250
+              if ($pg -eq 'Apps' -and ($cycle % 3) -eq 0) { try { ClickNamedIn 'GitHub' $win2 } catch {}; Start-Sleep -Milliseconds 200 }
+            }
+            AssertAlive "stress-cycle-$cycle"
+          }
+          Start-Sleep 2
+          AssertAlive 'stress-done'
+          Shot '28e-after-stress-dark'
+          'dark navigation stress verified (20 cycles x 8 switches)'
           Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Tail 30 | Select-String 'ThemeLookup' | ForEach-Object { $_.Line }
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
