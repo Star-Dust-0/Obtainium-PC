@@ -1281,6 +1281,12 @@ jobs:
           Start-Sleep 3
           $script:shotWin = $ww
           Shot 'wide-01-apps'
+          # Split view: clicking a row must fill the detail pane beside the list, not navigate away.
+          ClickPartial 'Notepad++' $ww | Out-Null
+          Start-Sleep 4
+          Shot 'wide-01b-apps-split-detail'
+          if ((FindNamed 'Search apps' $ww) -eq $null -and (FindNamed 'Filter' $ww) -eq $null) { throw 'wide Apps: list vanished after selecting an app (split view not active)' }
+          if ((FindNamed 'Options' $ww) -eq $null) { throw 'wide Apps: detail pane did not show the app actions beside the list' }
           foreach ($pair in @(@('Add App','wide-02-add'), @('Update Health','wide-03-health'), @('Import / Export','wide-04-importexport'), @('Logs','wide-05-logs'), @('Settings','wide-06-settings'))) {
             ClickNamedIn $pair[0] $ww
             Start-Sleep 3
