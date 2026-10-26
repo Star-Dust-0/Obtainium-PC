@@ -1269,6 +1269,31 @@ jobs:
           if ($procs.Count -ne 1) { Shot 'deeplink-instance-count'; throw "expected 1 ObtainiumPC process, found $($procs.Count)" }
           'deep links verified'
           Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+
+          # ---- unreadable stored data must be visible, and must not be overwritten ----
+          $setPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $goodSettings = Get-Content $setPath -Raw
+          $badText = '{ "GitHubPersonalAccessToken": "keep-me", broken'
+          Set-Content -Path $setPath -Value $badText -NoNewline
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 10
+          $wc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $wn = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wc)
+          if ($wn -eq $null) { throw 'main window not found for the storage-problem check' }
+          $script:shotWin = $wn
+          $dlgC = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Stored data could not be read')
+          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dlgC) -eq $null) { Shot 'storage-dialog-missing'; throw 'unreadable settings.json did not raise the startup dialog' }
+          Shot '29-storage-problem-dialog'
+          $okBtn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'OK')))
+          if ($okBtn -ne $null) { try { $okBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+          if ((Get-Content $setPath -Raw) -ne $badText) { throw 'the unreadable settings.json was overwritten' }
+          if (-not (Get-ChildItem (Split-Path $setPath) -Filter 'settings.json.corrupt-*')) { throw 'no preserved copy of the unreadable settings.json' }
+          Set-Content -Path $setPath -Value $goodSettings -NoNewline
+          'storage problem dialog verified, original preserved'
       - name: Preserve app logs
         if: always()
         shell: pwsh
