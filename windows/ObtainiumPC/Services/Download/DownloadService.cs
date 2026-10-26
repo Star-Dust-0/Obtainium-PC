@@ -93,7 +93,9 @@ public sealed class DownloadService
 
     /// When the release lists a SHA256SUMS-style asset, the download must match it;
     /// a mismatch deletes the file and throws. No checksum asset = nothing to check.
-    public static Task VerifyAgainstReleaseChecksumAsync(
+    public enum ChecksumStatus { Verified, NoChecksumPublished, ChecksumUnavailable, NotListed }
+
+    public static Task<ChecksumStatus> VerifyAgainstReleaseChecksumAsync(
         string path, string fileName, IEnumerable<KeyValuePair<string, string>> releaseAssets, CancellationToken ct = default)
         => VerifyAgainstReleaseChecksumAsync(path, fileName, releaseAssets, FetchChecksumTextAsync, ct);
 
@@ -111,27 +113,30 @@ public sealed class DownloadService
         catch { return null; }
     }
 
-    public static async Task VerifyAgainstReleaseChecksumAsync(
+    public static async Task<ChecksumStatus> VerifyAgainstReleaseChecksumAsync(
         string path, string fileName, IEnumerable<KeyValuePair<string, string>> releaseAssets,
         Func<string, CancellationToken, Task<string?>> fetchText, CancellationToken ct = default)
     {
         var sums = releaseAssets.Where(a =>
             System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)).ToList();
-        if (sums.Count == 0) return;
+        if (sums.Count == 0) return ChecksumStatus.NoChecksumPublished;
+        var anyFetched = false;
         // Prefer the checksum file named after this asset, then any other.
         var ordered = sums.OrderByDescending(a => a.Key.StartsWith(fileName, StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (var sum in ordered)
         {
             var text = await fetchText(sum.Value, ct);
             if (text == null) continue; // unavailable: cannot verify with this file
+            anyFetched = true;
             if (ExpectedSha256(text, fileName) == null) continue; // does not list this file
             if (ChecksumMismatch(path, fileName, text))
             {
                 TryDelete(path);
                 throw new InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
             }
-            return; // listed and matching
+            return ChecksumStatus.Verified; // listed and matching
         }
+        return anyFetched ? ChecksumStatus.NotListed : ChecksumStatus.ChecksumUnavailable;
     }
 
     private static void TryDelete(string path)

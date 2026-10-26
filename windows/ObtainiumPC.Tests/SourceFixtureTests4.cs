@@ -259,20 +259,21 @@ public class DownloadIntegrityTests
         Assert.Throws<InvalidDataException>(() => ObtainiumPC.Services.Download.DownloadService.VerifyDownloaded(good, "a.exe", bytes.Length, bytes.Length + 10));
     }
 
-    private static async Task<(bool threw, bool kept)> RunChecksum(string content, string name, Dictionary<string, string> assets, Func<string, string?> texts)
+    private static async Task<(bool threw, bool kept, ObtainiumPC.Services.Download.DownloadService.ChecksumStatus? status)> RunChecksum(string content, string name, Dictionary<string, string> assets, Func<string, string?> texts)
     {
         var f = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + "-" + name);
         File.WriteAllText(f, content);
         var threw = false;
+        ObtainiumPC.Services.Download.DownloadService.ChecksumStatus? status = null;
         try
         {
-            await ObtainiumPC.Services.Download.DownloadService.VerifyAgainstReleaseChecksumAsync(
+            status = await ObtainiumPC.Services.Download.DownloadService.VerifyAgainstReleaseChecksumAsync(
                 f, name, assets, (u, ct) => Task.FromResult(texts(u)));
         }
         catch (InvalidDataException) { threw = true; }
         var kept = File.Exists(f);
         if (kept) File.Delete(f);
-        return (threw, kept);
+        return (threw, kept, status);
     }
 
     private const string AbcSha = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
@@ -287,15 +288,19 @@ public class DownloadIntegrityTests
         // match: kept, no throw
         r = await RunChecksum("abc", "x.exe", assets, _ => AbcSha + "  x.exe\n");
         Assert.False(r.threw); Assert.True(r.kept);
+        Assert.Equal(ObtainiumPC.Services.Download.DownloadService.ChecksumStatus.Verified, r.status);
         // no checksum asset: nothing to verify
         r = await RunChecksum("abc", "x.exe", new Dictionary<string, string>(), _ => null);
         Assert.False(r.threw); Assert.True(r.kept);
+        Assert.Equal(ObtainiumPC.Services.Download.DownloadService.ChecksumStatus.NoChecksumPublished, r.status);
         // checksum file unavailable: cannot verify, file kept (documented fail-open)
         r = await RunChecksum("abc", "x.exe", assets, _ => null);
         Assert.False(r.threw); Assert.True(r.kept);
+        Assert.Equal(ObtainiumPC.Services.Download.DownloadService.ChecksumStatus.ChecksumUnavailable, r.status);
         // checksum file does not list this asset: not verified, kept
         r = await RunChecksum("abc", "x.exe", assets, _ => new string('0', 64) + "  other.exe\n");
         Assert.False(r.threw); Assert.True(r.kept);
+        Assert.Equal(ObtainiumPC.Services.Download.DownloadService.ChecksumStatus.NotListed, r.status);
         // first checksum file lacks the asset, second has a mismatch: still caught
         var two = new Dictionary<string, string> { ["checksums-a.txt"] = "u://a", ["x.exe.sha256"] = "u://b" };
         r = await RunChecksum("abc", "x.exe", two, u => u == "u://a" ? "" : new string('1', 64) + "  x.exe");

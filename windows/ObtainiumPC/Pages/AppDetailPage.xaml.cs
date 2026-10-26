@@ -280,7 +280,8 @@ namespace ObtainiumPC.Pages
                 var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(
                     downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
-                await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
+                var checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
+                Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();
                 // Installability is per-asset, not only per-source: an APK fetched

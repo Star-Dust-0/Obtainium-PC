@@ -418,7 +418,8 @@ base.OnNavigatedTo(e);
                     ? App.Settings.GitHubPersonalAccessToken : null;
                 var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
                 var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers);
-                await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
+                var checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
+                Services.Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
                 // Same per-asset installability gate as the detail page: an
