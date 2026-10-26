@@ -972,7 +972,7 @@ jobs:
           ClickNamedIn 'Options' $win3
           Start-Sleep 2; AssertAlive 'farsroid-options'
           if ((FindNamed 'Farsroid smoke options' $root) -eq $null) { Shot 'farsroid-options-nav'; throw 'options page did not open for Farsroid smoke' }
-          if ((FindNamed 'Auto-select first of multiple APKs' $root) -eq $null) { Shot 'farsroid-options-missing'; throw 'Farsroid source option editors did not render' }
+          if ((FindNamed 'Auto-select first of multiple APKs' $root) -eq $null) { DumpNames $root 'farsroid-options'; Shot 'farsroid-options-missing'; throw 'Farsroid source option editors did not render' }
           Shot '30-farsroid-options'
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
