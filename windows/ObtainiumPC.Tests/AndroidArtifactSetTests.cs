@@ -13,7 +13,7 @@ public class AndroidArtifactSetTests
     {
         Assert.True(AssetFilterService.IsAndroidOnlyArtifactSet(new[]
         {
-            A("app-release.apk"), A("app-release.apk.sha256"), A("mapping.txt"),
+            A("app-release.apk"), A("app-release.apk.idsig"), A("app-release.apk.sha256.sig"), A("app-release.apk.sha256"), A("mapping.txt"),
             A("Source code (zip)", "https://api.github.com/repos/o/r/zipball/v1"),
         }));
         Assert.True(AssetFilterService.IsAndroidOnlyArtifactSet(new[] { A("App-arm64-v8a.APK"), A("App.xapk") }));

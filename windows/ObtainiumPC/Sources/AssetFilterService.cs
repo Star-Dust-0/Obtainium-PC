@@ -42,7 +42,7 @@ public static class AssetFilterService
     /// (checksums, signatures, notes, mapping/symbol files).
     private static readonly string[] AccessoryExtensions =
     {
-        ".sha1", ".sha256", ".sha512", ".md5", ".sig", ".asc", ".pem", ".minisig", ".sum", ".sums",
+        ".idsig", ".sha1", ".sha256", ".sha512", ".md5", ".sig", ".asc", ".pem", ".minisig", ".sum", ".sums",
         ".txt", ".md", ".json", ".yml", ".yaml", ".blockmap", ".map", ".sbom", ".spdx", ".cdx",
     };
 
