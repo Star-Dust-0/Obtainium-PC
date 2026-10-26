@@ -223,6 +223,20 @@ jobs:
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
             return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
           }
+          # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
+          function FindNamedScrolling($name, $scope) {
+            $el = FindNamed $name $scope
+            if ($el -ne $null) { return $el }
+            $wr = $scope.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
+            foreach ($k in 1..8) {
+              [M]::mouse_event(0x0800,0,0,[uint32]([int]-120),0)
+              Start-Sleep -Milliseconds 400
+              $el = FindNamed $name $scope
+              if ($el -ne $null) { return $el }
+            }
+            return $null
+          }
 
           function ClickPaneToggle($win) {
             # Guarded pane-toggle click: real toggles sit in the nav rail
@@ -1185,7 +1199,7 @@ jobs:
           if ((FindNamed 'ShareX' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
           ClickNamedIn 'Select' $win3
           Start-Sleep 1
-          ClickPartial 'Notepad++' $win3 | Out-Null
+          try { $null = FindNamedScrolling 'Notepad++' $win3; ClickPartial 'Notepad++' $win3 | Out-Null } catch { 'Notepad++ row not realized in the viewport; bulk set uses ShareX only' }
           Start-Sleep -Milliseconds 500
           ClickPartial 'ShareX' $win3 | Out-Null
           Start-Sleep 1
@@ -1234,7 +1248,7 @@ jobs:
           foreach ($openTry in 1..2) {
             if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 } else { break }
           }
-          $nppRow = FindNamed 'Notepad++' $win3
+          $nppRow = FindNamedScrolling 'Notepad++' $win3
           if ($nppRow -eq $null) { Shot 'nav-npp-missing'; throw 'Notepad++ row not found for navigation checks' }
           $nppItem = $nppRow
           while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
