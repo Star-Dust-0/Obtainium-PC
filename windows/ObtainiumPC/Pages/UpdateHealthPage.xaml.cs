@@ -21,16 +21,16 @@ public sealed partial class UpdateHealthPage : Page
     private void PopulateThresholds()
     {
         FillCombo(StaleReleaseCombo,
-            UpdateHealthService.DayOptions.Select(d => KeyValuePair.Create(d, UpdateHealthService.DaysLabel(d))),
+            UpdateHealthService.DayOptions.Select(d => KeyValuePair.Create(d, DaysText(d))),
             _settings.UpdateHealthStaleReleaseDays);
         FillCombo(StaleVersionCombo,
-            UpdateHealthService.DayOptions.Select(d => KeyValuePair.Create(d, UpdateHealthService.DaysLabel(d))),
+            UpdateHealthService.DayOptions.Select(d => KeyValuePair.Create(d, DaysText(d))),
             _settings.UpdateHealthStaleVersionDays);
         FillCombo(FailedChecksCombo,
-            UpdateHealthService.FailedChecksOptions.Select(c => KeyValuePair.Create(c, UpdateHealthService.CountLabel(c, "checks"))),
+            UpdateHealthService.FailedChecksOptions.Select(c => KeyValuePair.Create(c, CountText(c, "{} checks"))),
             _settings.UpdateHealthFailedChecksCount);
         FillCombo(FilteredReleasesCombo,
-            UpdateHealthService.FailedChecksOptions.Select(c => KeyValuePair.Create(c, UpdateHealthService.CountLabel(c, "releases"))),
+            UpdateHealthService.FailedChecksOptions.Select(c => KeyValuePair.Create(c, CountText(c, "{} releases"))),
             _settings.UpdateHealthFilteredReleasesCount);
         ArchivedToggle.IsOn = _settings.UpdateHealthArchivedEnabled;
         IndicatorToggle.IsOn = _settings.ShowUpdateHealthIndicator;
@@ -41,6 +41,31 @@ public sealed partial class UpdateHealthPage : Page
         FilteredReleasesCombo.SelectionChanged += (s, e) => { _settings.UpdateHealthFilteredReleasesCount = SelectedValue(FilteredReleasesCombo); SaveAndRefresh(); };
         ArchivedToggle.Toggled += (s, e) => { _settings.UpdateHealthArchivedEnabled = ArchivedToggle.IsOn; SaveAndRefresh(); };
         IndicatorToggle.Toggled += (s, e) => { _settings.ShowUpdateHealthIndicator = IndicatorToggle.IsOn; SaveAndRefresh(); };
+    }
+
+    // Localized labels (upstream plural keys; port-only Arabic strings via the overlay).
+    private static string DaysText(int days) =>
+        days < 1 ? Services.Localization.Loc.T("Disabled") : Services.Localization.Loc.Plural("{} days", days);
+    private static string CountText(int count, string key) =>
+        count < 1 ? Services.Localization.Loc.T("Disabled") : Services.Localization.Loc.Plural(key, count);
+    private static string ReasonText(UpdateHealthReason reason, TrackedApp app, UpdateHealthConfig config)
+    {
+        var L = Services.Localization.Loc.T;
+        switch (reason)
+        {
+            case UpdateHealthReason.StaleRelease:
+                return L("Latest release is more than {} days old").Replace("{}", config.StaleReleaseDays.ToString());
+            case UpdateHealthReason.StaleVersion:
+                return L("Not updated in over {} days").Replace("{}", config.StaleVersionDays.ToString());
+            case UpdateHealthReason.FailedChecks:
+                return Services.Localization.Loc.Plural("{} update checks failed in a row", app.ConsecutiveFailedChecks);
+            case UpdateHealthReason.Archived:
+                return L("Source is archived");
+            case UpdateHealthReason.FilteredReleases:
+                return Services.Localization.Loc.Plural("{} newer releases are hidden by your filters", app.NewerReleasesFilteredOut ?? 0);
+            default:
+                return UpdateHealthService.ReasonLabel(reason, app, config);
+        }
     }
 
     private static void FillCombo(ComboBox combo, IEnumerable<KeyValuePair<int, string>> options, int selected)
@@ -114,7 +139,7 @@ public sealed partial class UpdateHealthPage : Page
         text.Children.Add(new TextBlock { Text = app.FinalName, Style = ThemeLookup.Style("BodyStrongTextBlockStyle") });
         text.Children.Add(new TextBlock
         {
-            Text = string.Join("\n", reasons.Select(r => UpdateHealthService.ReasonLabel(r, app, config))),
+            Text = string.Join("\n", reasons.Select(r => ReasonText(r, app, config))),
             Foreground = ThemeLookup.Brush("TextFillColorSecondaryBrush"),
             TextWrapping = TextWrapping.Wrap,
         });

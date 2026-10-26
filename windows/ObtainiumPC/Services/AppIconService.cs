@@ -68,14 +68,23 @@ public static class AppIconService
         return uri == null ? null : new BitmapImage(uri);
     }
 
+    private static readonly HashSet<string> _logged = new();
+
     private static async Task LoadFromFileAsync(BitmapImage bmp, string path)
     {
         try
         {
             var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
             using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, 96);
-            if (thumb != null) await bmp.SetSourceAsync(thumb);
+            if (thumb != null)
+            {
+                // Diagnostic (once per path): which thumbnail kind the shell returned, to tell a
+                // real exe icon from a generic/stand-in one when a capture shows a different icon.
+                if (_logged.Add(path))
+                    Logging.AppLogger.Info($"icon diag: {path} type={thumb.Type} size={thumb.OriginalWidth}x{thumb.OriginalHeight} culture={System.Globalization.CultureInfo.CurrentUICulture.Name}");
+                await bmp.SetSourceAsync(thumb);
+            }
         }
-        catch { /* leave blank: placeholder glyph shows through */ }
+        catch (Exception e) { Logging.AppLogger.Warn("icon load failed: " + path, e); }
     }
 }
