@@ -93,18 +93,44 @@ public sealed class DownloadService
 
     /// When the release lists a SHA256SUMS-style asset, the download must match it;
     /// a mismatch deletes the file and throws. No checksum asset = nothing to check.
-    public static async Task VerifyAgainstReleaseChecksumAsync(
+    public static Task VerifyAgainstReleaseChecksumAsync(
         string path, string fileName, IEnumerable<KeyValuePair<string, string>> releaseAssets, CancellationToken ct = default)
+        => VerifyAgainstReleaseChecksumAsync(path, fileName, releaseAssets, FetchChecksumTextAsync, ct);
+
+    /// Fetches checksum text through BuildRequest so GitHub asset-API URLs return the
+    /// file itself (octet-stream) rather than JSON metadata.
+    private static async Task<string?> FetchChecksumTextAsync(string url, CancellationToken ct)
     {
-        var sum = releaseAssets.FirstOrDefault(a =>
-            System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
-        if (sum.Value == null) return;
-        string? text = null;
-        try { text = await Http.GetStringAsync(sum.Value, ct); } catch { /* checksum file unavailable: cannot verify */ }
-        if (text != null && ChecksumMismatch(path, fileName, text))
+        try
         {
-            TryDelete(path);
-            throw new InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
+            using var req = BuildRequest(url, null, null);
+            using var res = await Http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return null;
+            return await res.Content.ReadAsStringAsync(ct);
+        }
+        catch { return null; }
+    }
+
+    public static async Task VerifyAgainstReleaseChecksumAsync(
+        string path, string fileName, IEnumerable<KeyValuePair<string, string>> releaseAssets,
+        Func<string, CancellationToken, Task<string?>> fetchText, CancellationToken ct = default)
+    {
+        var sums = releaseAssets.Where(a =>
+            System.Text.RegularExpressions.Regex.IsMatch(a.Key, @"(sha-?256|checksums?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)).ToList();
+        if (sums.Count == 0) return;
+        // Prefer the checksum file named after this asset, then any other.
+        var ordered = sums.OrderByDescending(a => a.Key.StartsWith(fileName, StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var sum in ordered)
+        {
+            var text = await fetchText(sum.Value, ct);
+            if (text == null) continue; // unavailable: cannot verify with this file
+            if (ExpectedSha256(text, fileName) == null) continue; // does not list this file
+            if (ChecksumMismatch(path, fileName, text))
+            {
+                TryDelete(path);
+                throw new InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
+            }
+            return; // listed and matching
         }
     }
 
