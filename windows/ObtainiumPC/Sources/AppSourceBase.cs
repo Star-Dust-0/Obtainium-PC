@@ -38,6 +38,12 @@ public sealed class InvalidUrlException : ObtainiumSourceException
     public InvalidUrlException(string source) : base($"Invalid URL for source {source}") { }
 }
 
+public sealed class AndroidSourceNotSupportedException : ObtainiumSourceException
+{
+    public const string Text = "Android apps and Android app stores are not supported. Obtainium-PC tracks Windows apps only.";
+    public AndroidSourceNotSupportedException() : base(Text) { }
+}
+
 public sealed class NoReleasesException : ObtainiumSourceException
 {
     public NoReleasesException() : base("No releases found") { }

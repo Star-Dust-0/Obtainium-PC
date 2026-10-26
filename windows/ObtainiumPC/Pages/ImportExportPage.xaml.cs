@@ -314,7 +314,10 @@ namespace ObtainiumPC.Pages
             await App.InitAsync();
             try
             {
-                var (apps, hasSettings, _) = Services.Store.AppStore.Import(json);
+                var (allApps, hasSettings, _) = Services.Store.AppStore.Import(json);
+                // Windows-only: records from Android app sources are not imported (the file is not modified).
+                var skippedAndroid = allApps.Where(a => ObtainiumPC.Sources.SourceCatalog.IsAndroidOnlyApp(a.Url, a.OverrideSource, App.Settings)).ToList();
+                var apps = allApps.Except(skippedAndroid).ToList();
                 var added = 0;
                 var replaced = 0;
                 foreach (var app in apps)
@@ -325,6 +328,9 @@ namespace ObtainiumPC.Pages
                 var settingsNote = hasSettings
                     ? " The file also contains settings; applying them lands with the settings import step."
                     : "";
+                if (skippedAndroid.Count > 0)
+                    settingsNote += "\n" + string.Format(Services.Localization.Loc.T("Skipped {0} Android apps (not supported): {1}"),
+                        skippedAndroid.Count, string.Join(", ", skippedAndroid.Select(a => a.FinalName)));
                 ShowResult(InfoBarSeverity.Success, "Import complete",
                     string.Format(Services.Localization.Loc.T("Added: {0}; replaced: {1}."), added, replaced) + settingsNote);
             }

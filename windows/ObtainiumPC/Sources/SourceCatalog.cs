@@ -34,9 +34,28 @@ namespace ObtainiumPC.Sources;
 /// </summary>
 public static class SourceCatalog
 {
+    /// Sources that serve Windows software. Obtainium-PC is Windows-only: every other
+    /// source in this catalog is an Android app store/repository and is not offered for
+    /// adding, overriding, searching or importing (its resolver code is kept dormant).
+    private static readonly string[] WindowsSourceNames =
+        { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "itch.io", "Jenkins", "HTML", "Direct File Link" };
+
     /// All sources that can be picked as an explicit override (upstream's
-    /// "Override Source" dropdown). HTML has no hosts of its own.
-    public static IReadOnlyList<string> OverrideSourceNames => new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "SourceForge", "SourceHut", "NeutronCode", "itch.io", "F-Droid", "F-Droid Third-Party Repo", "Jenkins", "Telegram App", "IzzyOnDroid", "Tencent App Store", "Aptoide", "RockMods", "Farsroid", "Vivo App Store", "LiteAPKs", "Apk4Free", "APKCombo", "APKMirror", "APKPure", "Uptodown", "RuStore", "Huawei AppGallery", "Samsung Galaxy Store", "HTML", "Direct File Link" };
+    /// "Override Source" dropdown), limited to Windows-capable sources.
+    /// HTML has no hosts of its own.
+    public static IReadOnlyList<string> OverrideSourceNames => WindowsSourceNames;
+
+    /// True for sources whose catalog is Android apps (F-Droid, APK stores, regional
+    /// Android stores, Telegram/NeutronCode Android builds, Uptodown's Android API).
+    public static bool IsAndroidOnly(AppSourceBase source) => Array.IndexOf(WindowsSourceNames, source.Name) < 0;
+
+    /// True when a stored/imported record resolves to an Android-only source. Records that
+    /// cannot be resolved at all are not classified as Android (they are kept as they are).
+    public static bool IsAndroidOnlyApp(string url, string? overrideSource, AppSettings settings)
+    {
+        try { return IsAndroidOnly(Resolve(url, settings, overrideSource)); }
+        catch (ObtainiumSourceException) { return false; }
+    }
 
     public static AppSourceBase ResolveByName(string name, AppSettings settings) => name switch
     {

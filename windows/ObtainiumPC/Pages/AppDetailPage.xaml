@@ -125,10 +125,6 @@
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="AboutCard" CornerRadius="8" BorderThickness="1" Padding="16,12,16,12" Visibility="Collapsed"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"/>
-
                 <StackPanel x:Name="DownloadPanel" Spacing="6" Visibility="Collapsed">
                     <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Value="0" AutomationProperties.Name="Download progress"/>
                     <TextBlock x:Name="DownloadText" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

@@ -17,11 +17,11 @@ namespace ObtainiumPC.Pages
         private async void SupportedSources_Click(object sender, RoutedEventArgs e)
         {
             var panel = new StackPanel { Spacing = 6 };
-            var names = new List<string>(SourceCatalog.OverrideSourceNames) { "CoolApk" };
+            var names = new List<string>(SourceCatalog.OverrideSourceNames);
             foreach (var name in names)
             {
                 AppSourceBase source;
-                try { source = name == "CoolApk" ? new Sources.CoolApk.CoolApkSource() : SourceCatalog.ResolveByName(name, App.Settings); }
+                try { source = SourceCatalog.ResolveByName(name, App.Settings); }
                 catch { continue; }
                 var label = source.Name
                     + (source.SupportsInstall ? "" : " " + Services.Localization.Loc.T("(track only)"))
@@ -127,6 +127,7 @@ namespace ObtainiumPC.Pages
                     app = await App.Updater.CheckAppAsync(url, settings, overrideSource: overrideSource);
                 }
                 catch (InvalidUrlException) { throw; }
+                catch (AndroidSourceNotSupportedException) { throw; }
                 catch (Exception checkEx) when (App.Settings.AllowAddingAppsWithoutCheck)
                 {
                     // lib/pages/add_app.dart: on an unexpected failure, offer to
@@ -205,7 +206,7 @@ namespace ObtainiumPC.Pages
                 var items = new List<SearchResultItem>();
                 var errors = new List<string>();
                 // Searchable sources ported so far (PARITY.md).
-                var searchable = new[] { "GitHub", "GitLab", "Forgejo (Codeberg)", "F-Droid", "F-Droid Third-Party Repo", "Uptodown", "RuStore", "Huawei AppGallery" }
+                var searchable = new[] { "GitHub", "GitLab", "Forgejo (Codeberg)" }
                     .Select(n => SourceCatalog.ResolveByName(n, App.Settings))
                     .Where(src => src.CanSearch);
                 foreach (var source in searchable)

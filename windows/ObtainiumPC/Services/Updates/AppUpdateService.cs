@@ -76,6 +76,8 @@ public sealed class AppUpdateService
         var trackOnly = SettingBool(settings, "trackOnly");
 
         var source = SourceCatalog.Resolve(url, _settings, currentApp?.OverrideSource ?? overrideSource);
+        // Windows-only product: new apps from Android stores are refused (existing records are untouched).
+        if (currentApp == null && SourceCatalog.IsAndroidOnly(source)) throw new AndroidSourceNotSupportedException();
         var standardUrl = source.SourceSpecificStandardizeUrl(url);
         var details = await source.GetLatestAssetDetailsAsync(standardUrl, settings, ct);
 

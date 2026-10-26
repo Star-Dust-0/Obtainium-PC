@@ -209,6 +209,8 @@ public static class DeepLinkService
                         ex is Store.ObtainiumImportException ? ex.Message : Loc.T("The request failed. Details are in the logs."));
                     return;
                 }
+                var skippedAndroid = apps.Where(a => Sources.SourceCatalog.IsAndroidOnlyApp(a.Url, a.OverrideSource, App.Settings)).ToList();
+                apps = apps.Except(skippedAndroid).ToList();
                 var replaceCount = apps.Count(a => App.SnapshotApps().Any(x => x.Id == a.Id));
 
                 // Upstream: confirmation dialog showing the raw JSON in an
@@ -231,7 +233,10 @@ public static class DeepLinkService
                 };
                 var summary = new TextBlock
                 {
-                    Text = string.Format(Loc.T("Apps to import: {0}. Will replace existing entries: {1}."), apps.Count, replaceCount),
+                    Text = string.Format(Loc.T("Apps to import: {0}. Will replace existing entries: {1}."), apps.Count, replaceCount)
+                        + (skippedAndroid.Count > 0
+                            ? "\n" + string.Format(Loc.T("Skipped {0} Android apps (not supported): {1}"), skippedAndroid.Count, string.Join(", ", skippedAndroid.Select(a => a.FinalName)))
+                            : ""),
                     Margin = new Thickness(0, 0, 0, 8),
                     TextWrapping = TextWrapping.Wrap,
                 };
