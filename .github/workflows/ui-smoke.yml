@@ -991,7 +991,7 @@ jobs:
           ClickNamedIn 'Options' $win3
           Start-Sleep 2; AssertAlive 'gitlab-options'
           if ((FindNamed 'GitLab smoke options' $root) -eq $null) { Shot 'gitlab-options-nav'; throw 'options page did not open for GitLab smoke' }
-          if ((FindNamed 'Filter versions by regular expression' $root) -eq $null) { DumpNames $root 'gitlab-options'; Shot 'gitlab-options-missing'; throw 'GitLab source option editors did not render' }
+          if ((FindNamed 'Fallback to older releases' $root) -eq $null) { DumpNames $root 'gitlab-options'; Shot 'gitlab-options-missing'; throw 'GitLab source option editors did not render' }
           Shot '29-gitlab-options'
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
