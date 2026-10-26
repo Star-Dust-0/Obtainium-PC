@@ -414,6 +414,13 @@ jobs:
             # after the health page refresh cost a full run).
             $el = $null
             foreach ($attempt in 1..6) {
+              $navIds = @{ 'Apps'='Nav_apps'; 'التطبيقات'='Nav_apps'; 'Add App'='Nav_addapp'; 'Update Health'='Nav_updatehealth'; 'Import / Export'='Nav_importexport'; 'Logs'='Nav_logs'; 'Settings'='Nav_settings' }
+              if ($navIds.ContainsKey($name)) {
+                # Stable AutomationId (language independent, cannot collide with a page title).
+                $ci = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $navIds[$name])
+                $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $ci)
+                if ($el -ne $null) { break }
+              }
               $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
               $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
               if ($el -ne $null) { break }

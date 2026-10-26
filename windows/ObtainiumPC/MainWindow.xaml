@@ -51,29 +51,37 @@
         SelectionChanged="NavView_SelectionChanged"
         ItemInvoked="NavView_ItemInvoked"
         Loaded="NavView_Loaded">
+        <muxc:NavigationView.Resources>
+            <!-- The content sits on its own inset rounded surface (Task Scheduler Studio look). -->
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/>
+            <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+        </muxc:NavigationView.Resources>
         <muxc:NavigationView.MenuItems>
-            <muxc:NavigationViewItem Content="Apps" Tag="apps">
+            <muxc:NavigationViewItem Content="Apps" Tag="apps" AutomationProperties.AutomationId="Nav_apps">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE71D;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
-            <muxc:NavigationViewItem Content="Add App" Tag="addapp">
+            <muxc:NavigationViewItem Content="Add App" Tag="addapp" AutomationProperties.AutomationId="Nav_addapp">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE710;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
-            <muxc:NavigationViewItem Content="Update Health" Tag="updatehealth">
+            <muxc:NavigationViewItem Content="Update Health" Tag="updatehealth" AutomationProperties.AutomationId="Nav_updatehealth">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE95E;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
-            <muxc:NavigationViewItem Content="Import / Export" Tag="importexport">
+            <muxc:NavigationViewItem Content="Import / Export" Tag="importexport" AutomationProperties.AutomationId="Nav_importexport">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8CB;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
-            <muxc:NavigationViewItem Content="Logs" Tag="logs">
+            <muxc:NavigationViewItem Content="Logs" Tag="logs" AutomationProperties.AutomationId="Nav_logs">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE8A5;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
         </muxc:NavigationView.MenuItems>
         <muxc:NavigationView.FooterMenuItems>
-            <muxc:NavigationViewItem Content="Settings" Tag="settings">
+            <muxc:NavigationViewItem Content="Settings" Tag="settings" AutomationProperties.AutomationId="Nav_settings">
                 <muxc:NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></muxc:NavigationViewItem.Icon>
             </muxc:NavigationViewItem>
         </muxc:NavigationView.FooterMenuItems>
-        <Frame x:Name="ContentFrame"/>
+        <Border x:Name="ContentSurface" Margin="0,0,8,8" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Frame x:Name="ContentFrame"/>
+        </Border>
     </muxc:NavigationView>
     </Grid>
 </Window>
