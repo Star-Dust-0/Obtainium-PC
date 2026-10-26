@@ -67,6 +67,12 @@ public sealed class BackgroundUpdateService
                 if (App.Settings.OnlyCheckInstalledOrTrackOnlyApps
                     && app.InstalledVersion == null
                     && !app.GetSettingBool("trackOnly")) continue;
+                // Windows-only: legacy Android records stay in the store untouched but are not checked.
+                if (App.Updater.IsLegacyUnsupported(app))
+                {
+                    Logging.AppLogger.Info($"Skipped update check for legacy Android record {app.FinalName} ({app.Url})");
+                    continue;
+                }
                 try
                 {
                     await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);

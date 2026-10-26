@@ -209,7 +209,7 @@ public static class DeepLinkService
                         ex is Store.ObtainiumImportException ? ex.Message : Loc.T("The request failed. Details are in the logs."));
                     return;
                 }
-                var skippedAndroid = apps.Where(a => Sources.SourceCatalog.IsAndroidOnlyApp(a.Url, a.OverrideSource, App.Settings)).ToList();
+                var skippedAndroid = apps.Where(a => App.Updater.IsLegacyUnsupported(a)).ToList();
                 apps = apps.Except(skippedAndroid).ToList();
                 var replaceCount = apps.Count(a => App.SnapshotApps().Any(x => x.Id == a.Id));
 

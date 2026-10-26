@@ -59,6 +59,22 @@ public sealed class AppUpdateService
     private static string? SettingString(IReadOnlyDictionary<string, JsonElement> s, string key) =>
         s.TryGetValue(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
+    /// Windows-only scope: a stored record that is Android by evidence is "legacy unsupported".
+    /// Evidence is either (a) its source is an Android app store, or (b) its stored asset lists
+    /// (apkUrls + otherAssetUrls from the last successful check) contain only Android packages
+    /// plus checksums/signatures/source archives. No stored assets, or any desktop artifact,
+    /// means unknown, which is NOT treated as Android. The record itself is never modified.
+    public bool IsLegacyUnsupported(TrackedApp app)
+    {
+        try
+        {
+            if (SourceCatalog.IsAndroidOnlyApp(app.Url, app.OverrideSource, _settings)) return true;
+        }
+        catch { /* unresolvable source: unknown */ }
+        var stored = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
+        return stored.Count > 0 && AssetFilterService.IsAndroidOnlyArtifactSet(stored);
+    }
+
     /// <summary>
     /// Fetches the latest release for url and returns a new or updated TrackedApp.
     /// currentApp is null when adding.
@@ -75,6 +91,7 @@ public sealed class AppUpdateService
         if (trackOnlyOverride) settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
         var trackOnly = SettingBool(settings, "trackOnly");
 
+        if (currentApp != null && IsLegacyUnsupported(currentApp)) throw new AndroidSourceNotSupportedException();
         var source = SourceCatalog.Resolve(url, _settings, currentApp?.OverrideSource ?? overrideSource);
         // Windows-only product: new apps from Android stores are refused (existing records are untouched).
         if (currentApp == null && SourceCatalog.IsAndroidOnly(source)) throw new AndroidSourceNotSupportedException();

@@ -316,7 +316,7 @@ namespace ObtainiumPC.Pages
             {
                 var (allApps, hasSettings, _) = Services.Store.AppStore.Import(json);
                 // Windows-only: records from Android app sources are not imported (the file is not modified).
-                var skippedAndroid = allApps.Where(a => ObtainiumPC.Sources.SourceCatalog.IsAndroidOnlyApp(a.Url, a.OverrideSource, App.Settings)).ToList();
+                var skippedAndroid = allApps.Where(a => App.Updater.IsLegacyUnsupported(a)).ToList();
                 var apps = allApps.Except(skippedAndroid).ToList();
                 var added = 0;
                 var replaced = 0;

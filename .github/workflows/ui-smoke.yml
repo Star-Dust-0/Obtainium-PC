@@ -655,7 +655,7 @@ jobs:
           Start-Sleep 2
 
           # 3) app payload: confirmation dialog appears (then cancel; no import).
-          $dlJson = '{"id":"deeplink-smoke-1","url":"https://github.com/ImranR98/Obtainium","author":"ImranR98","name":"Obtainium","additionalSettings":"{}"}'
+          $dlJson = '{"id":"deeplink-smoke-1","url":"https://github.com/sharkdp/bat","author":"sharkdp","name":"bat","additionalSettings":"{}"}'
           Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson))
           Start-Sleep 4
           $dlgCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
@@ -674,7 +674,7 @@ jobs:
           Start-Sleep 2
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
-          $obtCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium')
+          $obtCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'bat')
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $obtCond) -eq $null) { Shot 'deeplink-imported-missing'; throw 'deep-link-imported app not in the list' }
           Shot '22-deeplink-imported'
           Start-Sleep 3
@@ -824,8 +824,8 @@ jobs:
           Stop-Process -Id $p.Id -Force
           Start-Sleep 2
           # Flip the deep-link-imported Obtainium app to track-only while the
-          # app is stopped: the APK-only repo must then track versions and
-          # expose its APK assets for manual download instead of erroring.
+          # app is stopped: the repo (Windows zips only, no installer) must then track versions and
+          # expose its assets for manual download instead of erroring.
           $appsPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $aj = Get-Content $appsPath -Raw | ConvertFrom-Json
           foreach ($a in $aj) { if ($a.id -eq 'deeplink-smoke-1') { $a.additionalSettings = '{"trackOnly":true}' } }
@@ -854,8 +854,8 @@ jobs:
           Shot '24-groups-expanded'
           'group collapse verified'
 
-          # Track-only GitHub app with APK-only releases: check must succeed
-          # (version tracked) and the APK assets must land in otherAssetUrls
+          # Track-only GitHub app with zip-only releases: check must succeed
+          # (version tracked) and the assets must land in otherAssetUrls
           # for the manual-download picker (Android tracking/download scope).
           Start-Process $exe -ArgumentList 'obtainium://refresh?id=deeplink-smoke-1'
           Start-Sleep 20
@@ -863,8 +863,8 @@ jobs:
           $aj2 = Get-Content $appsPath -Raw | ConvertFrom-Json
           $obt = $aj2 | Where-Object { $_.id -eq 'deeplink-smoke-1' }
           if ($obt -eq $null) { Shot 'track-only-app-missing'; throw 'deeplink-smoke-1 missing from apps.json' }
-          if ([string]::IsNullOrEmpty($obt.latestVersion)) { Shot 'track-only-no-version'; throw 'track-only GitHub check did not resolve a version for the APK-only repo' }
-          if ($obt.otherAssetUrls -notlike '*.apk*') { Shot 'track-only-no-apk'; throw 'APK assets not exposed for the track-only GitHub app' }
+          if ([string]::IsNullOrEmpty($obt.latestVersion)) { Shot 'track-only-no-version'; throw 'track-only GitHub check did not resolve a version for the Windows-zip-only repo' }
+          if ($obt.otherAssetUrls -notlike '*windows*') { Shot 'track-only-no-apk'; throw 'release assets not exposed for the track-only GitHub app' }
           # The group re-collapses when the refresh reloads the rows; expand it,
           # then click the row by exact name (the title bar's 'Obtainium-PC'
           # also starts with the prefix, so ClickPartial is ambiguous here).
@@ -872,7 +872,7 @@ jobs:
           # re-collapse once already).
           $obtRow2 = $null
           foreach ($attempt in 1..5) {
-            $obtRow2 = FindNamed 'Obtainium' $win3
+            $obtRow2 = FindNamed 'bat' $win3
             if ($obtRow2 -ne $null) { break }
             try { ClickNamedIn 'GitHub' $win3 } catch {}
             Start-Sleep 2
@@ -893,15 +893,15 @@ jobs:
           # installation the platform cannot perform.
           if ((FindNamed 'Download' $win3) -eq $null) { Shot 'track-only-action-label'; throw 'track-only detail action button is not labeled Download' }
           if ((FindNamed 'Install' $win3) -ne $null) { Shot 'track-only-install-label'; throw 'track-only detail still offers an Install action' }
-          # Manual download: the picker must offer the APK, the download must
+          # Manual download: the picker must offer the Windows zip, the download must
           # complete, and the Android-package note (no install launch) must show.
           ClickNamedIn 'Download' $win3
           Start-Sleep 2
           $apkRadio = $null
           foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-            if ($el.Current.Name -and $el.Current.Name.EndsWith('.apk')) { $apkRadio = $el; break }
+            if ($el.Current.Name -and $el.Current.Name.EndsWith('x86_64-pc-windows-msvc.zip')) { $apkRadio = $el; break }
           }
-          if ($apkRadio -eq $null) { Shot 'track-only-picker-missing'; throw 'asset picker did not offer the APK for the track-only GitHub app' }
+          if ($apkRadio -eq $null) { Shot 'track-only-picker-missing'; throw 'asset picker did not offer the Windows zip for the track-only GitHub app' }
           Shot '28f-track-only-asset-picker'
           try { $apkRadio.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch {
             $r = $apkRadio.Current.BoundingRectangle
@@ -913,19 +913,16 @@ jobs:
           $dlBtn = FindNamed 'Download' $root
           if ($dlBtn -eq $null) { Shot 'track-only-download-btn'; throw 'asset picker Download button missing' }
           $dlBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-          # Poll for the download to finish (APK is tens of MB on runner network).
+          # Poll for the download to finish (the zip lands in the downloads folder).
           $done = $false
           foreach ($w in 1..15) {
             Start-Sleep 6
-            $note = $null
-            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-              if ($el.Current.Name -and $el.Current.Name.Contains('cannot install on Windows')) { $note = $el; break }
-            }
-            if ($note -ne $null) { $done = $true; break }
+            $zf = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.zip -ErrorAction SilentlyContinue
+            if ($zf -and $zf.Count -gt 0) { Start-Sleep 3; $done = $true; break }
           }
-          if (-not $done) { Shot 'track-only-download-timeout'; throw 'APK download did not complete with the Android-package note' }
-          $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.apk -ErrorAction SilentlyContinue
-          if ($apkFiles.Count -eq 0) { Shot 'track-only-file-missing'; throw 'downloaded APK not found in the downloads folder' }
+          if (-not $done) { Shot 'track-only-download-timeout'; throw 'zip download did not complete' }
+          $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.zip -ErrorAction SilentlyContinue
+          if ($apkFiles.Count -eq 0) { Shot 'track-only-file-missing'; throw 'downloaded zip not found in the downloads folder' }
           Shot '28g-track-only-apk-downloaded'
 
           # Track-only bookkeeping (upstream markInstalled/markUpdated): the
@@ -948,7 +945,7 @@ jobs:
           'track-only mark-installed bookkeeping verified'
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
-          'GitHub track-only APK tracking+download verified'
+          'GitHub track-only tracking+download verified'
 
           # Windows-only: importing an Android-store record (F-Droid, Farsroid) is refused
           # with a visible "Skipped N Android apps" note and no row is created.
@@ -1010,7 +1007,7 @@ jobs:
           Start-Sleep 2
           ClickPartial 'Light' $root | Out-Null
           Start-Sleep 2
-          $dlJson2 = '{"id":"deeplink-smoke-2","url":"https://github.com/ImranR98/Obtainium","author":"ImranR98","name":"Obtainium","additionalSettings":"{}"}'
+          $dlJson2 = '{"id":"deeplink-smoke-2","url":"https://github.com/sharkdp/bat","author":"sharkdp","name":"bat","additionalSettings":"{}"}'
           Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson2))
           Start-Sleep 4
           $dlgCond2 = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Import app')
@@ -1125,12 +1122,12 @@ jobs:
           # the 'Obtainium-PC' title-bar text before the row. Use the
           # exact-name element only: scroll its ListItem ancestor into view,
           # then real-click ITS center, retrying until the detail renders.
-          $obtRow = FindNamed 'Obtainium' $win3
+          $obtRow = FindNamed 'bat' $win3
           if ($obtRow -eq $null) { Shot 'light-row-missing'; throw 'Obtainium row not found for the light mark check' }
           $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
           $opened = $false
           foreach ($try in 1..4) {
-            $obtRow = FindNamed 'Obtainium' $win3
+            $obtRow = FindNamed 'bat' $win3
             if ($obtRow -eq $null) { break }
             $item = $obtRow
             while ($item -ne $null -and $item.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $item = $walker.GetParent($item) }
