@@ -504,8 +504,8 @@ jobs:
           AssertAlive 'arabic-apps'; Shot '16-arabic-rtl-apps'
           AssertInsideWindow 'تحديد' $win2 $win2
           AssertInsideWindow 'تصفية' $win2 $win2
-          # 16b) Arabic source error: ImranR98/Obtainium releases are APK-only, so the check
-          # raises the distinct no-Windows-installer error. It must render in Arabic.
+          # 16b) Arabic source error: ImranR98/Obtainium releases are APK-only, so adding it raises the
+          # Android-app-not-supported error. It must render in Arabic.
           Start-Process $exe -ArgumentList 'obtainium://add?url=https%3A%2F%2Fgithub.com%2FImranR98%2FObtainium'
           Start-Sleep 4
           AssertAlive 'arabic-error-add'
@@ -519,12 +519,12 @@ jobs:
           foreach ($i in 1..30) {
             Start-Sleep 1
             foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-              if ($el.Current.Name -like '*ملف تثبيت*Windows*') { $errShown = $true; "arabic source error text: " + $el.Current.Name; break }
+              if ($el.Current.Name -like '*أندرويد*ويندوز*') { $errShown = $true; "arabic source error text: " + $el.Current.Name; break }
             }
             if ($errShown) { break }
           }
           Shot '16b-arabic-source-error'
-          if (-not $errShown) { throw 'Arabic no-Windows-installer error text not shown on Add App' }
+          if (-not $errShown) { throw 'Arabic Android-not-supported error text not shown on Add App' }
           ClickNamedIn 'التطبيقات' $win2
           Start-Sleep 2
           ClickNamedIn 'الإعدادات' $win2

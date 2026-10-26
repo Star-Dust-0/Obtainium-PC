@@ -333,6 +333,8 @@ public static class Loc
         ["Latest release is more than {} days old"] = "مضى على أحدث إصدار أكثر من {} يومًا",
         ["Not updated in over {} days"] = "لم يتغيّر الإصدار منذ أكثر من {} يومًا",
         ["Source is archived"] = "المصدر مؤرشف",
+        ["Android apps and Android app stores are not supported. Obtainium-PC tracks Windows apps only."] = "تطبيقات أندرويد ومتاجرها غير مدعومة. يتتبّع Obtainium-PC تطبيقات ويندوز فقط.",
+        ["Skipped {0} Android apps (not supported): {1}"] = "تم تخطّي {0} من تطبيقات أندرويد (غير مدعومة): {1}",
         ["No logs in this period."] = "لا توجد سجلات في هذه الفترة.",
         ["Categories are created when you categorize apps. Deleting one removes it from every app."] = "تُنشأ الفئات عند تصنيف التطبيقات. حذف فئة يزيلها من كل التطبيقات.",
         ["Obtainium-PC - a native Windows port of Obtainium by ImranR98, licensed GPL-3.0. Brought to you by Instinct."] = "Obtainium-PC - منفذ أصلي لنظام ويندوز لتطبيق Obtainium من ImranR98، برخصة GPL-3.0. بتقديم Instinct.",

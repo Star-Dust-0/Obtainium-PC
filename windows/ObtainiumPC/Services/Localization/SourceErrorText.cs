@@ -28,6 +28,7 @@ public static class SourceErrorText
         ObtainiumHttpException h => translate(HttpFailedKey).Replace("{0}", h.StatusCode.ToString()),
         InvalidUrlException when ex.Message.StartsWith("Invalid URL for source ", StringComparison.Ordinal)
             => translate(InvalidUrlKey).Replace("{0}", ex.Message.Substring("Invalid URL for source ".Length)),
+        AndroidSourceNotSupportedException => translate(AndroidSourceNotSupportedException.Text),
         _ => ex.Message,
     };
 }
