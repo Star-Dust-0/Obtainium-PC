@@ -201,6 +201,7 @@ public static class Loc
         ["Export to file..."] = "تصدير إلى ملف...",
         ["Import from file..."] = "استيراد من ملف...",
         ["Import from downloads..."] = "استيراد من التنزيلات...",
+        ["Paste raw JSON..."] = "لصق JSON خام...",
         ["Import URLs"] = "استيراد الروابط",
         ["From file..."] = "من ملف...",
         ["Import GitHub starred repos..."] = "استيراد المستودعات المميزة بنجمة من GitHub...",
