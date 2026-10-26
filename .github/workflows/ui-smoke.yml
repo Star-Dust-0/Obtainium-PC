@@ -1189,6 +1189,61 @@ jobs:
           Shot '32-filter-cleared'
           'filter dialog verified'
 
+          # Manual export through the real Windows save picker, targeting the SAME file the
+          # auto-export writes: both writers must leave one complete, valid file and no temp.
+          $autoPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
+          $beforeWrite = (Get-Item $autoPath).LastWriteTimeUtc
+          ClickNamedIn 'Import / Export' $win3
+          Start-Sleep 3
+          ClickNamedIn 'Export to file...' $win3
+          $fnEdit = $null
+          foreach ($i in 1..20) {
+            Start-Sleep 1
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))) {
+              if ($el.Current.Name -like 'File name*') { $fnEdit = $el; break }
+            }
+            if ($fnEdit -ne $null) { break }
+          }
+          if ($fnEdit -eq $null) { DumpNames $root 'export-picker'; Shot 'export-picker-missing'; throw 'save picker (File name box) did not appear' }
+          Shot '37-export-save-picker'
+          $fnEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($autoPath)
+          Start-Sleep 1
+          $saveBtn = $null
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))) {
+            if ($el.Current.Name -eq 'Save') { $saveBtn = $el; break }
+          }
+          if ($saveBtn -eq $null) { DumpNames $root 'export-picker-save'; Shot 'export-save-button-missing'; throw 'Save button not found in the picker' }
+          $saveBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          foreach ($i in 1..6) {
+            Start-Sleep 1
+            $yes = $null
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))) {
+              if ($el.Current.Name -eq 'Yes') { $yes = $el; break }
+            }
+            if ($yes -ne $null) { try { $yes.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {}; 'overwrite confirmation accepted'; break }
+          }
+          $exportDone = $false
+          foreach ($i in 1..20) {
+            Start-Sleep 1
+            foreach ($el in $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -eq 'Export complete') { $exportDone = $true; break }
+            }
+            if ($exportDone) { break }
+          }
+          Shot '37b-export-complete'
+          if (-not $exportDone) { DumpNames $win3 'export-complete'; throw 'manual export to the auto-export path did not report Export complete' }
+          Start-Sleep 3
+          $afterWrite = (Get-Item $autoPath).LastWriteTimeUtc
+          if ($afterWrite -le $beforeWrite) { throw 'the shared export file was not rewritten' }
+          $exp = Get-Content $autoPath -Raw | ConvertFrom-Json
+          if ($exp.apps.Count -lt 5) { throw "exported file has $($exp.apps.Count) apps (expected the full list)" }
+          if ((Get-Content $autoPath -Raw) -notlike '*GitLab smoke*') { throw 'exported file misses a known app' }
+          $tmpLeft = Get-ChildItem (Split-Path $autoPath) -Filter '*.tmp' -ErrorAction SilentlyContinue
+          if ($tmpLeft) { throw "temp files left beside the export: $($tmpLeft.Name -join ',')" }
+          "manual export onto the auto-export path verified: $($exp.apps.Count) apps, valid JSON, no temp files"
+          ClickNamedIn 'Apps' $win3
+          Start-Sleep 2
+
           # Light-theme twin check: the disabled Mark updated twin must render
           # with the disabled brush under Light as well (28h covered Dark).
           # Two hazards here: the Obtainium row can sit clipped at the list
