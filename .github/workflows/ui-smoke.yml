@@ -1215,6 +1215,20 @@ jobs:
           $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
           try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
           $nr = $nppTarget.Current.BoundingRectangle
+          foreach ($rectTry in 1..4) {
+            if (-not ([double]::IsNaN($nr.X) -or [double]::IsInfinity($nr.X) -or $nr.Width -le 0)) { break }
+            "npp row rect unusable (try $rectTry): $nr"
+            Start-Sleep 2
+            $nppRow = FindNamed 'Notepad++' $win3
+            if ($nppRow -ne $null) {
+              $nppItem = $nppRow
+              while ($nppItem -ne $null -and $nppItem.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { $nppItem = $walker.GetParent($nppItem) }
+              $nppTarget = if ($nppItem -ne $null) { $nppItem } else { $nppRow }
+              try { $nppTarget.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView(); Start-Sleep 1 } catch {}
+              $nr = $nppTarget.Current.BoundingRectangle
+            }
+          }
+          if ([double]::IsNaN($nr.X) -or [double]::IsInfinity($nr.X) -or $nr.Width -le 0) { Shot 'nav-npp-rect-bad'; throw "Notepad++ row has no usable bounds: $nr" }
           [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($nr.X + $nr.Width/2), [int]($nr.Y + $nr.Height/2))
           Start-Sleep -Milliseconds 300
           [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
