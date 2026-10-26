@@ -105,3 +105,14 @@ partial / gap. Interaction-verified items cite the ui-smoke evidence.
 | Update Health (update_health.dart) | full | thresholds, flagged + ignored lists, ignore-for-version / ignore-permanently / restore (ui-smoke interaction-verified: ignore -> Ignored section -> restore round trip, run 40149527737) | none identified |
 | Logs (logs.dart) | full | day-range filter, copy all, share via native Windows share sheet (clipboard fallback per upstream logs.dart), clear, level colors per upstream _levelColor, JSONL store (ui-smoke verified render) | none significant |
 | Home / navigation (home.dart) | full | nav pane to all pages, welcome -> add-app flow covered by Add App page; raw-JSON app import via paste box on Import/Export AND via obtainium:// deep link: add (standardize, existing-app match, Add-App prefill), app/apps (raw-JSON confirmation dialog -> import), refresh?id= all ported from home.dart interpretLink (deep-link import list refresh and refresh-with-explicit-id UI-thread marshal both ui-smoke verified, run 40149527737). Unpackaged OS integration: scheme registered under HKCU\\Software\\Classes\\obtainium (no admin), link clicks arrive as command-line args, single-instance redirect hands them to the running window; Settings toggle disables/unregisters; supported-sources dialog ported (add_app.dart openSourcesListDialog) | none identified |
+
+## Windows-only scope (added 2026-10-26)
+
+Obtainium-PC tracks Windows apps only. Android apps and Android app stores are out of scope.
+
+- The Add App source list, search and "Supported sources" offer only Windows-capable sources: GitHub, GitLab, Forgejo (Codeberg), SourceForge, SourceHut, itch.io, Jenkins, HTML and Direct File Link.
+- Adding an app from an Android store (F-Droid, Farsroid, APKPure, APKMirror, Uptodown, ...) is refused with a clear message. There is no "add anyway" bypass for it.
+- Adding an app from a shared source (for example GitHub) is refused when its release carries only Android packages (.apk/.xapk/.apkm/.apks/.aab, plus checksums or source archives). A Windows project that ships no installer, or ships an APK next to desktop files, is still accepted.
+- Importing a file or deep link skips Android-source records and says so ("Skipped N Android apps"). The file itself is never modified.
+- Records already in the store are left as they are. The Android resolver code is kept dormant; removing it needs a separate review.
+- The Uptodown resolver is Android-API-based and is disabled with the other Android resolvers. This says nothing about whether Uptodown has a Windows catalog; no Windows Uptodown adapter exists.
