@@ -272,6 +272,12 @@ namespace ObtainiumPC.Pages
                 }
             }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            var total = App.TrackedApps.Count;
+            var updates = filtered.Count(r => r.HasUpdate);
+            SubtitleText.Visibility = total == 0 ? Visibility.Collapsed : Visibility.Visible;
+            SubtitleText.Text = total == 0 ? "" : (updates > 0
+                ? string.Format(Services.Localization.Loc.T("{0} apps, {1} with updates"), total, updates)
+                : string.Format(Services.Localization.Loc.T("{0} apps, all up to date"), total));
         }
 
         private void SearchBox_TextChanged(object sender, AutoSuggestBoxTextChangedEventArgs e)

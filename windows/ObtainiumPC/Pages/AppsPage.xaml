@@ -56,7 +56,10 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}"/>
+                <TextBlock x:Name="SubtitleText" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed"/>
+            </StackPanel>
             <Button Grid.Column="1" x:Name="RefreshButton" ToolTipService.ToolTip="Check for updates" Click="Refresh_Click" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE72C;" FontSize="14"/>
             </Button>

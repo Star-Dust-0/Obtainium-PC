@@ -12,7 +12,10 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal" Spacing="12" Padding="24,16,24,16" VerticalAlignment="Center">
-            <TextBlock Text="Logs" Style="{ThemeResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Logs" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <TextBlock Text="Update checks, downloads and errors." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
             <ComboBox x:Name="DaysCombo" SelectedIndex="0" SelectionChanged="DaysCombo_SelectionChanged" VerticalAlignment="Center">
                 <ComboBoxItem Content="Last 7 days" Tag="7"/>
                 <ComboBoxItem Content="Last 5 days" Tag="5"/>
