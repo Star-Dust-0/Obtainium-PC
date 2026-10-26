@@ -237,7 +237,8 @@ public sealed class GitLabSource : AppSourceBase
             finalResult = withAssets[0];
         }
 
-        if (finalResult.AssetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
+        if (finalResult.AssetUrls.Count == 0 && !trackOnly)
+            throw new NoAppAssetException { ReleaseAssets = finalResult.AllAssetUrls };
 
         // Job artifact links serve raw content under /raw/ instead of /file/.
         var jobArtifactRegex = new Regex("^" + Regex.Escape(standardUrl) + @"/-/jobs/[0-9]+/artifacts/file/[^/]+");

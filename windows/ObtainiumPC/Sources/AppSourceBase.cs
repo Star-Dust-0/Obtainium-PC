@@ -57,9 +57,14 @@ public sealed class NoAppAssetException : ObtainiumSourceException
         "Releases were found, but none has a Windows installer asset (.exe, .msi, .msix, .appx, .appinstaller). " +
         "Turn on track-only for this app to follow its version without installing.";
 
+    /// Name/url pairs of the latest release's assets, when the source knows them. Lets the
+    /// updater tell an Android-only project from a Windows project that ships no installer.
+    public IReadOnlyList<KeyValuePair<string, string>> ReleaseAssets { get; init; } = Array.Empty<KeyValuePair<string, string>>();
+
     public NoAppAssetException() : base("No installable asset found for this app") { }
     public NoAppAssetException(string message) : base(message) { }
-    public static NoAppAssetException NoWindowsInstaller() => new(NoWindowsInstallerMessage);
+    public static NoAppAssetException NoWindowsInstaller(IReadOnlyList<KeyValuePair<string, string>>? releaseAssets = null)
+        => new(NoWindowsInstallerMessage) { ReleaseAssets = releaseAssets ?? Array.Empty<KeyValuePair<string, string>>() };
 }
 
 public sealed class RepositoryRenamedException : ObtainiumSourceException

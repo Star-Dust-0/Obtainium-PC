@@ -552,7 +552,8 @@ public sealed class GitHubSource : AppSourceBase
             if (published.Count > 0 && !published.Any(r =>
                     FindReleaseAssetUrls(r, includeZips, includeTarballs).Any(a =>
                         AssetFilterService.IsAppOrContainerFile(PairFrom(a?["final_url"]).Key, includeZips, includeTarballs))))
-                throw NoAppAssetException.NoWindowsInstaller();
+                throw NoAppAssetException.NoWindowsInstaller(
+                    FindReleaseAssetUrls(published[0], includeZips, includeTarballs).Select(a => PairFrom(a?["final_url"])).ToList());
             throw new NoReleasesException();
         }
 

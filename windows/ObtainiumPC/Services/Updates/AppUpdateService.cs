@@ -79,7 +79,12 @@ public sealed class AppUpdateService
         // Windows-only product: new apps from Android stores are refused (existing records are untouched).
         if (currentApp == null && SourceCatalog.IsAndroidOnly(source)) throw new AndroidSourceNotSupportedException();
         var standardUrl = source.SourceSpecificStandardizeUrl(url);
-        var details = await source.GetLatestAssetDetailsAsync(standardUrl, settings, ct);
+        AssetDetails details;
+        try { details = await source.GetLatestAssetDetailsAsync(standardUrl, settings, ct); }
+        catch (NoAppAssetException ex) when (currentApp == null && AssetFilterService.IsAndroidOnlyArtifactSet(ex.ReleaseAssets))
+        {
+            throw new AndroidSourceNotSupportedException();
+        }
         // Windows-only: a shared source (GitHub, GitLab, ...) whose release carries only Android
         // packages is an Android app. Projects without installers, or with an APK next to desktop
         // artifacts, are kept.
