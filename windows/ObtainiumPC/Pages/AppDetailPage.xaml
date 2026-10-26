@@ -17,7 +17,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <CommandBar x:Name="DetailCommandBar" DefaultLabelPosition="Right" Background="Transparent">
+                <CommandBar x:Name="DetailCommandBar" DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left" Margin="-12,0,0,0">
                     <!-- Upstream lib/pages/app.dart:469-471: the detail app bar
                          leads with a BackButton (the apps flow always passes
                          onClose; upstream renders it icon-only, so there is no
