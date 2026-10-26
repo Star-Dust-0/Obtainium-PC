@@ -798,7 +798,14 @@ jobs:
           Shot '23-groups-collapsed'
           ClickNamedIn 'GitHub' $win3
           Start-Sleep 2
-          if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -eq $null) { Shot 'group-expand-failed'; throw 'group did not expand on header click' }
+          # The list is virtualized and the group now holds more apps (Shuck etc.), so Notepad++ may be
+          # below the fold: any GitHub-group row appearing proves the expansion.
+          $expanded = $false
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            $n = $el.Current.Name
+            if ($n -and ($n -like 'Notepad++*' -or $n -like 'ShareX*' -or $n -like 'Mumble*' -or $n -like 'shuck*')) { $expanded = $true; break }
+          }
+          if (-not $expanded) { Shot 'group-expand-failed'; throw 'group did not expand on header click' }
           Shot '24-groups-expanded'
           'group collapse verified'
 
@@ -1272,6 +1279,12 @@ jobs:
           if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
+          # Native-crash evidence (WinUI/CLR faults do not reach logs.jsonl).
+          try {
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-60) } -ErrorAction Stop |
+              Where-Object { $_.ProviderName -in @('Application Error', '.NET Runtime', 'Windows Error Reporting') -and $_.Message -match 'ObtainiumPC' } |
+              Select-Object -First 8 TimeCreated, ProviderName, Message | Format-List | Out-String -Width 400 | Out-File shots\app-crash-events.txt
+          } catch { "event log query failed: $_" | Out-File shots\app-crash-events.txt }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
