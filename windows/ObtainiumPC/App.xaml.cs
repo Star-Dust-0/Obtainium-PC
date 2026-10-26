@@ -105,9 +105,9 @@ namespace ObtainiumPC
         {
             var parts = new List<string>();
             if (Store != null && Store.LastLoadFailed)
-                parts.Add(Services.Localization.Loc.T("The apps list could not be read.") + (Store.LastLoadBackupPath != null ? " " + Store.LastLoadBackupPath : ""));
+                parts.Add(Services.Localization.Loc.T("The apps list could not be read.") + (Store.LastLoadBackupPath != null ? "\n" + Services.Localization.Loc.T("A copy was kept at:") + " " + Store.LastLoadBackupPath : ""));
             if (AppSettings.LoadFailed)
-                parts.Add(Services.Localization.Loc.T("The settings file could not be read.") + (AppSettings.LoadBackupPath != null ? " " + AppSettings.LoadBackupPath : ""));
+                parts.Add(Services.Localization.Loc.T("The settings file could not be read.") + (AppSettings.LoadBackupPath != null ? "\n" + Services.Localization.Loc.T("A copy was kept at:") + " " + AppSettings.LoadBackupPath : ""));
             if (parts.Count == 0) return null;
             return string.Join("\n\n", parts) + "\n\n" + Services.Localization.Loc.T("The original files were kept untouched and changes will not be saved this session. Fix or restore the file, then restart the app.");
         }

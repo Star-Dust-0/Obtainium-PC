@@ -125,6 +125,7 @@ public static class Loc
         ["The apps list could not be read."] = "تعذّرت قراءة قائمة التطبيقات.",
         ["The settings file could not be read."] = "تعذّرت قراءة ملف الإعدادات.",
         ["The original files were kept untouched and changes will not be saved this session. Fix or restore the file, then restart the app."] = "تم الاحتفاظ بالملفات الأصلية دون تغيير ولن تُحفظ التغييرات في هذه الجلسة. أصلح الملف أو استعده ثم أعد تشغيل التطبيق.",
+        ["A copy was kept at:"] = "تم حفظ نسخة في:",
         ["Stored data could not be read"] = "تعذّرت قراءة البيانات المخزّنة",
         ["Import"] = "استيراد",
         ["Export"] = "تصدير",
