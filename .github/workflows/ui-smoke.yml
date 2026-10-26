@@ -607,9 +607,13 @@ jobs:
           ClickNamedIn 'Apps' $win2
           Start-Sleep 4
           Shot '25-shuck-in-list'
-          $shuckRow = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Shuck')))
+          $shuckRow = $null
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like 'shuck*' -or $el.Current.Name -like 'Shuck*') { $shuckRow = $el; "shuck row UIA name: [$($el.Current.Name)]"; break }
+          }
           if ($shuckRow -eq $null) { Shot 'shuck-row-missing'; throw 'Shuck was not added to the apps list through the Add flow' }
-          ClickPartial 'Shuck' $win2 | Out-Null
+          if ($shuckRow.Current.Name -like '*not installed*') { Shot 'shuck-not-detected'; throw 'Shuck is installed (registry) but the Add flow left it as not installed' }
+          ClickPartial $shuckRow.Current.Name.Substring(0,5) $win2 | Out-Null
           Start-Sleep 4
           AssertAlive 'shuck-detail'
           Shot '26-shuck-detail'

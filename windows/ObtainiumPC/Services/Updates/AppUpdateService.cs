@@ -110,15 +110,22 @@ public sealed class AppUpdateService
             if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
         }
 
+        var app = currentApp ?? new TrackedApp();
+        app.Url = standardUrl;
+        if (overrideSource != null && currentApp == null) app.OverrideSource = overrideSource;
+        app.Author = details.Names.Author;
+        if (string.IsNullOrWhiteSpace(app.Name)) app.Name = details.Names.Name;
+        if (string.IsNullOrEmpty(app.Id)) app.Id = GenerateTempId(standardUrl);
+
         // Reconcile with the OS-detected installed version (upstream:
         // PackageManager; Windows: registry Uninstall entries). The matcher is
         // conservative: only exact or uniquely-strong name matches (publisher
         // disambiguated) are used; ambiguous results leave the stored version
         // untouched so a wrong match never drives an action.
-        if (currentApp != null && !trackOnly && !source.VersionDetectionDisallowed
+        if (!trackOnly && !source.VersionDetectionDisallowed
             && SettingBool(settings, "versionDetection", fallback: true))
         {
-            var detected = Detection.InstalledAppsService.FindMatch(currentApp.FinalName, currentApp.Author);
+            var detected = Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author);
             var realInstalled = detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
                 && detected.Info.DisplayVersion is { Length: > 0 } dv ? dv : null;
             // lib/providers/apps_provider_lifecycle.dart reconcileInstallStatus:
@@ -131,25 +138,19 @@ public sealed class AppUpdateService
                 // A Strong+ registry match confirms the install at OS level:
                 // record provenance + the exact matched identity for the
                 // external-uninstall reconcile (ExternalUninstallService).
-                currentApp.InstalledVersionSource = "os";
-                currentApp.OsMatchedName = detected.Info.DisplayName;
+                app.InstalledVersionSource = "os";
+                app.OsMatchedName = detected.Info.DisplayName;
             }
-            if (realInstalled != null && currentApp.InstalledVersion == null)
-                currentApp.InstalledVersion = realInstalled;
+            if (realInstalled != null && app.InstalledVersion == null)
+                app.InstalledVersion = realInstalled;
             var corrected = Versioning.VersionService.ReconcileTrackedVersion(
-                currentApp.InstalledVersion, realInstalled, version,
+                app.InstalledVersion, realInstalled, version,
                 versionDetectionIsStandard: true,
                 naiveStandardVersionDetection: SettingBool(settings, "naiveStandardVersionDetection")
                     || source.NaiveStandardVersionDetection);
-            if (corrected != null) currentApp.InstalledVersion = corrected;
+            if (corrected != null) app.InstalledVersion = corrected;
         }
 
-        var app = currentApp ?? new TrackedApp();
-        app.Url = standardUrl;
-        if (overrideSource != null && currentApp == null) app.OverrideSource = overrideSource;
-        app.Author = details.Names.Author;
-        if (string.IsNullOrWhiteSpace(app.Name)) app.Name = details.Names.Name;
-        if (string.IsNullOrEmpty(app.Id)) app.Id = GenerateTempId(standardUrl);
         app.LatestVersion = version;
         app.AssetUrls = assetUrls;
         app.OtherAssetUrls = details.AllAssetUrls;
