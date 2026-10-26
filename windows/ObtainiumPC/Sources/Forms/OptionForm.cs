@@ -28,8 +28,8 @@ public sealed class OptionFormItem
 /// Ports combinedAppSpecificSettingFormItems from lib/app_sources/app_source.dart
 /// plus updateHealthOverrideFormItems from lib/utils/update_health.dart.
 /// Labels use the upstream English strings; Android-only wording is mapped to the
-/// Windows equivalent approved in the concept review, and items with no Windows
-/// analog are shown disabled and marked instead of being dropped silently.
+/// Windows equivalent approved in the concept review. Android-only options with no Windows
+/// analog are not shown (their stored values are kept in the records untouched).
 /// </summary>
 public static class AppOptionFormSpec
 {
@@ -124,7 +124,6 @@ public static class AppOptionFormSpec
             Switch("trackOnly", "Track-only"),
             Text("appName", "App name"),
             Text("appAuthor", "Author"),
-            Switch("shizukuPretendToBeGooglePlay", "Pretend to be the app store when installing (Android only - not applicable on Windows)", disabled: true),
             Switch("allowInsecure", "Allow insecure HTTP requests"),
             Text("allowedSigningCertHashes", "Expected signing certificate hashes", hint: "AA:BB:CC:..."),
             Text("about", "About"),

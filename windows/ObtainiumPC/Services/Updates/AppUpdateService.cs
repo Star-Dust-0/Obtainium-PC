@@ -80,6 +80,12 @@ public sealed class AppUpdateService
         if (currentApp == null && SourceCatalog.IsAndroidOnly(source)) throw new AndroidSourceNotSupportedException();
         var standardUrl = source.SourceSpecificStandardizeUrl(url);
         var details = await source.GetLatestAssetDetailsAsync(standardUrl, settings, ct);
+        // Windows-only: a shared source (GitHub, GitLab, ...) whose release carries only Android
+        // packages is an Android app. Projects without installers, or with an APK next to desktop
+        // artifacts, are kept.
+        if (currentApp == null
+            && AssetFilterService.IsAndroidOnlyArtifactSet(details.AllAssetUrls.Concat(details.AssetUrls)))
+            throw new AndroidSourceNotSupportedException();
 
         // Adding an app honors the minimum update age too.
         if (currentApp == null && !trackOnly)

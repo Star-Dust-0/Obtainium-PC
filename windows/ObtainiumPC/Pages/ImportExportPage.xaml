@@ -22,7 +22,7 @@
                 <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True"/>
 
                 <TextBlock Text="Export" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
-                <TextBlock Text="Writes a file in the original Obtainium export format, so it can be imported by Obtainium on Android or by this app."
+                <TextBlock Text="Writes a file in the original Obtainium export format, which this app can import."
                            TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <ComboBox x:Name="ExportLevelCombo" Header="What to include" MinWidth="320" SelectedIndex="1">
                     <ComboBoxItem Content="Apps only"/>

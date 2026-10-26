@@ -36,6 +36,35 @@ public static class AssetFilterService
             || (includeTarballs && EndsWithAny(TarballExtensions));
     }
 
+    private static readonly string[] AndroidPackageExtensions = { ".apk", ".xapk", ".apkm", ".apks", ".aab" };
+
+    /// Names that accompany a release without being an app artifact on any platform
+    /// (checksums, signatures, notes, mapping/symbol files).
+    private static readonly string[] AccessoryExtensions =
+    {
+        ".sha1", ".sha256", ".sha512", ".md5", ".sig", ".asc", ".pem", ".minisig", ".sum", ".sums",
+        ".txt", ".md", ".json", ".yml", ".yaml", ".blockmap", ".map", ".sbom", ".spdx", ".cdx",
+    };
+
+    /// True when a release's assets are only Android packages (plus checksums/signatures/notes
+    /// and source archives): there is no Windows, other-desktop or generic archive artifact to
+    /// track. A project that ships an APK next to any desktop artifact is not Android-only, and
+    /// a project with no APK is never Android-only (it may simply lack installers).
+    public static bool IsAndroidOnlyArtifactSet(IEnumerable<KeyValuePair<string, string>> assets)
+    {
+        var android = 0;
+        foreach (var (name, url) in assets)
+        {
+            var lower = name.ToLowerInvariant();
+            if (AndroidPackageExtensions.Any(e => lower.EndsWith(e))) { android++; continue; }
+            if (AccessoryExtensions.Any(e => lower.EndsWith(e))) continue;
+            if (lower.Contains("checksum") || lower.Contains("mapping") || lower.Contains("symbols")) continue;
+            if (url.Contains("/tarball/") || url.Contains("/zipball/") || lower.StartsWith("source code")) continue;
+            return false; // any other artifact (exe, msi, zip, dmg, deb, AppImage, ...) means not Android-only
+        }
+        return android > 0;
+    }
+
     public static readonly IReadOnlyList<string> ArchiveExtensions = new[] { ".zip" };
 
     public static readonly IReadOnlyList<string> TarballExtensions = new[]
