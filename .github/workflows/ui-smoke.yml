@@ -1271,6 +1271,26 @@ jobs:
           Stop-Process -Id $p.Id -Force
           Start-Sleep 2
 
+          # ---- wide-window captures (runner screen is 1024x768: maximized = expanded nav pane) ----
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 10
+          $wcw = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $ww = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcw)
+          if ($ww -eq $null) { throw 'main window not found for wide captures' }
+          try { $ww.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Maximized) } catch { "maximize failed: $_" }
+          Start-Sleep 3
+          $script:shotWin = $ww
+          Shot 'wide-01-apps'
+          foreach ($pair in @(@('Add App','wide-02-add'), @('Update Health','wide-03-health'), @('Import / Export','wide-04-importexport'), @('Logs','wide-05-logs'), @('Settings','wide-06-settings'))) {
+            ClickNamedIn $pair[0] $ww
+            Start-Sleep 3
+            Shot $pair[1]
+          }
+          ClickNamedIn 'Apps' $ww
+          Start-Sleep 3
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+
           # ---- unreadable stored data must be visible, and must not be overwritten ----
           $setPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $goodSettings = Get-Content $setPath -Raw
