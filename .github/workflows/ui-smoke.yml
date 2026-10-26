@@ -625,13 +625,13 @@ jobs:
           # asset API (needs Accept: application/octet-stream), installed silently (NSIS /S,
           # per-user, disposable runner), then added through the UI so detection, the row
           # icon and the detail page are exercised end to end.
-          $shuckExe = Join-Path $env:RUNNER_TEMP 'shuck-setup.exe'
+          $shuckExe = Join-Path $env:RUNNER_TEMP 'shuck-1.0.0-setup.exe'
           $shHeaders = @{ Accept = 'application/octet-stream'; 'User-Agent' = 'obtainium-pc-smoke' }
           if ($env:SMOKE_GH_TOKEN) { $shHeaders['Authorization'] = "Bearer $($env:SMOKE_GH_TOKEN)" }  # runner IPs share the anonymous API rate limit
-          foreach ($try in 1..3) { try { Invoke-WebRequest -Uri 'https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512' -Headers $shHeaders -OutFile $shuckExe; break } catch { if ($try -eq 3) { throw }; Start-Sleep 20 } }
+          foreach ($try in 1..3) { try { Invoke-WebRequest -Uri 'https://api.github.com/repos/shuck-app/shuck/releases/assets/654113536' -Headers $shHeaders -OutFile $shuckExe; break } catch { if ($try -eq 3) { throw }; Start-Sleep 20 } }
           $shuckLen = (Get-Item $shuckExe).Length
           "shuck installer bytes: $shuckLen"
-          if ($shuckLen -ne 6297561) { throw "shuck installer size $shuckLen (expected 6297561)" }
+          if ($shuckLen -ne 6285430) { throw "shuck v1.0.0 installer size $shuckLen (expected 6285430)" }
           $sp = Start-Process $shuckExe -ArgumentList '/S' -PassThru
           if (-not $sp.WaitForExit(120000)) { throw 'shuck silent install timed out' }
           "shuck installer exit code: $($sp.ExitCode)"
@@ -656,6 +656,72 @@ jobs:
           Start-Sleep 4
           AssertAlive 'shuck-detail'
           Shot '26-shuck-detail'
+          # Outdated installed app, real registry evidence: v1.0.0 is installed (registry), the
+          # latest release is v1.0.1. The detail must show both versions, offer Update, and the
+          # update flow (download -> interactive installer -> detection) must end at 1.0.1.
+          $shReg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Shuck*' } | Select-Object -First 1
+          "registry before update: $($shReg.DisplayName) $($shReg.DisplayVersion)"
+          $inst0 = $null; $lat0 = $null
+          foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like 'Installed: *') { $inst0 = $el.Current.Name }
+            if ($el.Current.Name -like 'Latest: *') { $lat0 = $el.Current.Name }
+          }
+          "shuck before update: [$inst0] [$lat0]"
+          if ($inst0 -notlike '*1.0.0*') { Shot 'shuck-outdated-installed-wrong'; throw "outdated app: installed version not detected as 1.0.0 (got: $inst0)" }
+          if ($lat0 -notlike '*1.0.1*') { Shot 'shuck-outdated-latest-wrong'; throw "outdated app: latest not 1.0.1 (got: $lat0)" }
+          $upd0 = FindNamed 'Update' $win2
+          if ($upd0 -eq $null -or -not $upd0.Current.IsEnabled) { Shot 'shuck-update-disabled'; throw 'Update action is not enabled for an outdated installed app' }
+          Shot '26b-shuck-outdated-detail'
+          ClickNamedIn 'Update' $win2
+          Start-Sleep 3
+          $shDlg = FindNamed 'Choose a file' $root
+          if ($shDlg -eq $null) { Shot 'shuck-no-picker'; throw 'asset picker did not appear for the Shuck update' }
+          $shPicked = $false
+          foreach ($el in $shDlg.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like '*Shuck_1.0.1_x64-setup.exe*' -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::RadioButton) {
+              $r = $el.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              $shPicked = $true; break
+            }
+          }
+          if (-not $shPicked) { DumpNames $shDlg 'shuck-picker'; Shot 'shuck-asset-not-found'; throw 'Shuck 1.0.1 installer not offered in the picker' }
+          Shot '26c-shuck-update-picker'
+          Start-Sleep 1
+          ClickNamedIn 'Download' $root
+          $shFile = $null
+          foreach ($i in 1..40) {
+            Start-Sleep 3
+            $shFile = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter 'Shuck*1.0.1*setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($shFile -and $shFile.Length -gt 1000000) { break }
+          }
+          if (-not $shFile) { Shot 'shuck-update-no-download'; throw 'Shuck update download did not produce the 1.0.1 installer' }
+          "shuck update downloaded: $($shFile.Name) ($($shFile.Length) bytes)"
+          Start-Sleep 4
+          $shInstalling = @(Get-Process | Where-Object { $_.Name -like 'Shuck*setup*' })
+          "interactive installer processes launched by the app: $($shInstalling.Count)"
+          if ($shInstalling.Count -eq 0) { Shot 'shuck-installer-not-launched'; throw 'the app did not launch the downloaded installer' }
+          Get-Process | Where-Object { $_.Name -like 'Shuck*setup*' } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep 2
+          $sp2 = Start-Process $shFile.FullName -ArgumentList '/S' -PassThru
+          if (-not $sp2.WaitForExit(120000)) { throw 'shuck 1.0.1 silent install timed out' }
+          $shReg2 = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Shuck*' } | Select-Object -First 1
+          "registry after update: $($shReg2.DisplayName) $($shReg2.DisplayVersion)"
+          if ("$($shReg2.DisplayVersion)" -notlike '*1.0.1*') { throw "registry did not move to 1.0.1 after the update (got: $($shReg2.DisplayVersion))" }
+          Get-Process | Where-Object { $_.Name -like 'shuck*' } | Stop-Process -Force -ErrorAction SilentlyContinue
+          ClickNamedIn 'Detect installed version now' $win2
+          Start-Sleep 3
+          $inst1 = $null
+          foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like 'Installed: *') { $inst1 = $el.Current.Name; break }
+          }
+          "shuck after update: [$inst1]"
+          if ($inst1 -notlike '*1.0.1*') { Shot 'shuck-after-update-wrong'; throw "after the update the app did not detect 1.0.1 (got: $inst1)" }
+          $upd1 = FindNamed 'Update' $win2
+          if ($upd1 -ne $null -and $upd1.Current.IsEnabled) { Shot 'shuck-update-still-enabled'; throw 'Update stays enabled after the installed version caught up' }
+          Shot '26d-shuck-updated-detail'
+          AssertAlive 'shuck-update'
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
 
