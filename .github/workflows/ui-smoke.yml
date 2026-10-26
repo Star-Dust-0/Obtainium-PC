@@ -1113,10 +1113,13 @@ jobs:
           (FindNamed 'Clear' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 2
           # Same collapse orthogonality: expand GitLab for the row assert.
-          ClickNamedIn 'GitLab' $win3
-          Start-Sleep 2
-          if ((FindNamed 'GitLab smoke' $win3) -eq $null) { ClickNamedIn 'GitLab' $win3; Start-Sleep 2 }
-          if ((FindNamed 'GitLab smoke' $win3) -eq $null) { Shot 'filter-clear-failed'; throw 'Clear did not restore the full list' }
+          $glr = FindNamedScrolling 'GitLab smoke' $win3
+          if ($glr -eq $null) {
+            # Group header may be off-screen in the small viewport: realize it, then expand.
+            if ((FindNamedScrolling 'GitLab' $win3) -ne $null) { ClickNamedIn 'GitLab' $win3; Start-Sleep 2 }
+            $glr = FindNamedScrolling 'GitLab smoke' $win3
+          }
+          if ($glr -eq $null) { Shot 'filter-clear-failed'; throw 'Clear did not restore the full list' }
           Shot '32-filter-cleared'
           'filter dialog verified'
 
