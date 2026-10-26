@@ -68,14 +68,25 @@ public sealed class AppStore
                 (LastLoadBackupPath != null ? $"Preserved copy: {LastLoadBackupPath}" : "No preservation copy could be made."));
             return;
         }
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        // Atomic: write a sibling temp file, then replace. A crash or full disk
-        // mid-write leaves the previous apps.json intact instead of a truncated one.
-        var tmp = FilePath + ".tmp";
-        await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(apps, JsonOpts));
-        if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
-        else File.Move(tmp, FilePath);
+        // Snapshot first: another thread (update check, deep-link refresh) may add or
+        // replace entries while this save serializes.
+        var snapshot = apps.ToList();
+        // One save at a time: concurrent saves shared the same .tmp file.
+        await _saveGate.WaitAsync();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            // Atomic: write a sibling temp file, then replace. A crash or full disk
+            // mid-write leaves the previous apps.json intact instead of a truncated one.
+            var tmp = FilePath + ".tmp";
+            await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(snapshot, JsonOpts));
+            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+            else File.Move(tmp, FilePath);
+        }
+        finally { _saveGate.Release(); }
     }
+
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
 
     /// <summary>
     /// Builds an Obtainium export document. exportLevel: 0 = apps only, 1 = with

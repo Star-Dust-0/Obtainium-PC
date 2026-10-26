@@ -24,6 +24,20 @@ public class AppStoreTests : IDisposable
     private string StorePath => Path.Combine(_dir, "apps.json");
 
     [Fact]
+    public async Task Concurrent_saves_do_not_collide_and_leave_valid_json()
+    {
+        var store = new AppStore(_dir);
+        var apps = new List<TrackedApp>();
+        for (var i = 0; i < 30; i++) apps.Add(new TrackedApp { Id = "id" + i, Url = "https://github.com/a/b" + i });
+        // Overlapping saves (a deep-link refresh during an update check) must serialize.
+        var saves = Enumerable.Range(0, 20).Select(_ => Task.Run(() => store.SaveAsync(apps))).ToList();
+        await Task.WhenAll(saves);
+        var loaded = await new AppStore(_dir).LoadAsync();
+        Assert.Equal(30, loaded.Count);
+        Assert.False(File.Exists(StorePath + ".tmp"));
+    }
+
+    [Fact]
     public async Task Corrupt_store_is_preserved_and_saves_are_blocked()
     {
         var original = "{ this is not valid json !!!";
