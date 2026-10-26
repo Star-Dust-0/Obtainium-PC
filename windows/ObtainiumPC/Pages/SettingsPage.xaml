@@ -11,7 +11,7 @@
         <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
         <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="0">
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -26,7 +26,7 @@
                 <ToggleSwitch x:Name="CollapseGroupsToggle" Header="Collapse all groups on app start" Toggled="CollapseGroupsToggle_Toggled"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -51,7 +51,7 @@
                 <ToggleSwitch x:Name="AddWithoutCheckToggle" Header="Offer to add apps without a version check when the source fails" Toggled="AddWithoutCheckToggle_Toggled"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -60,7 +60,7 @@
                 <TextBox x:Name="GlobalAssetFilterBox" Header="Filter assets by regular expression (global default)" TextWrapping="Wrap" LostFocus="GlobalAssetFilterBox_LostFocus"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="GitHub" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -69,7 +69,7 @@
                 <TextBox x:Name="GhReqPrefixBox" Header="Request prefix (for GitHub proxies)" TextWrapping="Wrap" LostFocus="GhReqPrefixBox_LostFocus"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Categories" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -87,7 +87,7 @@
                 </ItemsRepeater>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}"/>
