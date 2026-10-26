@@ -1365,6 +1365,30 @@ jobs:
           Start-Sleep 2
           Set-Content $arPath $arOrig
 
+          # ---- Dark wide captures: same pages with Theme=dark persisted ----
+          $dkj = $arOrig | ConvertFrom-Json
+          $dkj | Add-Member -NotePropertyName Theme -NotePropertyValue 'dark' -Force
+          $dkj | ConvertTo-Json -Depth 6 | Set-Content $arPath
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 10
+          $dkc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $dw = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $dkc)
+          if ($dw -eq $null) { throw 'main window not found for dark wide captures' }
+          try { $dw.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Maximized) } catch { "maximize failed: $_" }
+          Start-Sleep 3
+          $script:shotWin = $dw
+          Shot 'dk-wide-01-apps'
+          try { ClickNamedIn 'GitHub' $dw; Start-Sleep 2; ClickPartial 'Notepad++' $dw | Out-Null; Start-Sleep 4 } catch { "dk split click failed: $_" }
+          Shot 'dk-wide-01b-split'
+          foreach ($pair in @(@('Add App','dk-wide-02-add'), @('Update Health','dk-wide-03-health'), @('Import / Export','dk-wide-04-importexport'), @('Logs','dk-wide-05-logs'), @('Settings','dk-wide-06-settings'))) {
+            try { ClickNamedIn $pair[0] $dw; Start-Sleep 3 } catch { "dk nav $($pair[0]) failed: $_" }
+            Shot $pair[1]
+          }
+          AssertAlive 'dark-wide'
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+          Set-Content $arPath $arOrig
+
           # ---- unreadable stored data must be visible, and must not be overwritten ----
           $setPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $goodSettings = Get-Content $setPath -Raw

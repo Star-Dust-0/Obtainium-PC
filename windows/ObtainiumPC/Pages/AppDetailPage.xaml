@@ -93,16 +93,20 @@
                     </StackPanel>
                 </InfoBar>
 
-                <StackPanel Spacing="4">
-                    <TextBlock x:Name="VersionNoteText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontStyle="Italic" Visibility="Collapsed"/>
-                    <TextBlock x:Name="InstalledText" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="LatestText" TextWrapping="Wrap"/>
-                    <HyperlinkButton x:Name="ReleaseDateLink" Click="ReleaseDate_Click" Visibility="Collapsed" Padding="0">
-                        <TextBlock x:Name="ReleaseDateText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </HyperlinkButton>
-                    <HyperlinkButton x:Name="ReleaseLink" Content="Open release page" Click="ReleaseLink_Click"/>
-                    <HyperlinkButton x:Name="HealthLink" Content="Update health: view details" Click="HealthLink_Click" Visibility="Collapsed"/>
-                </StackPanel>
+                <Border x:Name="VersionCard" CornerRadius="8" BorderThickness="1" Padding="16,12,16,12"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="VersionNoteText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontStyle="Italic" Visibility="Collapsed"/>
+                        <TextBlock x:Name="InstalledText" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="LatestText" TextWrapping="Wrap"/>
+                        <HyperlinkButton x:Name="ReleaseDateLink" Click="ReleaseDate_Click" Visibility="Collapsed" Padding="0">
+                            <TextBlock x:Name="ReleaseDateText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </HyperlinkButton>
+                        <HyperlinkButton x:Name="ReleaseLink" Content="Open release page" Click="ReleaseLink_Click"/>
+                        <HyperlinkButton x:Name="HealthLink" Content="Update health: view details" Click="HealthLink_Click" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
 
                 <StackPanel x:Name="DownloadPanel" Spacing="6" Visibility="Collapsed">
                     <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Value="0" AutomationProperties.Name="Download progress"/>
