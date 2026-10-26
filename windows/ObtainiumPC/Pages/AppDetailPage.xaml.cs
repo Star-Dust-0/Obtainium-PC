@@ -42,7 +42,7 @@ namespace ObtainiumPC.Pages
             }
             // Embedded in the Apps split view the list is already visible: no Back button
             // until a sub-page (options) is pushed on this pane's own frame.
-            BackButton.Visibility = IsEmbedded && !Frame.CanGoBack ? Visibility.Collapsed : Visibility.Visible;
+            BackButton.Visibility = IsEmbedded ? Visibility.Collapsed : Visibility.Visible;
             Render();
             // lib/pages/app.dart:1252 checkUpdateOnDetailPage (default false):
             // opening the detail page refreshes this app when the setting is on.
