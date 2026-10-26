@@ -43,6 +43,23 @@ public class AppStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Save_is_atomic_and_leaves_no_temp_file()
+    {
+        var store = new AppStore(_dir);
+        var apps = new List<ObtainiumPC.Models.TrackedApp> { new() { Id = "a", Url = "https://x/y", Name = "A", Author = "x" } };
+        await store.SaveAsync(apps);
+        apps.Add(new() { Id = "b", Url = "https://x/z", Name = "B", Author = "x" });
+        await store.SaveAsync(apps);
+        Assert.False(File.Exists(Path.Combine(_dir, "apps.json.tmp")));
+        var back = await new AppStore(_dir).LoadAsync();
+        Assert.Equal(2, back.Count);
+        // a stale temp from an interrupted earlier write must not break the next save
+        File.WriteAllText(Path.Combine(_dir, "apps.json.tmp"), "{truncated");
+        await store.SaveAsync(apps);
+        Assert.Equal(2, (await new AppStore(_dir).LoadAsync()).Count);
+    }
+
+    [Fact]
     public async Task Valid_store_loads_saves_and_reloads()
     {
         var store = new AppStore(_dir);

@@ -96,14 +96,24 @@ public sealed class AppSettings
             if (File.Exists(FilePath))
                 return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
         }
-        catch { /* corrupted settings fall back to defaults */ }
+        catch (Exception e)
+        {
+            // Corrupted settings fall back to defaults, but the unreadable file is
+            // kept: the next Save would otherwise overwrite the user's tokens/options.
+            try { File.Copy(FilePath, FilePath + ".corrupt-" + DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss"), overwrite: false); }
+            catch { /* best effort */ }
+            Logging.AppLogger.Error("settings.json is unreadable; defaults are used and a copy of the file was kept", e);
+        }
         return new AppSettings();
     }
 
     public void Save()
     {
         Directory.CreateDirectory(Dir);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        var tmp = FilePath + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+        else File.Move(tmp, FilePath);
     }
 
     public static string DataDir => Dir;

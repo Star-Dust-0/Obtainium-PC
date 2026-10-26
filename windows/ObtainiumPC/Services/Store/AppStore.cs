@@ -69,7 +69,12 @@ public sealed class AppStore
             return;
         }
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        await File.WriteAllTextAsync(FilePath, JsonSerializer.Serialize(apps, JsonOpts));
+        // Atomic: write a sibling temp file, then replace. A crash or full disk
+        // mid-write leaves the previous apps.json intact instead of a truncated one.
+        var tmp = FilePath + ".tmp";
+        await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(apps, JsonOpts));
+        if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+        else File.Move(tmp, FilePath);
     }
 
     /// <summary>
