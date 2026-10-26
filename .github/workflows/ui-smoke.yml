@@ -1199,8 +1199,8 @@ jobs:
           $fnEdit = $null
           foreach ($i in 1..20) {
             Start-Sleep 1
-            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))) {
-              if ($el.Current.Name -like 'File name*') { $fnEdit = $el; break }
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -like 'File name*') { $vp = $null; if ($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp)) { $fnEdit = $el; break } }
             }
             if ($fnEdit -ne $null) { break }
           }
