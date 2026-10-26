@@ -149,6 +149,8 @@ namespace ObtainiumPC.Pages
             // of Install/Update (an enabled "Install" promise is misleading -
             // upstream labels the mark action markInstalled/markUpdated, but
             // the port keeps the authorized manual-download flow).
+            // Windows-only: legacy Android records are not updated or installed from here.
+            if (App.Updater.IsLegacyUnsupported(_app)) actionEnabled = false;
             UpdateButton.IsEnabled = actionEnabled;
             InstallButton.IsEnabled = actionEnabled;
             // Manual download stays available for track-only apps even after
