@@ -13,7 +13,7 @@
           <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MaxWidth="720"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Spacing="12">
                 <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True"/>

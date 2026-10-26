@@ -39,7 +39,7 @@ namespace ObtainiumPC.Pages
             foreach (var card in Sections)
             {
                 var heading = ((StackPanel)card.Child).Children.OfType<TextBlock>().FirstOrDefault()?.Text ?? "";
-                SectionList.Items.Add(new ListViewItem { Content = heading, Tag = card });
+                SectionList.Items.Add(new ListViewItem { Content = new TextBlock { Text = heading, TextWrapping = TextWrapping.Wrap }, Tag = card });
             }
             SectionList.SelectedIndex = 0;
         }

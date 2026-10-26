@@ -6,7 +6,7 @@
     <Grid Padding="24,16,24,16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MaxWidth="720"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <StackPanel Spacing="12">
             <TextBlock Text="Add App" Style="{StaticResource TitleTextBlockStyle}"/>
