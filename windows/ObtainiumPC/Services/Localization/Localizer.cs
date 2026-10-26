@@ -155,6 +155,9 @@ public static class Localizer
                 // The built-in On/Off labels follow the OS language, not the app language.
                 ts.OnContent = Loc.T("On");
                 ts.OffContent = Loc.T("Off");
+                // Setting On/Off content folds it into the UIA name ("Header On"); keep the
+                // accessible name as the header, the toggle pattern carries the state.
+                if (ts.Header is string tsName) Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ts, tsName);
                 break;
             case ComboBox cb:
                 if (cb.Header is string cbh) cb.Header = FromOriginal(cb, cbh);
