@@ -37,7 +37,12 @@
         </DataTemplate>
         <local:AppsRowTemplateSelector x:Key="RowSelector" AppTemplate="{StaticResource AppRowTemplate}" GroupTemplate="{StaticResource GroupHeaderTemplate}"/>
     </Page.Resources>
-    <Grid>
+    <Grid x:Name="SplitRoot" SizeChanged="SplitRoot_SizeChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="MasterColumn" Width="*"/>
+            <ColumnDefinition x:Name="DetailColumn" Width="0"/>
+        </Grid.ColumnDefinitions>
+    <Grid x:Name="MasterGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -85,5 +90,7 @@
             <AppBarButton x:Name="BatchCategorizeButton" Label="Categorize" Click="BatchCategorize_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE8EC;"/></AppBarButton.Icon></AppBarButton>
             <AppBarButton x:Name="BatchRemoveButton" Label="Remove" Click="BatchRemove_Click"><AppBarButton.Icon><FontIcon Glyph="&#xE74D;"/></AppBarButton.Icon></AppBarButton>
         </CommandBar>
+    </Grid>
+        <Frame x:Name="DetailFrame" Grid.Column="1" Visibility="Collapsed"/>
     </Grid>
 </Page>

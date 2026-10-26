@@ -37,9 +37,12 @@ namespace ObtainiumPC.Pages
             _app = App.TrackedApps.FirstOrDefault(a => a.Id == id);
             if (_app == null)
             {
-                Frame.GoBack();
+                LeaveDetail();
                 return;
             }
+            // Embedded in the Apps split view the list is already visible: no Back button
+            // until a sub-page (options) is pushed on this pane's own frame.
+            BackButton.Visibility = IsEmbedded && !Frame.CanGoBack ? Visibility.Collapsed : Visibility.Visible;
             Render();
             // lib/pages/app.dart:1252 checkUpdateOnDetailPage (default false):
             // opening the detail page refreshes this app when the setting is on.
@@ -189,6 +192,15 @@ namespace ObtainiumPC.Pages
                 XamlRoot = XamlRoot,
             };
             return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
+        }
+
+        private bool IsEmbedded => Frame.Name == "DetailFrame";
+
+        /// Single-pane: go back to the list. Split view: show the empty pane.
+        private void LeaveDetail()
+        {
+            if (Frame.CanGoBack) Frame.GoBack();
+            else if (IsEmbedded) Frame.Navigate(typeof(EmptyDetailPage));
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
@@ -539,7 +551,7 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             {
                 App.TrackedApps.Remove(_app);
                 await App.SaveAppsAsync();
-                Frame.GoBack();
+                LeaveDetail();
             }
         }
 

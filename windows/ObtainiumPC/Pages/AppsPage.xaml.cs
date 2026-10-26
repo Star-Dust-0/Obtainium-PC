@@ -117,6 +117,8 @@ namespace ObtainiumPC.Pages
         {
             this.InitializeComponent();
             Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
+            // Removing or changing an app in the detail pane refreshes the list beside it.
+            DetailFrame.Navigated += (_, _) => { if (_wide) ReloadRows(); };
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -738,10 +740,37 @@ base.OnNavigatedTo(e);
             ExitSelection();
         }
 
+        // Wide windows: master (list) + detail pane side by side, like Task Scheduler Studio.
+        // Narrow windows keep the single-pane flow (navigate to the detail page and back).
+        private const double WideMinWidth = 760;
+        private bool _wide;
+
+        private void SplitRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var wide = e.NewSize.Width >= WideMinWidth;
+            if (wide)
+            {
+                MasterColumn.Width = new GridLength(Math.Clamp(e.NewSize.Width * 0.42, 340, 460));
+                DetailColumn.Width = new GridLength(1, GridUnitType.Star);
+            }
+            else
+            {
+                MasterColumn.Width = new GridLength(1, GridUnitType.Star);
+                DetailColumn.Width = new GridLength(0);
+            }
+            if (wide == _wide && DetailFrame.Content != null) return;
+            _wide = wide;
+            DetailFrame.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+            if (wide && DetailFrame.Content == null) DetailFrame.Navigate(typeof(EmptyDetailPage));
+        }
+
         private void AppsList_ItemClick(object sender, ItemClickEventArgs e)
         {
             if (e.ClickedItem is AppRow row)
-                Frame.Navigate(typeof(AppDetailPage), row.App.Id);
+            {
+                if (_wide) DetailFrame.Navigate(typeof(AppDetailPage), row.App.Id);
+                else Frame.Navigate(typeof(AppDetailPage), row.App.Id);
+            }
             else if (e.ClickedItem is GroupHeaderRow header)
             {
                 // lib/pages/apps.dart toggleGroupCollapse.
