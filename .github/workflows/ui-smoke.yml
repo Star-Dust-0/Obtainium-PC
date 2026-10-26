@@ -77,6 +77,17 @@ jobs:
           # it only raises the GitHub API rate limit for the live check.
           $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json'); UpdateHealthFailedChecksCount = 1 }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+      - name: Enable crash dumps
+        shell: pwsh
+        run: |
+          # Native XAML fault 0xc000027b is intermittent: keep a full dump so the
+          # managed/native stacks can be read instead of guessed.
+          New-Item -ItemType Directory -Force C:\dumps | Out-Null
+          $k = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\ObtainiumPC.exe'
+          New-Item -Path $k -Force | Out-Null
+          New-ItemProperty $k -Name DumpFolder -Value 'C:\dumps' -PropertyType ExpandString -Force | Out-Null
+          New-ItemProperty $k -Name DumpType -Value 2 -PropertyType DWord -Force | Out-Null
+          New-ItemProperty $k -Name DumpCount -Value 3 -PropertyType DWord -Force | Out-Null
       - name: Launch and capture
         shell: pwsh
         env:
@@ -1352,6 +1363,15 @@ jobs:
               Where-Object { $_.ProviderName -in @('Application Error', '.NET Runtime', 'Windows Error Reporting') -and $_.Message -match 'ObtainiumPC' } |
               Select-Object -First 8 TimeCreated, ProviderName, Message | Format-List | Out-String -Width 400 | Out-File shots\app-crash-events.txt
           } catch { "event log query failed: $_" | Out-File shots\app-crash-events.txt }
+          $dump = Get-ChildItem C:\dumps -Filter *.dmp -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($dump) {
+            "dump: $($dump.FullName) $($dump.Length)" | Out-File shots\dump-analysis.txt
+            try {
+              dotnet tool install -g dotnet-dump 2>&1 | Out-File -Append shots\dump-analysis.txt
+              $dd = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-dump.exe'
+              & $dd analyze $dump.FullName -c 'threads' -c 'pe -nested' -c 'clrstack -all' -c 'exit' 2>&1 | Out-File -Append -Width 400 shots\dump-analysis.txt
+            } catch { "analysis failed: $_" | Out-File -Append shots\dump-analysis.txt }
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
