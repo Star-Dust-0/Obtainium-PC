@@ -247,6 +247,18 @@ jobs:
               "UIA names at ${tag}: $($names -join ' | ')"
             } catch { "UIA name dump failed at ${tag}: $($_.Exception.Message)" }
           }
+          function AssertInsideWindow($name, $scope, $winEl) {
+            # A control that exists in UIA but is clipped out of view must fail:
+            # its bounding rectangle has to sit inside the window rectangle.
+            $el = FindNamed $name $scope
+            if ($el -eq $null) { throw "toolbar control '$name' not found" }
+            $r = $el.Current.BoundingRectangle; $w = $winEl.Current.BoundingRectangle
+            if ([double]::IsInfinity($r.X) -or [double]::IsNaN($r.X) -or $r.X -lt $w.X -or ($r.X + $r.Width) -gt ($w.X + $w.Width) -or $r.Width -le 0) {
+              Shot "clipped-$($name -replace '[^\w]','_')"
+              throw "toolbar control '$name' is outside the visible window ($($r.X),$($r.Width) vs $($w.X),$($w.Width))"
+            }
+            "toolbar control '$name' visible inside window"
+          }
           function AssertAlive($tag) {
             $p.Refresh()
             if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" }
@@ -451,6 +463,8 @@ jobs:
           ClickNamedIn 'التطبيقات' $win2
           Start-Sleep 3
           AssertAlive 'arabic-apps'; Shot '16-arabic-rtl-apps'
+          AssertInsideWindow 'تحديد' $win2 $win2
+          AssertInsideWindow 'تصفية' $win2 $win2
           # 16b) Arabic source error: ImranR98/Obtainium releases are APK-only, so the check
           # raises the distinct no-Windows-installer error. It must render in Arabic.
           Start-Process $exe -ArgumentList 'obtainium://add?url=https%3A%2F%2Fgithub.com%2FImranR98%2FObtainium'
