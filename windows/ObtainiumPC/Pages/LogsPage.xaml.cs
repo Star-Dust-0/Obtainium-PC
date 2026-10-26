@@ -31,11 +31,12 @@ public sealed partial class LogsPage : Page
         Microsoft.UI.Xaml.Media.Brush? cardBrush = ThemeLookup.Brush("CardBackgroundFillColorDefaultBrush");
         // lib/pages/logs.dart _levelColor: error / warning / debug / info get
         // distinct colors (upstream has no level filter, only colors).
+        bool dark = ActualTheme == ElementTheme.Dark;
         Microsoft.UI.Xaml.Media.Brush LevelBrush(AppLogLevel level) => level switch
         {
-            AppLogLevel.Error => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 99, 71)),
-            AppLogLevel.Warning => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 77)),
-            AppLogLevel.Debug => new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 150, 150)),
+            AppLogLevel.Error => new Microsoft.UI.Xaml.Media.SolidColorBrush(dark ? Windows.UI.Color.FromArgb(255, 255, 99, 71) : Windows.UI.Color.FromArgb(255, 176, 0, 32)),
+            AppLogLevel.Warning => new Microsoft.UI.Xaml.Media.SolidColorBrush(dark ? Windows.UI.Color.FromArgb(255, 255, 184, 77) : Windows.UI.Color.FromArgb(255, 133, 77, 14)),
+            AppLogLevel.Debug => new Microsoft.UI.Xaml.Media.SolidColorBrush(dark ? Windows.UI.Color.FromArgb(255, 150, 150, 150) : Windows.UI.Color.FromArgb(255, 96, 96, 96)),
             _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(
                 ThemeLookup.IsDark
                     ? Windows.UI.Color.FromArgb(255, 230, 230, 230)
