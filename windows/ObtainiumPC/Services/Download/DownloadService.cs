@@ -48,21 +48,34 @@ public sealed class DownloadService
         if (mediaType != null && mediaType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)
             && !fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("The server returned a web page instead of the file.");
-        await using var input = await res.Content.ReadAsStreamAsync(ct);
-        await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None);
-        var buffer = new byte[81920];
+        // Stream into <name>.part and move into place only after the checks pass: a
+        // dropped connection, cancel or bad payload never leaves a partial file under the
+        // installer's real name, and never destroys an earlier good download of it.
+        var part = target + ".part";
         long received = 0;
-        int read;
-        while ((read = await input.ReadAsync(buffer, ct)) > 0)
+        try
         {
-            await output.WriteAsync(buffer.AsMemory(0, read), ct);
-            received += read;
-            progress?.Report((received, total));
+            await using (var input = await res.Content.ReadAsStreamAsync(ct))
+            await using (var output = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                var buffer = new byte[81920];
+                int read;
+                while ((read = await input.ReadAsync(buffer, ct)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, read), ct);
+                    received += read;
+                    progress?.Report((received, total));
+                }
+                await output.FlushAsync(ct);
+            }
+            VerifyDownloaded(part, fileName, received, total);
+            File.Move(part, target, overwrite: true);
         }
-        await output.FlushAsync(ct);
-        output.Close();
-        try { VerifyDownloaded(target, fileName, received, total); }
-        catch { TryDelete(target); throw; }
+        catch
+        {
+            TryDelete(part);
+            throw;
+        }
         return target;
     }
 
