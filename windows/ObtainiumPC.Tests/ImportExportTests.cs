@@ -55,6 +55,25 @@ public class ImportExportTests
     }
 
     [Fact]
+    public void Exporting_without_credentials_does_not_remove_them_from_the_live_app()
+    {
+        var app = SampleApp();
+        AppStore.Export(new[] { app }, null, 0, "1.0.0-test");
+        AppStore.Export(new[] { app }, null, 1, "1.0.0-test");
+        Assert.Equal("user:secret", app.GetSettingString("github-creds"));
+    }
+
+    [Fact]
+    public void SamePath_matches_case_and_relative_forms_and_rejects_empty()
+    {
+        var d = Path.GetTempPath();
+        Assert.True(AppStore.SamePath(Path.Combine(d, "Backup.json"), Path.Combine(d, ".", "backup.JSON")));
+        Assert.False(AppStore.SamePath(Path.Combine(d, "a.json"), Path.Combine(d, "b.json")));
+        Assert.False(AppStore.SamePath(null, Path.Combine(d, "a.json")));
+        Assert.False(AppStore.SamePath("", ""));
+    }
+
+    [Fact]
     public void Credentials_are_stripped_unless_secrets_included()
     {
         var stripped = AppStore.Export(new[] { SampleApp() }, null, 0, "1.0.0-test");

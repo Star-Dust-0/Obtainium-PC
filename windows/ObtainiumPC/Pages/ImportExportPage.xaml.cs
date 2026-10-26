@@ -94,7 +94,13 @@ namespace ObtainiumPC.Pages
                 ? App.SnapshotApps().Where(a => a.InstalledVersion != null).ToList()
                 : App.SnapshotApps();
             var json = Services.Store.AppStore.Export(toExport, settings, level, "0.1.0");
-            await FileIO.WriteTextAsync(file, json);
+            // The auto-export target and this manual target can be the same file. Then both
+            // writers go through the same serialized, atomic path so neither can truncate or
+            // interleave with the other; otherwise keep the picker-granted write.
+            if (Services.Store.AppStore.SamePath(file.Path, App.Settings.AutoExportPath))
+                Services.Store.AppStore.WriteFileAtomic(file.Path, json);
+            else
+                await FileIO.WriteTextAsync(file, json);
             ShowResult(InfoBarSeverity.Success, "Export complete",
                 string.Format(Services.Localization.Loc.T("{0} apps written to {1}."), App.TrackedApps.Count, file.Name));
         }

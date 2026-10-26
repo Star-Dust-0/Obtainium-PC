@@ -90,6 +90,14 @@ public sealed class AppStore
 
     private static readonly object FileWriteLock = new();
 
+    /// True when both paths name the same file (full-path, case-insensitive like NTFS).
+    public static bool SamePath(string? a, string? b)
+    {
+        if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
+        try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+        catch { return false; }
+    }
+
     /// <summary>
     /// Writes text to a user-chosen path without ever leaving it truncated: the text goes to a
     /// temp file in the same directory (same volume, so the replace is atomic), then replaces the
