@@ -46,6 +46,14 @@ public static class AssetFilterService
         ".txt", ".md", ".json", ".yml", ".yaml", ".blockmap", ".map", ".sbom", ".spdx", ".cdx",
     };
 
+    /// Evidence from a stored record: its last successful check's assets are Android-only.
+    /// No stored assets means unknown (false).
+    public static bool StoredAssetsAreAndroidOnly(ObtainiumPC.Models.TrackedApp app)
+    {
+        var stored = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
+        return stored.Count > 0 && IsAndroidOnlyArtifactSet(stored);
+    }
+
     public static bool IsAndroidPackage(string name) =>
         AndroidPackageExtensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase));
 

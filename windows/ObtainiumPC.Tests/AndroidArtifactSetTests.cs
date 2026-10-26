@@ -34,4 +34,40 @@ public class AndroidArtifactSetTests
         Assert.False(AssetFilterService.IsAndroidOnlyArtifactSet(Array.Empty<KeyValuePair<string, string>>()));
         Assert.False(AssetFilterService.IsAndroidOnlyArtifactSet(new[] { A("Source code (zip)", "https://api.github.com/repos/o/r/zipball/v1") }));
     }
+
+    private static ObtainiumPC.Models.TrackedApp Rec(params string[] names)
+    {
+        var app = new ObtainiumPC.Models.TrackedApp { Id = "x", Url = "https://github.com/o/r" };
+        app.AssetUrls = names.Select(n => A(n)).ToList();
+        return app;
+    }
+
+    [Fact]
+    public void Stored_record_with_only_apks_is_legacy_android()
+        => Assert.True(AssetFilterService.StoredAssetsAreAndroidOnly(Rec("a-arm64.apk", "a-arm64.apk.sha256")));
+
+    [Fact]
+    public void Stored_record_with_no_assets_is_unknown_not_android()
+        => Assert.False(AssetFilterService.StoredAssetsAreAndroidOnly(Rec()));
+
+    [Fact]
+    public void Stored_record_with_a_desktop_artifact_is_kept()
+        => Assert.False(AssetFilterService.StoredAssetsAreAndroidOnly(Rec("a.apk", "a-setup.exe")));
+
+    [Fact]
+    public void Stored_record_keeps_apks_found_in_other_assets()
+    {
+        var app = Rec();
+        app.OtherAssetUrls = new() { A("a.apk") };
+        Assert.True(AssetFilterService.StoredAssetsAreAndroidOnly(app));
+    }
+
+    [Fact]
+    public void Checking_does_not_modify_the_record()
+    {
+        var app = Rec("a.apk");
+        var before = app.AssetUrlsJson;
+        _ = AssetFilterService.StoredAssetsAreAndroidOnly(app);
+        Assert.Equal(before, app.AssetUrlsJson);
+    }
 }

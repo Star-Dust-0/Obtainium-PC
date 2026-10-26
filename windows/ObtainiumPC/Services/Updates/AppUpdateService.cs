@@ -71,8 +71,7 @@ public sealed class AppUpdateService
             if (SourceCatalog.IsAndroidOnlyApp(app.Url, app.OverrideSource, _settings)) return true;
         }
         catch { /* unresolvable source: unknown */ }
-        var stored = app.AssetUrls.Concat(app.OtherAssetUrls).ToList();
-        return stored.Count > 0 && AssetFilterService.IsAndroidOnlyArtifactSet(stored);
+        return AssetFilterService.StoredAssetsAreAndroidOnly(app);
     }
 
     /// <summary>
