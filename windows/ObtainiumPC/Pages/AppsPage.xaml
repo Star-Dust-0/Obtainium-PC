@@ -47,7 +47,7 @@
             <VisualStateGroup>
                 <VisualState>
                     <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="1100"/>
+                        <AdaptiveTrigger MinWindowWidth="100000"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="SearchRow.Height" Value="0"/>
