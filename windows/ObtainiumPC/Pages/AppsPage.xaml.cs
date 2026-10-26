@@ -121,17 +121,29 @@ namespace ObtainiumPC.Pages
             DetailFrame.Navigated += (_, _) => { if (_wide) ReloadRows(); };
         }
 
+        private bool _navigatedAway;
+
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
-                        ReloadCategoryCombo();
-base.OnNavigatedTo(e);
-            await App.InitAsync();
+            base.OnNavigatedTo(e);
+            _navigatedAway = false;
+            // Subscribe before the first await: a handler added after InitAsync could
+            // outlive a page that was already navigated away from.
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdated;
             Services.Updates.BackgroundUpdateService.Instance.AppsUpdated += OnAppsUpdated;
-            ReloadRows();
+            try
+            {
+                ReloadCategoryCombo();
+                await App.InitAsync();
+                if (_navigatedAway) return;
+                ReloadRows();
+            }
+            catch (Exception ex) { Services.Logging.AppLogger.Error("Apps page load failed", ex); }
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
+            _navigatedAway = true;
             Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdated;
             base.OnNavigatedFrom(e);
         }
@@ -141,8 +153,14 @@ base.OnNavigatedTo(e);
         // native XAML crash, 0xc000027b, that never reaches the managed log).
         private void OnAppsUpdated(object? sender, EventArgs e)
         {
-            if (DispatcherQueue.HasThreadAccess) ReloadRows();
-            else DispatcherQueue.TryEnqueue(ReloadRows);
+            void Safe()
+            {
+                if (_navigatedAway) return;
+                try { ReloadRows(); }
+                catch (Exception ex) { Services.Logging.AppLogger.Error("Apps list refresh failed", ex); }
+            }
+            if (DispatcherQueue.HasThreadAccess) Safe();
+            else DispatcherQueue.TryEnqueue(Safe);
         }
 
         // lib/components/app_list_tile.dart AppsFilter (the filter dialog model).
@@ -158,7 +176,7 @@ base.OnNavigatedTo(e);
             var filtered = new List<AppRow>();
             // lib/components/app_list_tile.dart AppListBuilder.sort via Settings
             // (sortColumn/sortOrder).
-            var sorted = Services.Store.AppSort.Sort(App.TrackedApps,
+            var sorted = Services.Store.AppSort.Sort(App.TrackedApps.ToList(),
                 App.Settings.SortColumn, App.Settings.SortOrder);
             // lib/components/app_list_tile.dart AppListBuilder.reorder
             sorted = Services.Store.AppSort.Reorder(sorted,
