@@ -88,6 +88,33 @@ public sealed class AppStore
 
     private readonly SemaphoreSlim _saveGate = new(1, 1);
 
+    private static readonly object FileWriteLock = new();
+
+    /// <summary>
+    /// Writes text to a user-chosen path without ever leaving it truncated: the text goes to a
+    /// temp file in the same directory (same volume, so the replace is atomic), then replaces the
+    /// target. A failed write keeps the previous file and removes the temp file. Overlapping
+    /// callers (a debounced auto-export racing another) are serialized.
+    /// </summary>
+    public static void WriteFileAtomic(string target, string text)
+    {
+        lock (FileWriteLock)
+        {
+            var tmp = target + ".tmp";
+            try
+            {
+                File.WriteAllText(tmp, text);
+                if (File.Exists(target)) File.Replace(tmp, target, null);
+                else File.Move(tmp, target);
+            }
+            catch
+            {
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                throw;
+            }
+        }
+    }
+
     /// <summary>
     /// Builds an Obtainium export document. exportLevel: 0 = apps only, 1 = with
     /// settings (credentials stripped), 2 = with settings incl. credentials.

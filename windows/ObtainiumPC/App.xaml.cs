@@ -256,12 +256,7 @@ namespace ObtainiumPC
                         settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
                     }
                     var json = Services.Store.AppStore.Export(SnapshotApps(), settings, level, "0.1.0");
-                    // Atomic replace so an interrupted write never leaves a truncated backup.
-                    var target = Settings.AutoExportPath!;
-                    var tmp = target + ".tmp";
-                    System.IO.File.WriteAllText(tmp, json);
-                    if (System.IO.File.Exists(target)) System.IO.File.Replace(tmp, target, null);
-                    else System.IO.File.Move(tmp, target);
+                    Services.Store.AppStore.WriteFileAtomic(Settings.AutoExportPath!, json);
                 }
                 catch (Exception ex)
                 {

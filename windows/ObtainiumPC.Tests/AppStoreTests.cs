@@ -24,6 +24,37 @@ public class AppStoreTests : IDisposable
     private string StorePath => Path.Combine(_dir, "apps.json");
 
     [Fact]
+    public void WriteFileAtomic_replaces_content_and_leaves_no_temp_file()
+    {
+        var target = Path.Combine(_dir, "auto.json");
+        AppStore.WriteFileAtomic(target, "first");
+        AppStore.WriteFileAtomic(target, "second");
+        Assert.Equal("second", File.ReadAllText(target));
+        Assert.False(File.Exists(target + ".tmp"));
+    }
+
+    [Fact]
+    public void WriteFileAtomic_failure_keeps_the_previous_backup()
+    {
+        var target = Path.Combine(_dir, "auto.json");
+        AppStore.WriteFileAtomic(target, "good backup");
+        // Block the temp path with a directory so the write fails midway.
+        Directory.CreateDirectory(target + ".tmp");
+        Assert.ThrowsAny<Exception>(() => AppStore.WriteFileAtomic(target, "new content"));
+        Assert.Equal("good backup", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public async Task WriteFileAtomic_overlapping_writers_always_leave_one_complete_version()
+    {
+        var target = Path.Combine(_dir, "auto.json");
+        var payloads = Enumerable.Range(0, 8).Select(i => new string((char)('a' + i), 50_000)).ToList();
+        await Task.WhenAll(payloads.Select(p => Task.Run(() => { for (var n = 0; n < 10; n++) AppStore.WriteFileAtomic(target, p); })));
+        Assert.Contains(File.ReadAllText(target), payloads);
+        Assert.False(File.Exists(target + ".tmp"));
+    }
+
+    [Fact]
     public async Task Concurrent_saves_do_not_collide_and_leave_valid_json()
     {
         var store = new AppStore(_dir);
