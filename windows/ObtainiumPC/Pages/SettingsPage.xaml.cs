@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -22,8 +23,51 @@ namespace ObtainiumPC.Pages
         public SettingsPage()
         {
             this.InitializeComponent();
-            Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
+            Loaded += (_, _) => { Services.Localization.Localizer.Apply(this); BuildSectionList(); ApplyLayout(); };
             LoadValues();
+        }
+
+        // Wide: section list on the left, one section on the right (Task Scheduler Studio
+        // settings pattern). Narrow: every section stacked, no list.
+        private bool _wideLayout;
+        private double _splitWidth;
+        private Border[] Sections => new[] { SecAppearance, SecUpdates, SecVersion, SecGitHub, SecCategories, SecAbout };
+
+        private void BuildSectionList()
+        {
+            SectionList.Items.Clear();
+            foreach (var card in Sections)
+            {
+                var heading = ((StackPanel)card.Child).Children.OfType<TextBlock>().FirstOrDefault()?.Text ?? "";
+                SectionList.Items.Add(new ListViewItem { Content = heading, Tag = card });
+            }
+            SectionList.SelectedIndex = 0;
+        }
+
+        private void Split_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            _splitWidth = e.NewSize.Width;
+            ApplyLayout();
+        }
+
+        private void ApplyLayout()
+        {
+            var wide = _splitWidth >= 760;
+            _wideLayout = wide;
+            SectionNavColumn.Width = wide ? new GridLength(200) : new GridLength(0);
+            SectionList.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+            var avail = _splitWidth - (wide ? 224 : 0);
+            SectionHost.Width = avail > 0 ? Math.Min(avail, 760) : double.NaN;
+            ShowSelectedSection();
+        }
+
+        private void SectionList_SelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSelectedSection();
+
+        private void ShowSelectedSection()
+        {
+            var selected = (SectionList.SelectedItem as ListViewItem)?.Tag as Border;
+            foreach (var card in Sections)
+                card.Visibility = !_wideLayout || selected == null || ReferenceEquals(card, selected) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadValues()

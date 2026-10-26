@@ -9,9 +9,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
-        <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="0">
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+        <Grid Grid.Row="1" Margin="0,12,0,0" ColumnSpacing="24" SizeChanged="Split_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SectionNavColumn" Width="0"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ListView x:Name="SectionList" SelectionMode="Single" SelectionChanged="SectionList_SelectionChanged" Visibility="Collapsed" VerticalAlignment="Top"/>
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="SectionHost" Spacing="0" HorizontalAlignment="Left">
+                <Border x:Name="SecAppearance" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -26,7 +32,7 @@
                 <ToggleSwitch x:Name="CollapseGroupsToggle" Header="Collapse all groups on app start" Toggled="CollapseGroupsToggle_Toggled"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+                <Border x:Name="SecUpdates" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -51,7 +57,7 @@
                 <ToggleSwitch x:Name="AddWithoutCheckToggle" Header="Offer to add apps without a version check when the source fails" Toggled="AddWithoutCheckToggle_Toggled"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+                <Border x:Name="SecVersion" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -60,7 +66,7 @@
                 <TextBox x:Name="GlobalAssetFilterBox" Header="Filter assets by regular expression (global default)" TextWrapping="Wrap" LostFocus="GlobalAssetFilterBox_LostFocus"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+                <Border x:Name="SecGitHub" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="GitHub" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -69,7 +75,7 @@
                 <TextBox x:Name="GhReqPrefixBox" Header="Request prefix (for GitHub proxies)" TextWrapping="Wrap" LostFocus="GhReqPrefixBox_LostFocus"/>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+                <Border x:Name="SecCategories" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="Categories" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -87,7 +93,7 @@
                 </ItemsRepeater>
                     </StackPanel>
                 </Border>
-                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MinWidth="520" MaxWidth="760" HorizontalAlignment="Left"
+                <Border x:Name="SecAbout" CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" HorizontalAlignment="Stretch"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}"/>
@@ -99,5 +105,6 @@
                 </Border>
             </StackPanel>
         </ScrollViewer>
+        </Grid>
     </Grid>
 </Page>
