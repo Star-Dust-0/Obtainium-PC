@@ -168,7 +168,7 @@ public static class DeepLinkService
                         standardized = src.SourceSpecificStandardizeUrl(data);
                 }
                 catch { standardized = null; }
-                var existing = App.TrackedApps.FirstOrDefault(a => a.Url == standardized || a.Url == data);
+                var existing = App.SnapshotApps().FirstOrDefault(a => a.Url == standardized || a.Url == data);
                 if (existing != null) mw.NavigateToApp(existing.Id);
                 else mw.NavigateToAddApp(data);
                 break;
@@ -209,7 +209,7 @@ public static class DeepLinkService
                         ex is Store.ObtainiumImportException ? ex.Message : Loc.T("The request failed. Details are in the logs."));
                     return;
                 }
-                var replaceCount = apps.Count(a => App.TrackedApps.Any(x => x.Id == a.Id));
+                var replaceCount = apps.Count(a => App.SnapshotApps().Any(x => x.Id == a.Id));
 
                 // Upstream: confirmation dialog showing the raw JSON in an
                 // expansion tile. This port additionally states the counts and
@@ -255,9 +255,7 @@ public static class DeepLinkService
                 var replaced = 0;
                 foreach (var app in apps)
                 {
-                    var i = App.TrackedApps.FindIndex(x => x.Id == app.Id);
-                    if (i >= 0) { App.TrackedApps[i] = app; replaced++; }
-                    else { App.TrackedApps.Add(app); added++; }
+                    if (App.UpsertApp(app)) replaced++; else added++;
                 }
                 await App.SaveAppsAsync();
                 // Reload any open Apps page; the import bypasses update checks,
@@ -285,7 +283,7 @@ public static class DeepLinkService
                 }
                 else
                 {
-                    var app = App.TrackedApps.FirstOrDefault(a => a.Id == id);
+                    var app = App.SnapshotApps().FirstOrDefault(a => a.Id == id);
                     if (app != null)
                     {
                         _ = Task.Run(async () =>

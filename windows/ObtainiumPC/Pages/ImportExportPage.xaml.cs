@@ -91,8 +91,8 @@ namespace ObtainiumPC.Pages
             }
             // lib/providers/settings_provider.dart exportInstalledOnly
             var toExport = App.Settings.ExportInstalledOnly
-                ? App.TrackedApps.Where(a => a.InstalledVersion != null).ToList()
-                : App.TrackedApps;
+                ? App.SnapshotApps().Where(a => a.InstalledVersion != null).ToList()
+                : App.SnapshotApps();
             var json = Services.Store.AppStore.Export(toExport, settings, level, "0.1.0");
             await FileIO.WriteTextAsync(file, json);
             ShowResult(InfoBarSeverity.Success, "Export complete",
@@ -163,8 +163,7 @@ namespace ObtainiumPC.Pages
                     Name = repo.FullName.Split('/').Last(),
                     Author = repo.FullName.Split('/').First(),
                 };
-                App.TrackedApps.Add(app);
-                added++;
+                if (App.TryAddApp(app) == null) added++;
             }
             await App.SaveAppsAsync();
             ShowResult(InfoBarSeverity.Success, "Starred repos added",
@@ -251,13 +250,12 @@ namespace ObtainiumPC.Pages
                     try
                     {
                         var app = await App.Updater.CheckAppAsync(url, new Dictionary<string, JsonElement>());
-                        var dupe = App.TrackedApps.FirstOrDefault(t => t.Id == app.Id || t.Url == app.Url);
+                        var dupe = App.TryAddApp(app);
                         if (dupe != null)
                         {
                             errors.Add(url + ": already added (" + dupe.FinalName + ")");
                             continue;
                         }
-                        App.TrackedApps.Add(app);
                         added++;
                     }
                     catch (Exception ex)
@@ -315,9 +313,7 @@ namespace ObtainiumPC.Pages
                 var replaced = 0;
                 foreach (var app in apps)
                 {
-                    var i = App.TrackedApps.FindIndex(x => x.Id == app.Id);
-                    if (i >= 0) { App.TrackedApps[i] = app; replaced++; }
-                    else { App.TrackedApps.Add(app); added++; }
+                    if (App.UpsertApp(app)) replaced++; else added++;
                 }
                 await App.SaveAppsAsync();
                 var settingsNote = hasSettings

@@ -549,7 +549,7 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
-                App.TrackedApps.Remove(_app);
+                App.RemoveApp(_app);
                 await App.SaveAppsAsync();
                 LeaveDetail();
             }

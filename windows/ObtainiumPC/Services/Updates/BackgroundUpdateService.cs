@@ -54,11 +54,11 @@ public sealed class BackgroundUpdateService
         try
         {
             await App.InitAsync();
-            var updateableBefore = App.TrackedApps
+            var updateableBefore = App.SnapshotApps()
                 .Where(a => App.Updater.IsAppUpdateable(a))
                 .Select(a => a.Id)
                 .ToHashSet();
-            foreach (var app in App.TrackedApps.Where(a => !a.Disabled).ToList())
+            foreach (var app in App.SnapshotApps().Where(a => !a.Disabled).ToList())
             {
                 if (!manual && app.GetSettingBool("exemptFromBackgroundUpdates")) continue;
                 // lib/providers/apps_provider_updates.dart: when
@@ -86,10 +86,10 @@ public sealed class BackgroundUpdateService
             }
             await App.SaveAppsAsync();
             LastCheck = DateTimeOffset.Now;
-            LastUpdateCount = App.TrackedApps.Count(a => App.Updater.IsAppUpdateable(a));
+            LastUpdateCount = App.SnapshotApps().Count(a => App.Updater.IsAppUpdateable(a));
             if (!manual && App.Settings.NotifyUpdates)
             {
-                var newlyUpdateable = App.TrackedApps
+                var newlyUpdateable = App.SnapshotApps()
                     .Where(a => !updateableBefore.Contains(a.Id)
                         && App.Updater.IsAppUpdateable(a)
                         && !a.GetSettingBool("skipUpdateNotifications"))

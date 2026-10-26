@@ -25,7 +25,8 @@ namespace ObtainiumPC
         }
         public static AppStore Store { get; private set; } = new AppStore();
         public static AppUpdateService Updater { get; private set; } = new AppUpdateService(Settings);
-        public static List<TrackedApp> TrackedApps { get; private set; } = new();
+        private static readonly Services.Store.TrackedAppList AppList = new();
+        public static List<TrackedApp> TrackedApps { get => AppList.Items; private set => AppList.Items = value; }
         public static bool Initialized { get; private set; }
 
         /// An obtainium:// link delivered before the shell finished init.
@@ -221,9 +222,15 @@ namespace ObtainiumPC
             }
         }
 
+        // Structural changes and every off-thread read go through TrackedAppList (lock never held across awaits).
+        public static List<TrackedApp> SnapshotApps() => AppList.Snapshot();
+        public static TrackedApp? TryAddApp(TrackedApp app) => AppList.TryAdd(app);
+        public static bool UpsertApp(TrackedApp app) => AppList.Upsert(app);
+        public static bool RemoveApp(TrackedApp app) => AppList.Remove(app);
+
         public static async Task SaveAppsAsync()
         {
-            await Store.SaveAsync(TrackedApps);
+            await Store.SaveAsync(SnapshotApps());
             ScheduleAutoExport();
         }
 

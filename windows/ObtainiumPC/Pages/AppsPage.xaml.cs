@@ -759,7 +759,7 @@ namespace ObtainiumPC.Pages
                 XamlRoot = this.XamlRoot,
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            foreach (var a in sel) App.TrackedApps.Remove(a);
+            foreach (var a in sel) App.RemoveApp(a);
             await App.SaveAppsAsync();
             ReloadRows();
             ExitSelection();

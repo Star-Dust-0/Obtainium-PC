@@ -160,13 +160,12 @@ namespace ObtainiumPC.Pages
                     app.AssetUrls = new List<KeyValuePair<string, string>> { new("placeholder", "placeholder") };
                 }
                 // lib/providers/apps_provider.dart addAppsByURL: appAlreadyAdded.
-                var dupe = App.TrackedApps.FirstOrDefault(t => t.Id == app.Id || t.Url == app.Url);
+                var dupe = App.TryAddApp(app);
                 if (dupe != null)
                 {
                     Show(InfoBarSeverity.Error, "App already added: " + dupe.FinalName);
                     return;
                 }
-                App.TrackedApps.Add(app);
                 await App.SaveAppsAsync();
                 Show(InfoBarSeverity.Success, $"Added {app.FinalName} (latest: {app.LatestVersion ?? "unknown"}).");
                 UrlBox.Text = "";
