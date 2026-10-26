@@ -899,7 +899,7 @@ jobs:
           if ((FindNamed 'Download' $win3) -eq $null) { Shot 'track-only-action-label'; throw 'track-only detail action button is not labeled Download' }
           if ((FindNamed 'Install' $win3) -ne $null) { Shot 'track-only-install-label'; throw 'track-only detail still offers an Install action' }
           # Manual download: the picker must offer the Windows zip, the download must
-          # complete, and the Android-package note (no install launch) must show.
+          # complete, and the download must finish without launching an installer.
           ClickNamedIn 'Download' $win3
           Start-Sleep 2
           $apkRadio = $null

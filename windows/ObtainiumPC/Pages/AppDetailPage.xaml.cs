@@ -333,7 +333,9 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 }
                 else
                 {
-                    Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0}. Android package - cannot install on Windows; the file is saved for manual transfer."), asset.Key));
+                    Show(InfoBarSeverity.Success, Sources.AssetFilterService.IsAndroidPackage(asset.Key)
+                        ? string.Format(Services.Localization.Loc.T("Downloaded {0}. Android package - cannot install on Windows; the file is saved for manual transfer."), asset.Key)
+                        : string.Format(Services.Localization.Loc.T("Downloaded {0}. It is not a Windows installer, so it was not launched; the file is in your downloads folder."), asset.Key));
                     PostDownloadNote.Text = "";
                     DetectNowButton.Visibility = Visibility.Collapsed;
                 }

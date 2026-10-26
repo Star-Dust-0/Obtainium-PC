@@ -46,6 +46,9 @@ public static class AssetFilterService
         ".txt", ".md", ".json", ".yml", ".yaml", ".blockmap", ".map", ".sbom", ".spdx", ".cdx",
     };
 
+    public static bool IsAndroidPackage(string name) =>
+        AndroidPackageExtensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase));
+
     /// True when a release's assets are only Android packages (plus checksums/signatures/notes
     /// and source archives): there is no Windows, other-desktop or generic archive artifact to
     /// track. A project that ships an APK next to any desktop artifact is not Android-only, and
