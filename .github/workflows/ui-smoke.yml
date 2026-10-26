@@ -1339,6 +1339,32 @@ jobs:
           Stop-Process -Id $p.Id -Force
           Start-Sleep 2
 
+          # ---- Arabic (RTL) wide captures: same flow with Language=ar persisted ----
+          $arPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $arOrig = Get-Content $arPath -Raw
+          $arj = $arOrig | ConvertFrom-Json
+          $arj | Add-Member -NotePropertyName Language -NotePropertyValue 'ar' -Force
+          $arj | ConvertTo-Json -Depth 6 | Set-Content $arPath
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 10
+          $arcw = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $aw = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $arcw)
+          if ($aw -eq $null) { throw 'main window not found for Arabic wide captures' }
+          try { $aw.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Maximized) } catch { "maximize failed: $_" }
+          Start-Sleep 3
+          $script:shotWin = $aw
+          Shot 'ar-wide-01-apps'
+          try { ClickNamedIn 'GitHub' $aw; Start-Sleep 2; ClickPartial 'Notepad++' $aw | Out-Null; Start-Sleep 4 } catch { "ar split click failed: $_" }
+          Shot 'ar-wide-01b-split'
+          foreach ($pair in @(@('Add App','ar-wide-02-add'), @('Update Health','ar-wide-03-health'), @('Import / Export','ar-wide-04-importexport'), @('Logs','ar-wide-05-logs'), @('Settings','ar-wide-06-settings'))) {
+            try { ClickNamedIn $pair[0] $aw; Start-Sleep 3 } catch { "ar nav $($pair[0]) failed: $_" }
+            Shot $pair[1]
+          }
+          AssertAlive 'arabic-wide'
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 2
+          Set-Content $arPath $arOrig
+
           # ---- unreadable stored data must be visible, and must not be overwritten ----
           $setPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $goodSettings = Get-Content $setPath -Raw
