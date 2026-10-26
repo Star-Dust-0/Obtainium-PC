@@ -108,6 +108,27 @@
                     </StackPanel>
                 </Border>
 
+                <Border x:Name="LastCheckCard" CornerRadius="8" BorderThickness="1" Padding="16,12,16,12"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <TextBlock x:Name="LastCheckText" TextWrapping="Wrap"/>
+                </Border>
+
+                <Border x:Name="SourceCard" CornerRadius="8" BorderThickness="1" Padding="16,12,16,12"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="4">
+                        <HyperlinkButton x:Name="SourceLink" Padding="0" Click="SourceLink_Click">
+                            <TextBlock x:Name="SourceLinkText" TextWrapping="Wrap" FontStyle="Italic"/>
+                        </HyperlinkButton>
+                        <TextBlock x:Name="SourceIdText" TextWrapping="Wrap" IsTextSelectionEnabled="True" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="AboutCard" CornerRadius="8" BorderThickness="1" Padding="16,12,16,12" Visibility="Collapsed"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"/>
+
                 <StackPanel x:Name="DownloadPanel" Spacing="6" Visibility="Collapsed">
                     <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Value="0" AutomationProperties.Name="Download progress"/>
                     <TextBlock x:Name="DownloadText" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

@@ -64,6 +64,12 @@ namespace ObtainiumPC.Pages
             }
         }
 
+        private async void SourceLink_Click(object sender, RoutedEventArgs e)
+        {
+            if (Uri.TryCreate(_app?.Url, UriKind.Absolute, out var u))
+                await Windows.System.Launcher.LaunchUriAsync(u);
+        }
+
         private void Render()
         {
             if (_app == null) return;
@@ -101,6 +107,19 @@ namespace ObtainiumPC.Pages
             {
                 RenameBar.IsOpen = false;
             }
+            // lib/pages/app.dart _buildVersionInfoSections / _buildSourceInfoSections / _buildAboutSection.
+            LastCheckText.Text = Services.Localization.Loc.T("Last update check: {}").Replace("{}",
+                _app.LastUpdateCheck is { } luc ? luc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : Services.Localization.Loc.T("Never"));
+            SourceLinkText.Text = _app.Url ?? "";
+            SourceIdText.Text = _app.Id ?? "";
+            if (_app.AdditionalSettings.TryGetValue("about", out var aboutEl)
+                && aboutEl.ValueKind == System.Text.Json.JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(aboutEl.GetString()))
+            {
+                AboutCard.Child = Services.MarkdownRenderer.Render(aboutEl.GetString()!);
+                AboutCard.Visibility = Visibility.Visible;
+            }
+            else AboutCard.Visibility = Visibility.Collapsed;
             // lib/pages/app.dart: update-health note linking to the health page.
             // lib/models/app.dart isVersionPseudo + app.dart detail notes.
             var trackOnlyApp = _app.AdditionalSettings.TryGetValue("trackOnly", out var toe)
