@@ -26,8 +26,8 @@ public class TrackedAppListTests : IDisposable
         var tasks = new List<Task>();
         // writers: add new apps 100..199
         tasks.Add(Task.Run(() => Guard(() => { for (var i = 100; i < 200; i++) list.TryAdd(A(i)); })));
-        // upsert (replace) existing apps with a new installed version, installed bookkeeping must survive
-        tasks.Add(Task.Run(() => Guard(() => { for (var i = 0; i < 50; i++) Assert.True(list.Upsert(A(i, "2"))); })));
+        // upsert (replace) existing apps 0..39 with a new installed version, installed bookkeeping must survive
+        tasks.Add(Task.Run(() => Guard(() => { for (var i = 0; i < 40; i++) Assert.True(list.Upsert(A(i, "2"))); })));
         // remove 40..49 only
         tasks.Add(Task.Run(() => Guard(() => { for (var i = 40; i < 50; i++) list.Remove(list.Snapshot().First(x => x.Id == "id" + i)); })));
         // readers + saves in parallel
