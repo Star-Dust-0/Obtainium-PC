@@ -116,7 +116,9 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                ShowResult(InfoBarSeverity.Error, "Could not fetch starred repos", ex.Message);
+                Services.Logging.AppLogger.Error("Fetching starred repos failed", ex);
+                ShowResult(InfoBarSeverity.Error, "Could not fetch starred repos",
+                    Services.Localization.Loc.T("The request failed. Details are in the logs."));
                 return;
             }
             if (repos.Count == 0)
@@ -330,7 +332,9 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                ShowResult(InfoBarSeverity.Error, "Import failed", ex.Message);
+                Services.Logging.AppLogger.Error("Import failed", ex);
+                ShowResult(InfoBarSeverity.Error, "Import failed",
+                    Services.Localization.Loc.T("The request failed. Details are in the logs."));
             }
         }
 
@@ -371,7 +375,8 @@ namespace ObtainiumPC.Pages
             }
             catch (System.Text.Json.JsonException ex)
             {
-                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"), ex.Message);
+                Services.Logging.AppLogger.Error("Pasted JSON could not be parsed", ex);
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"), Services.Localization.Loc.T("Invalid input"));
                 return;
             }
             await ImportJsonAsync(text);
@@ -394,7 +399,9 @@ namespace ObtainiumPC.Pages
             }
             catch (Exception ex)
             {
-                ShowResult(InfoBarSeverity.Error, "Import failed", ex.Message);
+                Services.Logging.AppLogger.Error("Listing downloads failed", ex);
+                ShowResult(InfoBarSeverity.Error, "Import failed",
+                    Services.Localization.Loc.T("The request failed. Details are in the logs."));
                 return;
             }
             if (candidates.Count == 0)

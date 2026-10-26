@@ -204,7 +204,9 @@ public static class DeepLinkService
                 }
                 catch (Exception ex)
                 {
-                    await ShowErrorAsync(mw, Loc.T("Import failed"), ex.Message);
+                    Logging.AppLogger.Error("Deep-link import failed", ex);
+                    await ShowErrorAsync(mw, Loc.T("Import failed"),
+                        ex is Store.ObtainiumImportException ? ex.Message : Loc.T("The request failed. Details are in the logs."));
                     return;
                 }
                 var replaceCount = apps.Count(a => App.TrackedApps.Any(x => x.Id == a.Id));

@@ -134,6 +134,7 @@ public static class Loc
         ["Import from URL list"] = "استيراد من قائمة روابط",
         ["Flagged apps"] = "التطبيقات المُبلَّغ عنها",
         ["Ignored apps"] = "التطبيقات المتجاهَلة",
+        ["The request failed. Details are in the logs."] = "فشل الطلب. التفاصيل في السجلات.",
         ["Version detection (global defaults)"] = "اكتشاف الإصدار (الافتراضيات العامة)",
 
         // Source errors (SourceErrorText)
