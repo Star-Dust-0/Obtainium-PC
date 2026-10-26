@@ -52,11 +52,11 @@ namespace ObtainiumPC.Pages
 
         private void ApplyLayout()
         {
-            var wide = _splitWidth >= 760;
+            var wide = _splitWidth >= 680;
             _wideLayout = wide;
-            SectionNavColumn.Width = wide ? new GridLength(200) : new GridLength(0);
+            SectionNavColumn.Width = wide ? new GridLength(190) : new GridLength(0);
             SectionList.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-            var avail = _splitWidth - (wide ? 224 : 0);
+            var avail = _splitWidth - (wide ? 190 : 0) - 8;
             SectionHost.Width = avail > 0 ? Math.Min(avail, 760) : double.NaN;
             ShowSelectedSection();
         }

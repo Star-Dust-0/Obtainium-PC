@@ -63,18 +63,14 @@
             <ProgressRing Grid.Column="2" x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
             <ToggleButton Grid.Column="4" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </Grid>
-        <Grid x:Name="SearchRow" Grid.Row="1" Padding="24,0,24,8" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <AutoSuggestBox x:Name="SearchBox" MinWidth="120" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
-            <ToggleButton Grid.Column="1" x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="2" x:Name="CategoryCombo" MinWidth="110" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
-            <Button Grid.Column="3" x:Name="FilterButton" Content="Filter" Click="Filter_Click" VerticalAlignment="Center"/>
-        </Grid>
+        <StackPanel x:Name="SearchRow" Grid.Row="1" Padding="24,0,24,8" Spacing="8">
+            <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" HorizontalAlignment="Stretch"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ToggleButton x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
+                <ComboBox x:Name="CategoryCombo" MinWidth="110" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
+                <Button x:Name="FilterButton" Content="Filter" Click="Filter_Click" VerticalAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
         <ListView x:Name="AppsList" Grid.Row="2" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="24,4,24,16" ItemTemplateSelector="{StaticResource RowSelector}">
 
         </ListView>

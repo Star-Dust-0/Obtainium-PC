@@ -749,7 +749,7 @@ base.OnNavigatedTo(e);
 
         // Wide windows: master (list) + detail pane side by side, like Task Scheduler Studio.
         // Narrow windows keep the single-pane flow (navigate to the detail page and back).
-        private const double WideMinWidth = 760;
+        private const double WideMinWidth = 800;
         private bool _wide;
 
         private void SplitRoot_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -757,7 +757,7 @@ base.OnNavigatedTo(e);
             var wide = e.NewSize.Width >= WideMinWidth;
             if (wide)
             {
-                MasterColumn.Width = new GridLength(Math.Clamp(e.NewSize.Width * 0.42, 340, 460));
+                MasterColumn.Width = new GridLength(Math.Clamp(e.NewSize.Width * 0.45, 400, 500));
                 DetailColumn.Width = new GridLength(1, GridUnitType.Star);
             }
             else
