@@ -584,6 +584,38 @@ jobs:
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
 
+          # 2b) Shuck through the real Add-app flow. The installer is fetched from the GitHub
+          # asset API (needs Accept: application/octet-stream), installed silently (NSIS /S,
+          # per-user, disposable runner), then added through the UI so detection, the row
+          # icon and the detail page are exercised end to end.
+          $shuckExe = Join-Path $env:RUNNER_TEMP 'shuck-setup.exe'
+          Invoke-WebRequest -Uri 'https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512' -Headers @{ Accept = 'application/octet-stream'; 'User-Agent' = 'obtainium-pc-smoke' } -OutFile $shuckExe
+          $shuckLen = (Get-Item $shuckExe).Length
+          "shuck installer bytes: $shuckLen"
+          if ($shuckLen -ne 6297561) { throw "shuck installer size $shuckLen (expected 6297561)" }
+          $sp = Start-Process $shuckExe -ArgumentList '/S' -PassThru
+          if (-not $sp.WaitForExit(120000)) { throw 'shuck silent install timed out' }
+          "shuck installer exit code: $($sp.ExitCode)"
+          Start-Process $exe -ArgumentList 'obtainium://add?url=https%3A%2F%2Fgithub.com%2Fshuck-app%2Fshuck'
+          Start-Sleep 4
+          AssertAlive 'shuck-add-prefill'
+          Shot '23-shuck-add-prefilled'
+          ClickNamedIn 'Add' $win2
+          Start-Sleep 15
+          AssertAlive 'shuck-add'
+          Shot '24-shuck-after-add'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 4
+          Shot '25-shuck-in-list'
+          $shuckRow = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Shuck')))
+          if ($shuckRow -eq $null) { Shot 'shuck-row-missing'; throw 'Shuck was not added to the apps list through the Add flow' }
+          ClickPartial 'Shuck' $win2 | Out-Null
+          Start-Sleep 4
+          AssertAlive 'shuck-detail'
+          Shot '26-shuck-detail'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+
           # 3) app payload: confirmation dialog appears (then cancel; no import).
           $dlJson = '{"id":"deeplink-smoke-1","url":"https://github.com/ImranR98/Obtainium","author":"ImranR98","name":"Obtainium","additionalSettings":"{}"}'
           Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson))

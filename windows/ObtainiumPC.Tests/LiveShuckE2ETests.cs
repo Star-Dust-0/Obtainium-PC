@@ -22,8 +22,9 @@ public class LiveShuckE2ETests
         Assert.Equal(6297561, new FileInfo(path).Length);
         Assert.Equal(Sha, DownloadService.Sha256Of(path));
         Assert.True(DownloadService.IsValidPe(path));
-        await DownloadService.VerifyAgainstReleaseChecksumAsync(path, "Shuck_1.0.1_x64-setup.exe",
+        var chk = await DownloadService.VerifyAgainstReleaseChecksumAsync(path, "Shuck_1.0.1_x64-setup.exe",
             new[] { new KeyValuePair<string, string>("SHA256SUMS", "https://github.com/shuck-app/shuck/releases/download/v1.0.1/SHA256SUMS") });
+        Console.WriteLine("checksum status: " + chk);
         var p = Process.Start(new ProcessStartInfo(path, "/S") { UseShellExecute = false })!;
         Assert.True(p.WaitForExit(120000), "silent installer did not finish");
         Console.WriteLine("installer exit code " + p.ExitCode);
