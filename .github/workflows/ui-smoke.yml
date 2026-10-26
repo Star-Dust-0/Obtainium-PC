@@ -466,6 +466,11 @@ jobs:
               [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
             }
           }
+          # Group headers only exist while the list has more than one source group (the
+          # Android store groups are gone in the Windows-only seed), so toggling is optional.
+          function ToggleGroupIfPresent($name, $scope) {
+            if ((FindNamed $name $scope) -ne $null) { ClickNamedIn $name $scope }
+          }
           ClickNamedIn 'Settings' $win2
           Start-Sleep 3
           $combos = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
@@ -803,7 +808,7 @@ jobs:
             foreach ($pg in @('Apps','Logs','Apps','Update Health','Apps','Settings','Logs','Apps')) {
               ClickNamedIn $pg $win2
               Start-Sleep -Milliseconds 250
-              if ($pg -eq 'Apps' -and ($cycle % 3) -eq 0) { try { ClickNamedIn 'GitHub' $win2 } catch {}; Start-Sleep -Milliseconds 200 }
+              if ($pg -eq 'Apps' -and ($cycle % 3) -eq 0) { try { ToggleGroupIfPresent 'GitHub' $win2 } catch {}; Start-Sleep -Milliseconds 200 }
             }
             AssertAlive "stress-cycle-$cycle"
           }
@@ -841,7 +846,7 @@ jobs:
           $nppRow = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Notepad++')
           if ($root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $nppRow) -ne $null) { Shot 'group-not-collapsed'; throw 'collapse-on-startup did not collapse the group' }
           Shot '23-groups-collapsed'
-          ClickNamedIn 'GitHub' $win3
+          ToggleGroupIfPresent 'GitHub' $win3
           Start-Sleep 2
           # The list is virtualized and the group now holds more apps (Shuck etc.), so Notepad++ may be
           # below the fold: any GitHub-group row appearing proves the expansion.
@@ -874,7 +879,7 @@ jobs:
           foreach ($attempt in 1..5) {
             $obtRow2 = FindNamed 'bat' $win3
             if ($obtRow2 -ne $null) { break }
-            try { ClickNamedIn 'GitHub' $win3 } catch {}
+            try { ToggleGroupIfPresent 'GitHub' $win3 } catch {}
             Start-Sleep 2
           }
           if ($obtRow2 -eq $null) { Shot 'track-only-row-missing'; throw 'Obtainium row not found after expanding the GitHub group' }
@@ -1097,9 +1102,9 @@ jobs:
           # so a collapsed group keeps its matching row hidden. Toggle the
           # GitHub group until the row renders (two toggles converge from
           # either starting state and always end expanded).
-          ClickNamedIn 'GitHub' $win3
+          ToggleGroupIfPresent 'GitHub' $win3
           Start-Sleep 2
-          if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'Notepad++' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
           if ((FindNamed 'Notepad++' $win3) -eq $null) { Shot 'filter-kept-missing'; throw 'name filter hid the matching app' }
           if ((FindNamed 'GitLab smoke' $win3) -ne $null) { Shot 'filter-not-narrowing'; throw 'name filter did not narrow the list' }
           Shot '31b-filter-applied'
@@ -1172,8 +1177,8 @@ jobs:
           # converge the GitHub group open (collapse state can reset across
           # navigations) and open the row via scroll + real click.
           foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
-          if ((FindNamed 'Mumble' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
-          if ((FindNamed 'Mumble' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'Mumble' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'Mumble' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
           $dgRow = FindNamed 'Mumble' $win3
           if ($dgRow -eq $null) { Shot 'dg-row-missing'; throw 'Mumble row not found' }
           $dgItem = $dgRow
@@ -1200,8 +1205,8 @@ jobs:
           # cancelling starts nothing. Same render wait + group convergence
           # before touching rows.
           foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
-          if ((FindNamed 'ShareX' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
-          if ((FindNamed 'ShareX' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'ShareX' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
+          if ((FindNamed 'ShareX' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
           ClickNamedIn 'Select' $win3
           Start-Sleep 1
           try { $null = FindNamedScrolling 'Notepad++' $win3; ClickPartial 'Notepad++' $win3 | Out-Null } catch { 'Notepad++ row not realized in the viewport; bulk set uses ShareX only' }
@@ -1251,7 +1256,7 @@ jobs:
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
           foreach ($openTry in 1..2) {
-            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 } else { break }
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 } else { break }
           }
           $nppRow = FindNamedScrolling 'Notepad++' $win3
           if ($nppRow -eq $null) { Shot 'nav-npp-missing'; throw 'Notepad++ row not found for navigation checks' }
@@ -1291,8 +1296,8 @@ jobs:
           $reopened = $false
           foreach ($try in 1..3) {
             foreach ($w in 1..10) { Start-Sleep 1; if ((FindNamed 'Filter' $win3) -ne $null) { break } }
-            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
-            if ((FindNamed 'Notepad++' $win3) -eq $null) { ClickNamedIn 'GitHub' $win3; Start-Sleep 2 }
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
+            if ((FindNamed 'Notepad++' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
             $nppRow = FindNamed 'Notepad++' $win3
             if ($nppRow -eq $null) { continue }
             $nppItem = $nppRow
@@ -1341,7 +1346,7 @@ jobs:
           $script:shotWin = $ww
           Shot 'wide-01-apps'
           # Split view: clicking a row must fill the detail pane beside the list, not navigate away.
-          ClickNamedIn 'GitHub' $ww   # groups start collapsed in this profile
+          ToggleGroupIfPresent 'GitHub' $ww   # groups start collapsed in this profile
           Start-Sleep 2
           ClickPartial 'Notepad++' $ww | Out-Null
           Start-Sleep 4
@@ -1373,7 +1378,7 @@ jobs:
           Start-Sleep 3
           $script:shotWin = $aw
           Shot 'ar-wide-01-apps'
-          try { ClickNamedIn 'GitHub' $aw; Start-Sleep 2; ClickPartial 'Notepad++' $aw | Out-Null; Start-Sleep 4 } catch { "ar split click failed: $_" }
+          try { ToggleGroupIfPresent 'GitHub' $aw; Start-Sleep 2; ClickPartial 'Notepad++' $aw | Out-Null; Start-Sleep 4 } catch { "ar split click failed: $_" }
           Shot 'ar-wide-01b-split'
           foreach ($pair in @(@('Add App','ar-wide-02-add'), @('Update Health','ar-wide-03-health'), @('Import / Export','ar-wide-04-importexport'), @('Logs','ar-wide-05-logs'), @('Settings','ar-wide-06-settings'))) {
             try { ClickNamedIn $pair[0] $aw; Start-Sleep 3 } catch { "ar nav $($pair[0]) failed: $_" }
@@ -1397,7 +1402,7 @@ jobs:
           Start-Sleep 3
           $script:shotWin = $dw
           Shot 'dk-wide-01-apps'
-          try { ClickNamedIn 'GitHub' $dw; Start-Sleep 2; ClickPartial 'Notepad++' $dw | Out-Null; Start-Sleep 4 } catch { "dk split click failed: $_" }
+          try { ToggleGroupIfPresent 'GitHub' $dw; Start-Sleep 2; ClickPartial 'Notepad++' $dw | Out-Null; Start-Sleep 4 } catch { "dk split click failed: $_" }
           Shot 'dk-wide-01b-split'
           foreach ($pair in @(@('Add App','dk-wide-02-add'), @('Update Health','dk-wide-03-health'), @('Import / Export','dk-wide-04-importexport'), @('Logs','dk-wide-05-logs'), @('Settings','dk-wide-06-settings'))) {
             try { ClickNamedIn $pair[0] $dw; Start-Sleep 3 } catch { "dk nav $($pair[0]) failed: $_" }
