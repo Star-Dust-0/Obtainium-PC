@@ -675,6 +675,11 @@ jobs:
           $mdScr = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond); $mdBest = $null; $mdH = 0
           foreach ($el in $mdScr) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $mdH) { $mdH = $h; $mdBest = $el } }
           if ($mdBest -ne $null) { try { $mdBest.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
+          # UIA scroll did not move the list in CI: use real mouse-wheel input over the list.
+          Add-Type -Namespace W -Name M -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void mouse_event(int f,int dx,int dy,int d,int e);'
+          $wr = $win2.Current.BoundingRectangle
+          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height*0.7))
+          foreach ($i in 1..8) { [W.M]::mouse_event(0x0800, 0, 0, -240, 0); Start-Sleep -Milliseconds 150 }
           Start-Sleep 1
           ClickPartial 'Markdown seed' $win2 | Out-Null
           Start-Sleep 3; AssertAlive 'md-detail'
