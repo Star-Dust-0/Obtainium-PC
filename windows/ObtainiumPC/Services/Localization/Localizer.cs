@@ -152,6 +152,9 @@ public static class Localizer
                 break;
             case ToggleSwitch ts:
                 if (ts.Header is string tsh) ts.Header = FromOriginal(ts, tsh);
+                // The built-in On/Off labels follow the OS language, not the app language.
+                ts.OnContent = Loc.T("On");
+                ts.OffContent = Loc.T("Off");
                 break;
             case ComboBox cb:
                 if (cb.Header is string cbh) cb.Header = FromOriginal(cb, cbh);

@@ -138,6 +138,8 @@ public static class Loc
         ["Back up, restore and move your tracked apps."] = "انسخ تطبيقاتك المتتبعة احتياطيًا واستعدها وانقلها.",
         ["Appearance, update behavior and sources."] = "المظهر وسلوك التحديث والمصادر.",
         ["Apps whose update checks need attention."] = "التطبيقات التي تحتاج فحوصات التحديث الخاصة بها إلى انتباه.",
+        ["On"] = "مفعّل",
+        ["Off"] = "معطّل",
         ["Version detection (global defaults)"] = "اكتشاف الإصدار (الافتراضيات العامة)",
 
         // Source errors (SourceErrorText)
