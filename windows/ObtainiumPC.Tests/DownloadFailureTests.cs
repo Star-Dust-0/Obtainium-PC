@@ -22,7 +22,7 @@ public class DownloadFailureTests
         return b;
     }
 
-    private static async Task<(Exception? err, string target)> Run(Func<HttpListenerContext, Task> handler, string name)
+    private static async Task<(Exception? err, string target)> Run(Func<HttpListenerContext, Task> handler, string name, Func<string, Task>? verify = null)
     {
         var port = FreePort();
         using var listener = new HttpListener();
@@ -31,7 +31,7 @@ public class DownloadFailureTests
         var serve = Task.Run(async () => { try { await handler(await listener.GetContextAsync()); } catch { } });
         Exception? err = null;
         string target = Path.Combine(DownloadService.DownloadDir, name);
-        try { await new DownloadService().DownloadAsync($"http://127.0.0.1:{port}/f", name); }
+        try { await new DownloadService().DownloadAsync($"http://127.0.0.1:{port}/f", name, verifyBeforePromote: verify); }
         catch (Exception e) { err = e; }
         await Task.WhenAny(serve, Task.Delay(3000));
         return (err, target);
@@ -95,6 +95,48 @@ public class DownloadFailureTests
         var (err, _) = await Run(async ctx => { ctx.Response.StatusCode = 500; ctx.Response.Close(); await Task.CompletedTask; }, name);
         Assert.NotNull(err);
         Assert.True(File.Exists(target));
+        File.Delete(target);
+    }
+
+    [Fact]
+    public async Task Valid_pe_with_wrong_sha256_never_replaces_an_earlier_good_installer()
+    {
+        var name = "sha-" + Guid.NewGuid().ToString("N") + ".exe";
+        Directory.CreateDirectory(DownloadService.DownloadDir);
+        var target = Path.Combine(DownloadService.DownloadDir, name);
+        var old = ValidPe(); old[0x100] = 7;           // an earlier good installer
+        File.WriteAllBytes(target, old);
+        var fresh = ValidPe(); fresh[0x100] = 9;        // structurally valid, but not what the release published
+        var assets = new Dictionary<string, string> { ["SHA256SUMS.txt"] = "u://sums" };
+        var wrong = new string('0', 64) + "  " + name + "\n";
+        var (err, _) = await Run(async ctx =>
+        {
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength64 = fresh.Length;
+            await ctx.Response.OutputStream.WriteAsync(fresh);
+            ctx.Response.Close();
+        }, name, part => DownloadService.VerifyAgainstReleaseChecksumAsync(part, name, assets, (u, ct) => Task.FromResult<string?>(wrong)));
+        Assert.IsType<InvalidDataException>(err);
+        Assert.Equal(old, File.ReadAllBytes(target));        // earlier installer untouched
+        Assert.False(File.Exists(target + ".part"));
+        File.Delete(target);
+    }
+
+    [Fact]
+    public async Task Matching_sha256_promotes_the_new_file()
+    {
+        var name = "sha-ok-" + Guid.NewGuid().ToString("N") + ".exe";
+        var fresh = ValidPe(); fresh[0x100] = 9;
+        var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fresh)).ToLowerInvariant();
+        var assets = new Dictionary<string, string> { ["SHA256SUMS.txt"] = "u://sums" };
+        var (err, target) = await Run(async ctx =>
+        {
+            ctx.Response.ContentLength64 = fresh.Length;
+            await ctx.Response.OutputStream.WriteAsync(fresh);
+            ctx.Response.Close();
+        }, name, part => DownloadService.VerifyAgainstReleaseChecksumAsync(part, name, assets, (u, ct) => Task.FromResult<string?>(sha + "  " + name)));
+        Assert.Null(err);
+        Assert.Equal(fresh, File.ReadAllBytes(target));
         File.Delete(target);
     }
 }

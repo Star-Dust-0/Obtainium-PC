@@ -193,6 +193,23 @@ namespace ObtainiumPC
         private void NavView_Loaded(object sender, RoutedEventArgs e)
         {
             NavView.SelectedItem = NavView.MenuItems[0];
+            if (App.StorageProblem() is { } problem)
+            {
+                _ = DispatcherQueue.TryEnqueue(async () =>
+                {
+                    try
+                    {
+                        await new ThemedContentDialog
+                        {
+                            Title = Services.Localization.Loc.T("Stored data could not be read"),
+                            Content = new Microsoft.UI.Xaml.Controls.TextBlock { Text = problem, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap },
+                            CloseButtonText = Services.Localization.Loc.T("OK"),
+                            XamlRoot = RootGrid.XamlRoot,
+                        }.ShowAsync();
+                    }
+                    catch (Exception ex) { Services.Logging.AppLogger.Warn("Storage-problem dialog failed", ex); }
+                });
+            }
         }
 
         private static Type? TagToPage(string tag) => tag switch

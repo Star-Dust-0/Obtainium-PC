@@ -31,6 +31,7 @@ public sealed class DownloadService
         IProgress<(long Received, long? Total)>? progress = null,
         string? personalAccessToken = null,
         IReadOnlyDictionary<string, string>? extraHeaders = null,
+        Func<string, Task>? verifyBeforePromote = null,
         CancellationToken ct = default)
     {
         Directory.CreateDirectory(DownloadDir);
@@ -69,6 +70,9 @@ public sealed class DownloadService
                 await output.FlushAsync(ct);
             }
             VerifyDownloaded(part, fileName, received, total);
+            // e.g. the release SHA-256 check: runs on the .part file, so a wrong-hash
+            // download is discarded before it can replace an earlier good installer.
+            if (verifyBeforePromote != null) await verifyBeforePromote(part);
             File.Move(part, target, overwrite: true);
         }
         catch

@@ -278,9 +278,12 @@ namespace ObtainiumPC.Pages
                 var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
                     ? App.Settings.GitHubPersonalAccessToken : null;
                 var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
+                var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
+                // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
+                Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
+                    checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
                 var path = await new DownloadService().DownloadAsync(
-                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders);
-                var checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(path, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
+                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
                 await App.SaveAppsAsync();

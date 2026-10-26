@@ -84,13 +84,22 @@ public sealed class AppSettings
     public int UpdateHealthFilteredReleasesCount { get; set; } = 5;
     public bool ShowUpdateHealthIndicator { get; set; } = true;
 
+    /// Tests point the settings file elsewhere; production leaves this null.
+    public static string? DirOverride { get; set; }
+
+    /// True when settings.json existed but could not be read. Saves are blocked in that
+    /// state (same rule as apps.json) so the user's file is never replaced by defaults.
+    public static bool LoadFailed { get; private set; }
+    public static string? LoadBackupPath { get; private set; }
+
     private static string Dir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ObtainiumPC");
+        DirOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ObtainiumPC");
 
     private static string FilePath => Path.Combine(Dir, "settings.json");
 
     public static AppSettings Load()
     {
+        LoadFailed = false; LoadBackupPath = null;
         try
         {
             if (File.Exists(FilePath))
@@ -100,8 +109,13 @@ public sealed class AppSettings
         {
             // Corrupted settings fall back to defaults, but the unreadable file is
             // kept: the next Save would otherwise overwrite the user's tokens/options.
-            try { File.Copy(FilePath, FilePath + ".corrupt-" + DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss"), overwrite: false); }
-            catch { /* best effort */ }
+            LoadFailed = true;
+            try
+            {
+                LoadBackupPath = FilePath + ".corrupt-" + DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+                File.Copy(FilePath, LoadBackupPath, overwrite: false);
+            }
+            catch { LoadBackupPath = null; }
             Logging.AppLogger.Error("settings.json is unreadable; defaults are used and a copy of the file was kept", e);
         }
         return new AppSettings();
@@ -109,6 +123,12 @@ public sealed class AppSettings
 
     public void Save()
     {
+        if (LoadFailed)
+        {
+            Logging.AppLogger.Warn("Skipping settings save: settings.json failed to load this session, so overwriting it is blocked." +
+                (LoadBackupPath != null ? " Preserved copy: " + LoadBackupPath : ""));
+            return;
+        }
         Directory.CreateDirectory(Dir);
         var tmp = FilePath + ".tmp";
         File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
