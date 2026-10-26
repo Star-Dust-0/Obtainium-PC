@@ -90,7 +90,11 @@ public static class Loc
     {
         var lang = ResolvedLanguage;
         string form;
-        if (LocPlurals.ByLang.TryGetValue(lang, out var table)
+        if (lang.StartsWith("ar", StringComparison.Ordinal) && ArPlurals.TryGetValue(enOtherLiteral, out var arForms))
+        {
+            form = PluralRules.SelectForm(arForms, lang, n, enOtherLiteral);
+        }
+        else if (LocPlurals.ByLang.TryGetValue(lang, out var table)
             && table.TryGetValue(enOtherLiteral, out var forms))
         {
             form = PluralRules.SelectForm(forms, lang, n, enOtherLiteral);
@@ -104,6 +108,25 @@ public static class Loc
         else form = enOtherLiteral;
         return form.Replace("{}", n.ToString()).Replace("{0}", n.ToString());
     }
+
+    // Port-only Arabic plural forms for keys upstream's ar.json does not carry (formal Arabic,
+    // CLDR zero/one/two/few/many/other; missing forms fall back to "other").
+    private static readonly Dictionary<string, Dictionary<string, string>> ArPlurals = new()
+    {
+        ["{} checks"] = new() { ["one"] = "فحص واحد", ["two"] = "فحصان", ["few"] = "{} فحوصات", ["many"] = "{} فحصًا", ["other"] = "{} فحص" },
+        ["{} releases"] = new() { ["one"] = "إصدار واحد", ["two"] = "إصداران", ["few"] = "{} إصدارات", ["many"] = "{} إصدارًا", ["other"] = "{} إصدار" },
+        ["{} update checks failed in a row"] = new()
+        {
+            ["one"] = "فشل فحص التحديث مرة واحدة متتالية", ["two"] = "فشل فحص التحديث مرتين متتاليتين",
+            ["few"] = "فشل فحص التحديث {} مرات متتالية", ["many"] = "فشل فحص التحديث {} مرة متتالية", ["other"] = "فشل فحص التحديث {} مرة متتالية",
+        },
+        ["{} newer releases are hidden by your filters"] = new()
+        {
+            ["one"] = "إصدار أحدث واحد مخفي بسبب عوامل التصفية لديك", ["two"] = "إصداران أحدث مخفيان بسبب عوامل التصفية لديك",
+            ["few"] = "{} إصدارات أحدث مخفية بسبب عوامل التصفية لديك", ["many"] = "{} إصدارًا أحدث مخفيًا بسبب عوامل التصفية لديك",
+            ["other"] = "{} إصدار أحدث مخفي بسبب عوامل التصفية لديك",
+        },
+    };
 
     // Port-only Arabic strings (UI text with no upstream en.json entry).
     // Upstream ar.json entries come from the generated table instead.
