@@ -72,19 +72,29 @@ public static class AppIconService
 
     private static async Task LoadFromFileAsync(BitmapImage bmp, string path)
     {
-        try
+        // The shell thumbnail stream can report E_PENDING (0x8000000A) when several rows/panes
+        // request the same exe at once (seen after a language switch). Copy the thumbnail into an
+        // in-memory stream first, then decode from that; retry a few times before giving up.
+        for (var attempt = 1; attempt <= 4; attempt++)
         {
-            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
-            using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, 96);
-            if (thumb != null)
+            try
             {
-                // Diagnostic (once per path): which thumbnail kind the shell returned, to tell a
-                // real exe icon from a generic/stand-in one when a capture shows a different icon.
+                var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
+                using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, 96);
+                if (thumb == null) return;
                 if (_logged.Add(path))
                     Logging.AppLogger.Info($"icon diag: {path} type={thumb.Type} size={thumb.OriginalWidth}x{thumb.OriginalHeight} culture={System.Globalization.CultureInfo.CurrentUICulture.Name}");
-                await bmp.SetSourceAsync(thumb);
+                using var mem = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                await Windows.Storage.Streams.RandomAccessStream.CopyAsync(thumb, mem);
+                mem.Seek(0);
+                await bmp.SetSourceAsync(mem);
+                return;
+            }
+            catch (Exception e)
+            {
+                if (attempt == 4) { Logging.AppLogger.Warn("icon load failed: " + path, e); return; }
+                await Task.Delay(150 * attempt);
             }
         }
-        catch (Exception e) { Logging.AppLogger.Warn("icon load failed: " + path, e); }
     }
 }
