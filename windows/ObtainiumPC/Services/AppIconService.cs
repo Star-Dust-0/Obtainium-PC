@@ -79,6 +79,24 @@ public static class AppIconService
         {
             try
             {
+                // Preferred: the exe's own icon resources, decoded directly (the shell thumbnail can
+                // return a generic document icon for the same file depending on cache timing).
+                var ico = ExeIconResource.TryBuildIco(path);
+                if (ico != null)
+                {
+                    using var icoMem = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                    using (var w = new Windows.Storage.Streams.DataWriter(icoMem))
+                    {
+                        w.WriteBytes(ico);
+                        await w.StoreAsync();
+                        w.DetachStream();
+                    }
+                    icoMem.Seek(0);
+                    await bmp.SetSourceAsync(icoMem);
+                    if (_logged.Add(path + "|res"))
+                        Logging.AppLogger.Info($"icon diag: {path} source=exe-resource ({ico.Length} bytes)");
+                    return;
+                }
                 var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
                 using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, 96);
                 if (thumb == null) return;
