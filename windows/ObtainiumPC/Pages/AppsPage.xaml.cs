@@ -141,7 +141,7 @@ base.OnNavigatedTo(e);
 
         private void ReloadRows()
         {
-            var query = (SearchBoxInline.Visibility == Visibility.Visible ? SearchBoxInline.Text : SearchBox.Text)?.Trim() ?? "";
+            var query = SearchBox.Text?.Trim() ?? "";
             var updatesOnly = UpdatesOnlyToggle?.IsChecked == true;
             var showHealth = App.Settings.ShowUpdateHealthIndicator;
 
@@ -250,11 +250,6 @@ base.OnNavigatedTo(e);
         private void SearchBox_TextChanged(object sender, AutoSuggestBoxTextChangedEventArgs e)
         {
             if (e.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-            // Keep the inline (wide) and full-row (narrow) boxes in sync.
-            if (!ReferenceEquals(sender, SearchBox) && SearchBox.Text != SearchBoxInline.Text)
-                SearchBox.Text = SearchBoxInline.Text;
-            else if (!ReferenceEquals(sender, SearchBoxInline) && SearchBoxInline.Text != SearchBox.Text)
-                SearchBoxInline.Text = SearchBox.Text;
             ReloadRows();
         }
 

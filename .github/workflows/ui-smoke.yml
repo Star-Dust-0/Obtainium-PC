@@ -671,6 +671,11 @@ jobs:
           # markdown changelog runs through MarkdownRenderer's themed brushes.
           ClickNamedIn 'Apps' $win2
           Start-Sleep 3; AssertAlive 'apps-before-md'
+          # The list is virtualized: scroll to the bottom so the seed row is in UIA.
+          $mdScr = $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, $spCond); $mdBest = $null; $mdH = 0
+          foreach ($el in $mdScr) { $h = $el.Current.BoundingRectangle.Height; if ($h -gt $mdH) { $mdH = $h; $mdBest = $el } }
+          if ($mdBest -ne $null) { try { $mdBest.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100) } catch {} }
+          Start-Sleep 1
           ClickPartial 'Markdown seed' $win2 | Out-Null
           Start-Sleep 3; AssertAlive 'md-detail'
           Shot '28b-md-detail-dark'

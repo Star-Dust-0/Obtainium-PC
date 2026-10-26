@@ -43,16 +43,12 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" ZoomMode="Disabled">
         <Grid ColumnSpacing="12" Padding="24,16,24,8" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*" MinWidth="100"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="Apps" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
@@ -60,15 +56,19 @@
                 <FontIcon Glyph="&#xE72C;" FontSize="14"/>
             </Button>
             <ProgressRing Grid.Column="2" x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>
-            <AutoSuggestBox Grid.Column="3" x:Name="SearchBoxInline" PlaceholderText="Search apps" MaxWidth="320" HorizontalAlignment="Stretch" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" Visibility="Collapsed"/>
-            <ToggleButton Grid.Column="4" x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="5" x:Name="CategoryCombo" MinWidth="120" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
-            <Button Grid.Column="6" x:Name="FilterButton" Content="Filter" Click="Filter_Click" VerticalAlignment="Center"/>
-            <ToggleButton Grid.Column="7" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
+            <ToggleButton Grid.Column="4" x:Name="SelectToggle" Content="Select" Checked="SelectToggle_Changed" Unchecked="SelectToggle_Changed" VerticalAlignment="Center"/>
         </Grid>
-        </ScrollViewer>
-        <Grid x:Name="SearchRow" Grid.Row="1" Padding="24,0,24,8">
-            <AutoSuggestBox x:Name="SearchBox" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+        <Grid x:Name="SearchRow" Grid.Row="1" Padding="24,0,24,8" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <AutoSuggestBox x:Name="SearchBox" MinWidth="120" PlaceholderText="Search apps" TextChanged="SearchBox_TextChanged" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+            <ToggleButton Grid.Column="1" x:Name="UpdatesOnlyToggle" Content="Updates only" Checked="FilterChanged" Unchecked="FilterChanged" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="2" x:Name="CategoryCombo" MinWidth="110" SelectionChanged="CategoryCombo_SelectionChanged" VerticalAlignment="Center"/>
+            <Button Grid.Column="3" x:Name="FilterButton" Content="Filter" Click="Filter_Click" VerticalAlignment="Center"/>
         </Grid>
         <ListView x:Name="AppsList" Grid.Row="2" ItemsSource="{x:Bind Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="AppsList_ItemClick" Padding="24,4,24,16" ItemTemplateSelector="{StaticResource RowSelector}">
 
