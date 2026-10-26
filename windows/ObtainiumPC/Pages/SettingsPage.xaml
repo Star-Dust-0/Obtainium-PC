@@ -10,8 +10,11 @@
         </Grid.RowDefinitions>
         <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
         <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="6">
-                <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4"/>
+            <StackPanel Spacing="0">
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <ComboBox x:Name="ThemeCombo" Header="Theme" MinWidth="260" SelectionChanged="ThemeCombo_SelectionChanged"/>
                 <ComboBox x:Name="LanguageCombo" Header="Language" MinWidth="260" SelectionChanged="LanguageCombo_SelectionChanged"/>
                 <ComboBox x:Name="SortByCombo" Header="Sort apps by" MinWidth="260" SelectionChanged="SortByCombo_SelectionChanged"/>
@@ -21,8 +24,12 @@
                 <ToggleSwitch x:Name="BuryNonInstalledToggle" Header="Move apps not yet installed to the bottom" Toggled="BuryNonInstalledToggle_Toggled"/>
                 <ComboBox x:Name="GroupByCombo" Header="Group apps by" MinWidth="260" SelectionChanged="GroupByCombo_SelectionChanged"/>
                 <ToggleSwitch x:Name="CollapseGroupsToggle" Header="Collapse all groups on app start" Toggled="CollapseGroupsToggle_Toggled"/>
-
-                <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <ComboBox x:Name="UpdateIntervalCombo" Header="Background update interval" MinWidth="260" SelectionChanged="UpdateIntervalCombo_SelectionChanged"/>
                 <ComboBox x:Name="MinAgeCombo" Header="Minimum age for updates (global default)" MinWidth="260" SelectionChanged="MinAgeCombo_SelectionChanged"/>
                 <ToggleSwitch x:Name="CheckOnStartToggle" Header="Check for updates on app start" Toggled="CheckOnStartToggle_Toggled"/>
@@ -42,21 +49,30 @@
                 <ToggleSwitch x:Name="ParallelDownloadsToggle" Header="Allow parallel downloads" Toggled="ParallelDownloadsToggle_Toggled"/>
                 <ToggleSwitch x:Name="CertPinningToggle" Header="Enable certificate pinning" Toggled="CertPinningToggle_Toggled"/>
                 <ToggleSwitch x:Name="AddWithoutCheckToggle" Header="Offer to add apps without a version check when the source fails" Toggled="AddWithoutCheckToggle_Toggled"/>
-
-                <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="Version detection (global defaults)" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <TextBox x:Name="GlobalVersionRegexBox" Header="Trim version string with RegEx" TextWrapping="Wrap" LostFocus="GlobalVersionRegexBox_LostFocus"/>
                 <TextBox x:Name="GlobalMatchGroupBox" Header="Match group to use" PlaceholderText="$0" Width="160" HorizontalAlignment="Left" LostFocus="GlobalMatchGroupBox_LostFocus"/>
                 <TextBox x:Name="GlobalAssetFilterBox" Header="Filter assets by regular expression (global default)" TextWrapping="Wrap" LostFocus="GlobalAssetFilterBox_LostFocus"/>
-
-                <TextBlock Text="GitHub" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="GitHub" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <PasswordBox x:Name="GitHubPatBox" Header="Personal access token (raises API rate limits)" Width="360" HorizontalAlignment="Left" LostFocus="GitHubPatBox_LostFocus"/>
                 <ToggleSwitch x:Name="RepoRenameToggle" Header="Detect renamed repositories" Toggled="RepoRenameToggle_Toggled"/>
                 <TextBox x:Name="GhReqPrefixBox" Header="Request prefix (for GitHub proxies)" TextWrapping="Wrap" LostFocus="GhReqPrefixBox_LostFocus"/>
-
-                <TextBlock Text="More settings from the original (search, update health thresholds, logs, crowdsourced app configs) land as their pages are ported."
-                           TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,24,0,12" FontSize="12"/>
-
-                <TextBlock Text="Categories" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="Categories" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <TextBlock Text="Categories are created when you categorize apps. Deleting one removes it from every app." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <ItemsRepeater x:Name="CategoryList">
                     <ItemsRepeater.ItemTemplate>
@@ -69,12 +85,18 @@
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>
-
-                <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,4"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="8" BorderThickness="1" Padding="16,12,16,16" Margin="0,0,0,12" MaxWidth="760" HorizontalAlignment="Left"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <TextBlock Text="Obtainium-PC - a native Windows port of Obtainium by ImranR98, licensed GPL-3.0. Brought to you by Instinct." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <HyperlinkButton Content="Upstream Obtainium (ImranR98)" NavigateUri="https://github.com/ImranR98/Obtainium"/>
                 <HyperlinkButton Content="Obtainium-PC source (this fork)" NavigateUri="https://github.com/MohamedElnaggar00/Obtainium-PC"/>
                 <HyperlinkButton Content="GPL-3.0 license" NavigateUri="https://github.com/ImranR98/Obtainium/blob/main/LICENSE.md"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>
