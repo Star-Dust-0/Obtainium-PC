@@ -1282,6 +1282,8 @@ jobs:
           $script:shotWin = $ww
           Shot 'wide-01-apps'
           # Split view: clicking a row must fill the detail pane beside the list, not navigate away.
+          ClickNamedIn 'GitHub' $ww   # groups start collapsed in this profile
+          Start-Sleep 2
           ClickPartial 'Notepad++' $ww | Out-Null
           Start-Sleep 4
           Shot 'wide-01b-apps-split-detail'
