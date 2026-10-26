@@ -136,7 +136,14 @@ base.OnNavigatedTo(e);
             base.OnNavigatedFrom(e);
         }
 
-        private void OnAppsUpdated(object? sender, EventArgs e) => ReloadRows();
+        // AppsUpdated can be raised from a background update check; Rows is bound to the
+        // ListView, so it must only change on the UI thread (a cross-thread change is a
+        // native XAML crash, 0xc000027b, that never reaches the managed log).
+        private void OnAppsUpdated(object? sender, EventArgs e)
+        {
+            if (DispatcherQueue.HasThreadAccess) ReloadRows();
+            else DispatcherQueue.TryEnqueue(ReloadRows);
+        }
 
         // lib/components/app_list_tile.dart AppsFilter (the filter dialog model).
         private readonly Services.Store.AppsFilter _filter = new();
