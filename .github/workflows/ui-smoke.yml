@@ -79,6 +79,8 @@ jobs:
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Launch and capture
         shell: pwsh
+        env:
+          SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           New-Item -ItemType Directory -Force shots | Out-Null
@@ -589,7 +591,9 @@ jobs:
           # per-user, disposable runner), then added through the UI so detection, the row
           # icon and the detail page are exercised end to end.
           $shuckExe = Join-Path $env:RUNNER_TEMP 'shuck-setup.exe'
-          Invoke-WebRequest -Uri 'https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512' -Headers @{ Accept = 'application/octet-stream'; 'User-Agent' = 'obtainium-pc-smoke' } -OutFile $shuckExe
+          $shHeaders = @{ Accept = 'application/octet-stream'; 'User-Agent' = 'obtainium-pc-smoke' }
+          if ($env:SMOKE_GH_TOKEN) { $shHeaders['Authorization'] = "Bearer $($env:SMOKE_GH_TOKEN)" }  # runner IPs share the anonymous API rate limit
+          foreach ($try in 1..3) { try { Invoke-WebRequest -Uri 'https://api.github.com/repos/shuck-app/shuck/releases/assets/658648512' -Headers $shHeaders -OutFile $shuckExe; break } catch { if ($try -eq 3) { throw }; Start-Sleep 20 } }
           $shuckLen = (Get-Item $shuckExe).Length
           "shuck installer bytes: $shuckLen"
           if ($shuckLen -ne 6297561) { throw "shuck installer size $shuckLen (expected 6297561)" }
