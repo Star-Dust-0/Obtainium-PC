@@ -68,7 +68,7 @@ internal sealed class TrayFlyoutMenu
     {
         if (_host == null)
         {
-            _anchor = new Grid { Width = 1, Height = 1, Background = null };
+            _anchor = new Grid { Width = 1, Height = 1, Background = null, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
             _host = new Window { Content = _anchor, Title = "Obtainium-PC tray menu" };
             var ap = _host.AppWindow;
             if (ap.Presenter is OverlappedPresenter op) { op.SetBorderAndTitleBar(false, false); op.IsResizable = false; op.IsMinimizable = false; op.IsMaximizable = false; }
@@ -158,7 +158,7 @@ internal sealed class TrayFlyoutMenu
         }
         catch (Exception e) { AppLogger.Warn("Tray acrylic environment unavailable", e); }
         string material = "none";
-        try { flyout.SystemBackdrop = new DesktopAcrylicBackdrop(); material = "DesktopAcrylic"; }
+        try { flyout.SystemBackdrop = new AlwaysActiveAcrylicBackdrop(); material = "DesktopAcrylic(always-active)"; }
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
         _current = flyout;
         var t0 = DateTime.UtcNow;
@@ -211,5 +211,38 @@ internal sealed class TrayFlyoutMenu
         if (anchor.IsLoaded && anchor.XamlRoot != null) ShowNow();
         else { RoutedEventHandler? h = null; h = (_, _) => { anchor.Loaded -= h; ShowNow(); }; anchor.Loaded += h; }
         return true;
+    }
+}
+
+/// <summary>
+/// Real desktop acrylic for the tray popup. The stock DesktopAcrylicBackdrop follows the window's activation and
+/// falls back to a flat solid colour when the popup is inactive, which is always the case for a menu popup owned by
+/// a hidden host window (logged run: uniform F9F9F9). This variant keeps the same DesktopAcrylicController but
+/// reports the input as active, so the real material is drawn.
+/// </summary>
+internal sealed class AlwaysActiveAcrylicBackdrop : Microsoft.UI.Xaml.Media.SystemBackdrop
+{
+    Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController? _controller;
+    Microsoft.UI.Composition.SystemBackdrops.SystemBackdropConfiguration? _config;
+
+    protected override void OnTargetConnected(Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
+    {
+        base.OnTargetConnected(connectedTarget, xamlRoot);
+        _config = new Microsoft.UI.Composition.SystemBackdrops.SystemBackdropConfiguration { IsInputActive = true };
+        if (xamlRoot.Content is FrameworkElement fe)
+            _config.Theme = fe.ActualTheme == ElementTheme.Dark ? Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Dark
+                          : fe.ActualTheme == ElementTheme.Light ? Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Light
+                          : Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Default;
+        _controller = new Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController();
+        _controller.AddSystemBackdropTarget(connectedTarget);
+        _controller.SetSystemBackdropConfiguration(_config);
+        AppLogger.Info("Tray acrylic: always-active DesktopAcrylicController connected");
+    }
+
+    protected override void OnTargetDisconnected(Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop disconnectedTarget)
+    {
+        base.OnTargetDisconnected(disconnectedTarget);
+        try { _controller?.RemoveSystemBackdropTarget(disconnectedTarget); _controller?.Dispose(); } catch { }
+        _controller = null; _config = null;
     }
 }
