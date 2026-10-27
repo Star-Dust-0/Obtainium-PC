@@ -372,6 +372,21 @@ jobs:
           Shot 'd9-flyout-states'
           "flyout texts: $(TextsLike '*nstall*') ; $(TextsLike 'Cancelled*') ; $(TextsLike 'Retry')"
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          "== D6 setup: confirmed install moved the app to the new version; restart from an outdated seed =="
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; Start-Sleep 3
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
           "== D6: start again, close, confirm: partial file must be removed and app exit =="
           StartDownload
           Start-Sleep 4
