@@ -110,7 +110,7 @@ public sealed class TrayIcon : IDisposable
         try
         {
             GetCursorPos(out var p);
-            _flyout ??= new TrayFlyoutMenu(Open, Downloads, CancelAll, Check, Exit);
+            _flyout ??= new TrayFlyoutMenu(_hwnd, Open, Downloads, CancelAll, Check, Exit);
             if (_flyout.Show(p.X, p.Y)) return;
         }
         catch (Exception ex) { AppLogger.Warn("WinUI tray menu failed; using classic menu", ex); }

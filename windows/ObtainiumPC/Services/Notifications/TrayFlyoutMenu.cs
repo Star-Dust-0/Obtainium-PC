@@ -23,6 +23,12 @@ internal sealed class TrayFlyoutMenu
     [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr h, uint key, byte alpha, uint flags);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out CursorPoint p);
+    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(CursorPoint p);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
+    [StructLayout(LayoutKind.Sequential)] struct CursorPoint { public int X, Y; }
+    readonly IntPtr _owner;
     const int GWL_EXSTYLE = -20;
     const long WS_EX_LAYERED = 0x80000, WS_EX_TOOLWINDOW = 0x80;
 
@@ -37,8 +43,8 @@ internal sealed class TrayFlyoutMenu
         try { var h = _host; _host = null; _current = null; h?.Close(); } catch (Exception e) { AppLogger.Warn("Tray menu host close failed", e); }
     }
 
-    public TrayFlyoutMenu(Action open, Action downloads, Action cancelAll, Action check, Action exit)
-    { _open = open; _downloads = downloads; _cancelAll = cancelAll; _check = check; _exit = exit; }
+    public TrayFlyoutMenu(IntPtr owner, Action open, Action downloads, Action cancelAll, Action check, Action exit)
+    { _owner = owner; _open = open; _downloads = downloads; _cancelAll = cancelAll; _check = check; _exit = exit; }
 
     public bool Show(int x, int y)
     {
@@ -110,14 +116,22 @@ internal sealed class TrayFlyoutMenu
         dismissTimer.Tick += (_, _) =>
         {
             GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
-            if (pid != (uint)Environment.ProcessId)
+            bool clickedOutside = false;
+            if ((GetAsyncKeyState(1) & 0x8001) != 0)
+            {
+                GetCursorPos(out var cursor);
+                var target = GetAncestor(WindowFromPoint(cursor), 2); // GA_ROOT
+                GetWindowThreadProcessId(target, out var targetPid);
+                clickedOutside = target == _owner || targetPid != (uint)Environment.ProcessId;
+            }
+            if (pid != (uint)Environment.ProcessId || clickedOutside)
             {
                 AppLogger.Info("Tray menu dismissed: foreground left app");
                 dismissTimer.Stop();
                 flyout.Hide();
             }
         };
-        flyout.Opened += (_, _) => { AppLogger.Info("Tray menu Opened"); dismissTimer.Start(); };
+        flyout.Opened += (_, _) => { GetAsyncKeyState(1); AppLogger.Info("Tray menu Opened"); dismissTimer.Start(); };
         flyout.Closed += (_, _) => dismissTimer.Stop();
         flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");
         void ShowNow()
