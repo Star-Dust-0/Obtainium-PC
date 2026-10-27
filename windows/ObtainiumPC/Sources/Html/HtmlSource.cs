@@ -292,7 +292,7 @@ public sealed class HtmlSource : AppSourceBase
         ("mm", "mm"), ("ss", "ss"), ("a", "tt"), ("d", "d"), ("h", "h"), ("H", "H"), ("M", "M"),
     };
 
-    private static DateTimeOffset? ParseHtmlReleaseDateText(
+    internal static DateTimeOffset? ParseHtmlReleaseDateText(
         string? releaseDateRegEx, string? matchGroup, string? dateFormatString, string stringToCheck)
     {
         if (string.IsNullOrEmpty(releaseDateRegEx)) return null;
