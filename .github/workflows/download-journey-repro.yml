@@ -152,6 +152,10 @@ jobs:
             $g.CopyFromScreen((New-Object System.Drawing.Point $x,$y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $w,$h))
             $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
           }
+          # Processes started in an earlier step do not survive into this one: start the slow server here.
+          Start-Process python -ArgumentList (Join-Path $env:RUNNER_TEMP 'slow.py'), (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
+          Start-Sleep 3
+          (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length'
           $exe = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe'
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
