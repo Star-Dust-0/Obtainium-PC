@@ -273,80 +273,87 @@ jobs:
           }
 
           $root = [System.Windows.Automation.AutomationElement]::RootElement
-          "== SCENARIO A: start a download, leave the page, come back =="
-          Shot 'a0-apps-initial'
+          function ClickByName($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            if ($el -eq $null) { return $false }
+            $r = $el.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            return $true
+          }
+          function TextsLike($pattern) {
+            $hits = @()
+            $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) { $n = $el.Current.Name; if ($n -and $n -like $pattern) { $hits += $n } }
+            return ($hits -join ' | ')
+          }
+          "== D1: start a download, leave the page; the global strip must stay visible =="
+          Shot 'd0-apps-initial'
           ClickPartial 'SlowTool' $win | Out-Null
-          Start-Sleep 3; AssertAlive 'detail'; Shot 'a1-detail'
+          Start-Sleep 3; AssertAlive 'detail'
           StartDownload
-          Start-Sleep 4
-          Shot 'a2-detail-downloading'
-          "t+4s: $(PartInfo)"
-          UiaProgressSeen 'a2 on detail'
+          Start-Sleep 3
           ClickNamed 'Settings'
           Start-Sleep 3
-          Shot 'a3-settings-while-downloading'
-          "t+7s on Settings: $(PartInfo)"
-          UiaProgressSeen 'a3 on Settings'
-          ClickNamed 'Update Health'
-          Start-Sleep 2
-          Shot 'a4-health-while-downloading'
-          ClickNamed 'Apps'
-          Start-Sleep 3
-          Shot 'a5-apps-back'
-          "back on Apps: $(PartInfo)"
-          UiaProgressSeen 'a5 Apps list'
+          Shot 'd1-strip-on-settings'
+          "strip texts on Settings: $(TextsLike 'Downloading*') ; $(TextsLike '*MB*')"
+          "part: $(PartInfo)"
+          ClickNamed 'Apps'; Start-Sleep 2
           ClickPartial 'SlowTool' $win | Out-Null
           Start-Sleep 3
-          Shot 'a6-detail-revisited'
-          UiaProgressSeen 'a6 detail revisited'
-          $up = FindNamed 'Update' $win; $ins = FindNamed 'Install' $win
-          if ($up) { "a6 Update button enabled = $($up.Current.IsEnabled)" }
-          if ($ins) { "a6 Install button enabled = $($ins.Current.IsEnabled)" }
-          "== SCENARIO C: press Update again for the same in-flight download (fixture only) =="
-          "before 2nd start: $(PartInfo)"
-          try {
-            StartDownload
-            Start-Sleep 4
-            Shot 'c1-second-start'
-            "after 2nd start +4s: $(PartInfo)"
-            UiaProgressSeen 'c1 after second start'
-            $infos = @()
-            $allc = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-            foreach ($el in $allc) { $n = $el.Current.Name; if ($n -and ($n -like '*process cannot access*' -or $n -like '*Download*failed*' -or $n -like '*being used*' -or $n -like '*Failed*')) { $infos += $n } }
-            "error-like UIA text after 2nd start: $($infos -join ' | ')"
-          } catch { "second start attempt threw in harness: $($_.Exception.Message)" }
-          foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          Shot 'd2-detail-revisited'
+          $up = FindNamed 'Update' $win
+          if ($up) { "revisited: Update enabled = $($up.Current.IsEnabled)" }
+          "== D2: open the Downloads list =="
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd3-flyout-downloading'
+          "flyout texts: $(TextsLike '*MB*')"
+          # close the flyout
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          "== D3: Cancel from the strip; partial file must go, app stays alive =="
+          "before cancel: $(PartInfo)"
+          "clicked Cancel: $(ClickByName 'Cancel' $win)"
+          Start-Sleep 4
+          Shot 'd4-after-cancel'
+          "after cancel: $(PartInfo)"
+          "texts after cancel: $(TextsLike '*ancel*')"
+          AssertAlive 'after-cancel'
+          "== D4: start the same app again after cancel (state released), let it finish =="
+          StartDownload
           Start-Sleep 3
-          "after completion: $(PartInfo)"
-          $fin = Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($fin) {
-            $h1 = (Get-FileHash $fin.FullName -Algorithm SHA256).Hash
-            $h2 = (Get-FileHash (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -Algorithm SHA256).Hash
-            "final file $($fin.Name) size=$($fin.Length) sha256-match-source=$($h1 -eq $h2)"
-          } else { "final file missing" }
-          AssertAlive 'after-complete'; Shot 'a7-after-complete'
-          UiaProgressSeen 'a7 after complete'
-          "installer launched (whoami processes ever started is unobservable); app alive"
+          Shot 'd5-restarted'
+          "== D5: close the window while downloading: warning must appear and keep downloading =="
+          "clicked Close: $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          Shot 'd6-close-warning'
+          $dlgTexts = TextsLike '*download*'
+          "warning texts: $dlgTexts"
+          AssertAlive 'warning-open'
+          $p1 = PartInfo
+          "clicked Keep downloading: $(ClickByName 'Keep downloading' $root)"
+          Start-Sleep 3
+          "part after keep: $p1 -> $(PartInfo)"
+          AssertAlive 'after-keep'
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          Start-Sleep 3
+          Shot 'd7-after-complete'
+          "after complete: $(PartInfo)"
+          "strip after complete: $(TextsLike '*nstaller*')"
+          "== D6: start again, close, confirm: partial file must be removed and app exit =="
+          StartDownload
+          Start-Sleep 4
+          "before close: $(PartInfo)"
+          "clicked Close: $(ClickByName 'Close' $win)"
+          Start-Sleep 2
+          "clicked Cancel downloads and close: $(ClickByName 'Cancel downloads and close' $root)"
+          Start-Sleep 8
+          $p.Refresh()
+          "app exited after confirmed close: $($p.HasExited)"
+          "after confirmed close: $(PartInfo)"
 
-          "== SCENARIO B: close the window while a download runs =="
-          try {
-            ClickPartial 'SlowTool' $win | Out-Null
-            Start-Sleep 3
-            Remove-Item (Join-Path $dlDir '*slowtool.exe') -ErrorAction SilentlyContinue
-            StartDownload
-            Start-Sleep 5
-            "before close: $(PartInfo)"
-            Shot 'b1-before-close'
-            $null = $p.CloseMainWindow()
-            Start-Sleep 6
-            $p.Refresh()
-            "app exited after close: $($p.HasExited)"
-            Start-Sleep 5
-            "after close +11s: $(PartInfo)"
-            $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
-            "ObtainiumPC processes remaining: $($procs.Count)"
-          } catch { "SCENARIO B harness threw: $($_.Exception.Message)" }
-          Get-Content (Join-Path $env:RUNNER_TEMP 'slow.log') -ErrorAction SilentlyContinue | Select-Object -Last 15
       - name: Preserve app logs
         if: always()
         shell: pwsh
