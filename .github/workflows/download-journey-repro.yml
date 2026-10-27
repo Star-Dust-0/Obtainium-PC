@@ -102,8 +102,8 @@ jobs:
           http.server.ThreadingHTTPServer(('127.0.0.1', 8099), H).serve_forever()
           '@ | Set-Content $py
           Start-Process python -ArgumentList $py, $big -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
-          Start-Sleep 3
-          $t = Measure-Command { (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length' | Out-String }
+          $ok=$false; foreach ($i in 1..30) { Start-Sleep 1; try { Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing | Out-Null; $ok=$true; break } catch {} }
+          if (-not $ok) { throw 'slow server not reachable after 30s' }
           "server reachable"
           $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
           New-Item -ItemType Directory -Force $dir | Out-Null
@@ -175,8 +175,8 @@ jobs:
           }
           # Processes started in an earlier step do not survive into this one: start the slow server here.
           Start-Process python -ArgumentList (Join-Path $env:RUNNER_TEMP 'slow.py'), (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
-          Start-Sleep 3
-          (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length'
+          $ok=$false; foreach ($i in 1..30) { Start-Sleep 1; try { Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing | Out-Null; $ok=$true; break } catch {} }
+          if (-not $ok) { throw 'slow server not reachable after 30s' }
           $exe = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe'
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
