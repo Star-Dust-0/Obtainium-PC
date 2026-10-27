@@ -396,6 +396,38 @@ jobs:
           foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           "download finished while window hidden: $(PartInfo)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          "== D8: server drops mid-download -> Failed row -> Retry from the flyout; Alt+F4 with tray on =="
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          StartDownload
+          Start-Sleep 4
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 6
+          "part after server drop: $(PartInfo)"
+          Shot 'd12-failed-strip'
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd13-failed-flyout'
+          "failed flyout texts: $(TextsLike '*ailed*') ; $(TextsLike '*onnection*') ; $(TextsLike 'Retry')"
+          Start-Process python -ArgumentList (Join-Path $env:RUNNER_TEMP 'slow.py'), (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow2.log') -WindowStyle Hidden
+          Start-Sleep 3
+          "clicked Retry: $(ClickByName 'Retry' $root)"
+          Start-Sleep 4
+          Shot 'd14-after-retry'
+          "after retry: $(TextsLike 'Downloading*') ; $(PartInfo)"
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          "retry finished: $(PartInfo)"
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          $win.SetFocus(); Start-Sleep 1
+          [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
+          $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 
       - name: Preserve app logs
         if: always()
