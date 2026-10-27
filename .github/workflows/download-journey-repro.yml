@@ -295,6 +295,7 @@ jobs:
             Start-Sleep 2
             Shot 'sd-after-download-click'
             Start-Sleep 5; Shot 'sd-5s-after-click'
+            [System.Windows.Forms.SendKeys]::SendWait('{PGDN}'); Start-Sleep 1; Shot 'sd-scrolled-down'; [System.Windows.Forms.SendKeys]::SendWait('{PGUP}'); Start-Sleep 1
             if ((PartInfo) -eq 'no slowtool files' -or (PartInfo) -like '*.part=0') { ClickNamed 'Logs'; Start-Sleep 2; Shot 'sd-logs-page'; ClickNamed 'Apps'; Start-Sleep 1; ClickPartial 'SlowTool' $win | Out-Null; Start-Sleep 2 }
             $pt = (TextsLike '*'); "post-click texts: $($pt.Substring(0, [Math]::Min(500, $pt.Length)))"
           }
