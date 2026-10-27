@@ -441,6 +441,7 @@ jobs:
           "download finished while window hidden: $(PartInfo)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
           "== D8: server drops mid-download -> Failed row -> Retry from the flyout; Alt+F4 with tray on =="
+          Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep 2
           Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           "dir [D8 before launch, after clear]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
           $p = Start-Process $exe -PassThru
@@ -479,6 +480,13 @@ jobs:
           [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
           $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           "== D9: tray menu: right-click the tray icon, list items, Open restores, Exit exits =="
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
@@ -529,14 +537,19 @@ jobs:
           $script:shotWin = $w4; Shot 'd19-tray-downloads-flyout'
           "flyout texts after tray Downloads: $(TextsLike 'Cancelled*') ; $(TextsLike '*partial*')"
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          $win = $w4
           $before = TextsLike 'Last update check*'
+          $luBefore = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
           "clicked Close (hide again): $(ClickByName 'Close' $w4)"; Start-Sleep 3; $script:shotWin = $null
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           ClickAt 850 638; "clicked menu item Check for updates (by position)"; Start-Sleep 10
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           ClickAt 850 572; Start-Sleep 3
           $w5 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond); $script:shotWin = $w5
+          $win = $w5
           $after = TextsLike 'Last update check*'
+          $luAfter = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
+          "tray Check for updates: UI text changed=$($before -ne $after) (before: $before ; after: $after) ; apps.json lastUpdateCheck before=$luBefore after=$luAfter changed=$($luBefore -ne $luAfter)"
           "update check text before: $before ; after: $after"
           Shot 'd20-after-tray-check'
           $w3 = $w5
