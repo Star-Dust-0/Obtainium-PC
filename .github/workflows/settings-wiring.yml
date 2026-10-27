@@ -388,8 +388,8 @@ jobs:
           # ---- bulk / update-path cases: two updateable apps, Select -> Ctrl+A -> "Download updates" ----
           function RunBulk($name, $over, $inst, $latest) {
             Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
-            $apps = @(@{ id='b1'; url='http://127.0.0.1:8099/slowtool.exe?b=1'; author='local'; name='BulkOne'; overrideSource='Direct File Link'; apkUrls='[]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest },
-                      @{ id='b2'; url='http://127.0.0.1:8099/slowtool.exe?b=2'; author='local'; name='BulkTwo'; overrideSource='Direct File Link'; apkUrls='[]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest })
+            $apps = @(@{ id='b1'; url='http://127.0.0.1:8099/slowtool.exe?b=1'; author='local'; name='BulkOne'; overrideSource='Direct File Link'; apkUrls='[["fixture.exe","http://127.0.0.1:8099/slowtool.exe"]]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest },
+                      @{ id='b2'; url='http://127.0.0.1:8099/slowtool.exe?b=2'; author='local'; name='BulkTwo'; overrideSource='Direct File Link'; apkUrls='[["fixture.exe","http://127.0.0.1:8099/slowtool.exe"]]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest })
             ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
             $st = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $false }
             foreach ($k in $over.Keys) { $st[$k] = $over[$k] }
@@ -405,7 +405,7 @@ jobs:
             [System.Windows.Forms.SendKeys]::SendWait('^a'); Start-Sleep 1
             Shot "w10-$name-selected"
             $hasBtn = (FindNamed 'Download updates' $script:cw) -ne $null
-            $clicked = ClickByName 'Download updates' $script:cw; Start-Sleep 3
+            $clicked = ClickByName 'Download updates' $script:cw; Start-Sleep 8
             $texts = TextsLike '*'
             $confirm = ($texts -match 'Download 2\?')
             $picker = ($texts -match 'Choose a file')
@@ -414,6 +414,15 @@ jobs:
             "WIRING [$name] inst=$inst latest=$latest downloadBtnPresent=$hasBtn clicked=$clicked bulkConfirmDialog=$confirm assetPicker=$picker downgradeBlockedMsg=$blocked"
             "WIRING [$name] dialog/texts sample: $(($texts -split ' \| ' | Where-Object { $_ -match 'Download|Choose|downgrade|Cancel|blocked' } | Select-Object -First 8) -join ' | ')"
             Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+          # Detail-page check setting: same seed, no start check, only opening detail may refresh it.
+          foreach ($enabled in $false,$true) {
+            RunCase "detail-check-$enabled" @{ CheckOnStart=$false; CheckUpdateOnDetailPage=$enabled } 15
+            $script:win=$script:cw; $script:shotWin=$script:cw
+            ClickPartial 'SlowTool' $script:cw | Out-Null; Start-Sleep 35
+            $aa = @(Get-Content (Join-Path $dir 'apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }
+            "WIRING [detail-check-$enabled] lastUpdateCheck=$($aa.lastUpdateCheck) UI=$(TextsLike 'Last update check*')"
+            Shot "w13-detail-check-$enabled"
           }
           "== W10 SkipBulkUpdateConfirmation off/on =="
           RunBulk 'bulk-confirm-default' @{} '1' '2'
