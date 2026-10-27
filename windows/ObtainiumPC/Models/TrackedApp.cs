@@ -48,6 +48,26 @@ public sealed class TrackedApp
     // Identity (latest version + asset URL) the saved size belongs to. Records saved before this
     // field existed have none, so their size is never presented as the size of a given release.
     [JsonPropertyName("assetSizeFor")] public string? AssetSizeFor { get; set; }
+    /// Ports buildPlaceholderApp (lib/providers/source_provider.dart): the entry added when the
+    /// first check fails and "add apps without checking" is on. The ID is the bare 12-character
+    /// lowercase SHA-256 prefix of URL + serialized settings, so it is stable per URL and settings.
+    public static TrackedApp BuildPlaceholder(string url, string sourceName, Dictionary<string, JsonElement> settings, string? overrideSource = null)
+    {
+        var app = new TrackedApp
+        {
+            Id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(url + JsonSerializer.Serialize(settings))))[..12].ToLowerInvariant(),
+            Url = url,
+            Author = sourceName,
+            Name = url,
+            LatestVersion = "unknown",
+            OverrideSource = overrideSource,
+            AdditionalSettings = settings,
+        };
+        app.AssetUrls = new List<KeyValuePair<string, string>> { new("placeholder", "placeholder") };
+        return app;
+    }
+
     public static string SizeIdentity(string? version, string? assetUrl) => (version ?? "") + "|" + (assetUrl ?? "");
     public void RecordAssetSize(long bytes, string? assetUrl) { AssetSizeBytes = bytes; AssetSizeFor = SizeIdentity(LatestVersion, assetUrl); }
     /// <summary>Saved size only when it was recorded for exactly this release and file; otherwise null (unknown).</summary>

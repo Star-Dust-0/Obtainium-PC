@@ -144,21 +144,7 @@ namespace ObtainiumPC.Pages
                     string sourceName;
                     try { sourceName = SourceCatalog.Resolve(url, App.Settings, overrideSource).Name; }
                     catch { sourceName = overrideSource ?? "Unknown"; }
-                    app = new ObtainiumPC.Models.TrackedApp
-                    {
-                        // lib/providers/source_provider.dart generateTempID:
-                        // bare 12-char lowercase sha256 prefix.
-                        Id = Convert.ToHexString(
-                            System.Security.Cryptography.SHA256.HashData(
-                                System.Text.Encoding.UTF8.GetBytes(url + JsonSerializer.Serialize(settings))))[..12].ToLowerInvariant(),
-                        Url = url,
-                        Author = sourceName,
-                        Name = url,
-                        LatestVersion = "unknown",
-                        OverrideSource = overrideSource,
-                        AdditionalSettings = settings,
-                    };
-                    app.AssetUrls = new List<KeyValuePair<string, string>> { new("placeholder", "placeholder") };
+                    app = ObtainiumPC.Models.TrackedApp.BuildPlaceholder(url, sourceName, settings, overrideSource);
                 }
                 // lib/providers/apps_provider.dart addAppsByURL: appAlreadyAdded.
                 var dupe = App.TryAddApp(app);
