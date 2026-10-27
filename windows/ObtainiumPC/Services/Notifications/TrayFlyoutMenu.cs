@@ -51,6 +51,11 @@ internal sealed class TrayFlyoutMenu
     const long WS_EX_LAYERED = 0x80000, WS_EX_TOOLWINDOW = 0x80;
 
     readonly Action _open, _downloads, _cancelAll, _check, _exit;
+    DateTime _openedAt = DateTime.MinValue;
+    static bool IsShellOverflowForeground()
+    {
+        try { var sb = new System.Text.StringBuilder(128); GetClassName(GetForegroundWindow(), sb, 128); return sb.ToString() == "TopLevelWindowForOverflowXamlIsland"; } catch { return false; }
+    }
     Window? _host;
     Grid? _anchor;
     MenuFlyout? _current;
@@ -81,6 +86,14 @@ internal sealed class TrayFlyoutMenu
                 {
                     // Logged evidence (run 40584225412): several Deactivated events arrive while the foreground window is the
                     // host itself (the flyout popup takes activation from it). That is not the user leaving: keep the menu.
+                    // Right after opening, explorer hands activation back to its overflow panel (the icon was clicked there).
+                    // That is the tray interaction that opened us, not an outside click. Real outside clicks are caught by the
+                    // mouse polling below; a foreground change to any other window still hides the menu.
+                    if ((DateTime.UtcNow - _openedAt).TotalMilliseconds < 700 || IsShellOverflowForeground())
+                    {
+                        AppLogger.Info("Tray menu kept: activation moved to the shell tray overflow window; " + DescribeForeground());
+                        return;
+                    }
                     if (GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(_host))
                     {
                         AppLogger.Info("Tray menu kept: host deactivated but is still the foreground window");
@@ -168,14 +181,15 @@ internal sealed class TrayFlyoutMenu
         {
             GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
             bool clickedOutside = false;
-            if ((GetAsyncKeyState(1) & 0x8001) != 0)
+            bool grace = (DateTime.UtcNow - _openedAt).TotalMilliseconds < 700;
+            if (!grace && ((GetAsyncKeyState(1) & 0x8001) != 0 || (GetAsyncKeyState(2) & 0x8001) != 0))
             {
                 GetCursorPos(out var cursor);
                 var target = GetAncestor(WindowFromPoint(cursor), 2); // GA_ROOT
                 GetWindowThreadProcessId(target, out var targetPid);
                 clickedOutside = target == _owner || targetPid != (uint)Environment.ProcessId;
             }
-            if (pid != (uint)Environment.ProcessId || clickedOutside)
+            if ((!grace && pid != (uint)Environment.ProcessId && !IsShellOverflowForeground()) || clickedOutside)
             {
                 AppLogger.Info("Tray menu dismissed: foreground left app");
                 dismissTimer.Stop();
@@ -184,7 +198,7 @@ internal sealed class TrayFlyoutMenu
         };
         flyout.Opened += (_, _) =>
         {
-            GetAsyncKeyState(1); AppLogger.Info("Tray menu Opened"); dismissTimer.Start();
+            _openedAt = DateTime.UtcNow; GetAsyncKeyState(1); GetAsyncKeyState(2); AppLogger.Info("Tray menu Opened"); dismissTimer.Start();
             try
             {
                 foreach (var pop in VisualTreeHelper.GetOpenPopupsForXamlRoot(anchor.XamlRoot))

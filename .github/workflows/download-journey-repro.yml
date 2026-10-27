@@ -613,6 +613,7 @@ jobs:
           "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
           $opened = $false; for ($try = 1; $try -le 3 -and -not $opened; $try++) { ClickAt 300 300; Start-Sleep 2; $tb = TrayButton; $oc = OpenedCount; if ($tb) { "click-away precondition attempt ${try}: button $($tb.Current.BoundingRectangle) class=$($tb.Current.ClassName)"; RightClick $tb; $opened = [bool](WaitMenuOpened $oc); "click-away precondition attempt ${try}: menu opened = $opened" } else { "click-away precondition attempt ${try}: tray button not found" } }
+          if ($opened) { $cIdle0 = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Closed')).Count; Start-Sleep 10; $cIdle1 = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Closed')).Count; "IDLE-OPEN 10s with no input: Closed count before=$cIdle0 after=$cIdle1 -> still open = $($cIdle0 -eq $cIdle1)"; Shot 'd22c-idle-10s' }
           Shot 'd22b-before-clickaway'
           if ($opened) { ClickAt 300 300; Start-Sleep 3 } else { "click-away SKIPPED: menu never opened, no assertion made" }
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
