@@ -68,8 +68,17 @@ internal sealed class TrayFlyoutMenu
         string material = "none";
         try { flyout.SystemBackdrop = new DesktopAcrylicBackdrop(); material = "DesktopAcrylic"; }
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
-        flyout.ShowAt(anchor);
-        AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material})");
+        var t0 = DateTime.UtcNow;
+        flyout.Opened += (_, _) => AppLogger.Info("Tray menu Opened");
+        flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");
+        void ShowNow()
+        {
+            try { flyout.ShowAt(anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.TopEdgeAlignedRight, ShowMode = FlyoutShowMode.Standard }); AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material}, host loaded={anchor.IsLoaded}, xamlRoot={anchor.XamlRoot != null})"); }
+            catch (Exception e) { AppLogger.Warn("Tray menu ShowAt failed", e); }
+        }
+        // The first time, the host's XAML is not loaded yet; opening before that can show nothing.
+        if (anchor.IsLoaded && anchor.XamlRoot != null) ShowNow();
+        else { RoutedEventHandler? h = null; h = (_, _) => { anchor.Loaded -= h; ShowNow(); }; anchor.Loaded += h; }
         return true;
     }
 }
