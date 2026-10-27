@@ -480,6 +480,13 @@ jobs:
           [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
           $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           "== D9: tray menu: right-click the tray icon, list items, Open restores, Exit exits =="
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
