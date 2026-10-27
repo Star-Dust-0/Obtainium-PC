@@ -32,6 +32,8 @@ namespace ObtainiumPC.Pages
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
+            Services.Download.DownloadRegistry.ListChanged += OnRegistryListChanged;
             await App.InitAsync();
             var id = e.Parameter as string;
             _app = App.TrackedApps.FirstOrDefault(a => a.Id == id);
@@ -260,6 +262,8 @@ namespace ObtainiumPC.Pages
             InstallButton.IsEnabled = false;
             DownloadButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
+            // A new attempt (e.g. Retry from the Downloads list) replaces the stale error/cancel banner.
+            if (MessageBar.IsOpen && MessageBar.Severity is InfoBarSeverity.Error or InfoBarSeverity.Informational) MessageBar.IsOpen = false;
             ApplyDownloadProgress(entry);
             if (ReferenceEquals(_attached, entry)) return;
             DetachInFlightDownload();
@@ -298,8 +302,15 @@ namespace ObtainiumPC.Pages
             else DownloadText.Text = $"{received / 1048576.0:F1} MB";
         }
 
+        private void OnRegistryListChanged() => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_app != null && Services.Download.DownloadRegistry.Get(_app.Id) != null && !ReferenceEquals(_attached, Services.Download.DownloadRegistry.Get(_app.Id)))
+                AttachInFlightDownload();
+        });
+
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
+            Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
             DetachInFlightDownload();
             base.OnNavigatedFrom(e);
         }
