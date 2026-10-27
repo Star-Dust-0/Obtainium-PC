@@ -514,8 +514,21 @@ jobs:
           $items = @(); foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem) { $items += $el.Current.Name } }
           "tray menu items: $($items -join ' | ')"
           function ClickAt($x, $y) { [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($x, $y); Start-Sleep -Milliseconds 400; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }
+          function MenuClick($prefix, $x, $y) {
+            # WinUI flyout items are visible to UIA; the classic Win32 fallback menu is not (then click by position).
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              $n = $el.Current.Name
+              if ($n -and $n.StartsWith($prefix) -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 400; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                return "UIA MenuItem '$n' at $([int]$r.X),$([int]$r.Y) $([int]$r.Width)x$([int]$r.Height)"
+              }
+            }
+            ClickAt $x $y; return "by position (no UIA MenuItem named '$prefix')"
+          }
           "screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width)x$([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height)"
-          ClickAt 850 572; "clicked menu item Open Obtainium-PC (by position)"
+          "clicked menu item Open Obtainium-PC: $(MenuClick 'Open Obtainium-PC' 850 572)"
           Start-Sleep 3
           $w3 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
           "window visible after tray Open: $($w3 -ne $null)"
@@ -528,10 +541,10 @@ jobs:
           "clicked Close (hide, download running): $(ClickByName 'Close' $win)"; Start-Sleep 3; $script:shotWin = $null
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           Shot 'd18-tray-menu-with-download'
-          ClickAt 850 615; "clicked menu item Cancel all downloads (by position)"; Start-Sleep 5
+          "clicked menu item Cancel all downloads: $(MenuClick 'Cancel all downloads' 850 615)"; Start-Sleep 5
           "tray-actions: after Cancel all (window still hidden): $(PartInfo) ; process alive: $(-not $p.HasExited)"
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
-          ClickAt 850 593; "clicked menu item Downloads (by position)"; Start-Sleep 4
+          "clicked menu item Downloads: $(MenuClick 'Downloads' 850 593)"; Start-Sleep 4
           $w4 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
           "window visible after tray Downloads: $($w4 -ne $null)"
           $script:shotWin = $w4; Shot 'd19-tray-downloads-flyout'
@@ -542,9 +555,9 @@ jobs:
           $luBefore = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
           "clicked Close (hide again): $(ClickByName 'Close' $w4)"; Start-Sleep 3; $script:shotWin = $null
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
-          ClickAt 850 638; "clicked menu item Check for updates (by position)"; Start-Sleep 10
+          "clicked menu item Check for updates: $(MenuClick 'Check for updates' 850 638)"; Start-Sleep 10
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
-          ClickAt 850 572; Start-Sleep 3
+          "menu: $(MenuClick 'Open Obtainium-PC' 850 572)"; Start-Sleep 3
           $w5 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond); $script:shotWin = $w5
           $win = $w5
           $after = TextsLike 'Last update check*'
