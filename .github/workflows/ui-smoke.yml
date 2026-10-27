@@ -447,16 +447,18 @@ jobs:
           if ($json.SkipBackgroundChecksOnMeteredConnection) { throw 'metered guard did not turn back off' }
           "update guards verified (default off, persists, restores)"
           $catName = 'Skip update checks: Smoke'
-          # Categories sits below Updates and is virtualized: page to the bottom first.
+          # Categories sits far below Updates and is virtualized: page down until the row is realized.
+          $pageSp = $null
           foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
             $sp = $null
             try { $sp = $el.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern) } catch {}
-            if ($sp -ne $null -and $sp.Current.VerticallyScrollable) {
-              foreach ($k in 1..12) { $sp.ScrollVertical([System.Windows.Automation.ScrollAmount]::LargeIncrement) }
-              break
-            }
+            if ($sp -ne $null -and $sp.Current.VerticallyScrollable) { $pageSp = $sp; break }
           }
-          Start-Sleep 2
+          foreach ($k in 1..40) {
+            if ((FindNamed $catName $win) -ne $null) { break }
+            if ($pageSp -ne $null) { $pageSp.ScrollVertical([System.Windows.Automation.ScrollAmount]::LargeIncrement) }
+            Start-Sleep -Milliseconds 700
+          }
           $cEl = ScrollToName $catName
           if ($cEl -eq $null) { Shot 'category-switch-missing'; throw 'Settings > Categories has no Skip update checks switch for the seeded category' }
           Shot '39-settings-category-skip-off'
