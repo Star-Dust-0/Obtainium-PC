@@ -436,6 +436,7 @@ jobs:
           $bEl = FindNamed "Don't check on battery power" $win
           if ($bEl -eq $null) { Shot 'guards-missing'; throw "Settings has no battery guard switch" }
           if ($mEl.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne 'Off') { throw 'metered guard is not off by default' }
+          $bEl2 = ScrollToName "Don't check on battery power"
           Shot '38-settings-update-guards'
           $tp = ToggleByName "Don't check on a metered connection"
           Shot '38b-settings-metered-guard-on'
@@ -446,6 +447,16 @@ jobs:
           if ($json.SkipBackgroundChecksOnMeteredConnection) { throw 'metered guard did not turn back off' }
           "update guards verified (default off, persists, restores)"
           $catName = 'Skip update checks: Smoke'
+          # Categories sits below Updates and is virtualized: page to the bottom first.
+          foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            $sp = $null
+            try { $sp = $el.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern) } catch {}
+            if ($sp -ne $null -and $sp.Current.VerticallyScrollable) {
+              foreach ($k in 1..12) { $sp.ScrollVertical([System.Windows.Automation.ScrollAmount]::LargeIncrement) }
+              break
+            }
+          }
+          Start-Sleep 2
           $cEl = ScrollToName $catName
           if ($cEl -eq $null) { Shot 'category-switch-missing'; throw 'Settings > Categories has no Skip update checks switch for the seeded category' }
           Shot '39-settings-category-skip-off'
