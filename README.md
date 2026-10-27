@@ -1,94 +1,117 @@
-<!-- <div align="center"><a href="https://github.com/Safouene1/support-palestine-banner/blob/master/Markdown-pages/Support.md"><img src="https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/banner-support.svg" alt="Support Palestine" style="width: 100%;"></a></div> -->
-<!-- Banner temporarily removed for reasons, will re-enable or replace shortly -->
+<div align="center">
 
-# ![Obtainium Icon](./assets/graphics/icon_small.png) Obtainium
+<img src="assets/graphics/icon-512x512.png" alt="Obtainium-PC icon" width="96" height="96">
 
-Get Android app updates straight from the source.
+# Obtainium-PC
 
-Obtainium allows you to install and update apps directly from their releases pages, and receive notifications when new releases are made available.
+**Get Windows app updates straight from the source.**
 
-More info:
-- [Obtainium Wiki](https://wiki.obtainium.imranr.dev/) ([repository](https://github.com/ImranR98/Obtainium-Wiki))
-- [Deep Links](https://wiki.obtainium.imranr.dev/deep_links/) - link straight to an import, or add a badge to your own project
-- [Obtainium 101](https://www.youtube.com/watch?v=0MF_v2OBncw) - Tutorial video
-- ["Verified Apps"](https://github.com/privacyguides/verified-apps-android) - App verification tool (recommended, integrates with Obtainium)
-- [apps.obtainium.imranr.dev](https://apps.obtainium.imranr.dev/) - Crowdsourced app configurations ([repository](https://github.com/ImranR98/apps.obtainium.imranr.dev))
-- [Side Of Burritos - You should use this instead of F-Droid | How to use app RSS feed](https://youtu.be/FFz57zNR_M0) - Original motivation for this app
-- [Website](https://obtainium.imranr.dev) ([repository](https://github.com/ImranR98/obtainium.imranr.dev))
+Track apps by their release pages, get told when a new version is out, and download it, all from one native Windows app.
 
-Currently supported App sources:
-- Open Source - General:
-  - [GitHub](https://github.com/)
-  - [GitLab](https://gitlab.com/)
-  - [Forgejo](https://forgejo.org/) ([Codeberg](https://codeberg.org/))
-  - [F-Droid](https://f-droid.org/)
-  - Third Party F-Droid Repos
-  - [IzzyOnDroid](https://android.izzysoft.de/)
-  - [SourceHut](https://git.sr.ht/)
-- Other - General:
-  - [APKPure](https://apkpure.net/)
-  - [Aptoide](https://aptoide.com/)
-  - [Uptodown](https://uptodown.com/)
-  - [itch.io](https://itch.io/)
-  - [Huawei AppGallery](https://appgallery.huawei.com/)
-  - [Tencent App Store](https://sj.qq.com/)
-  - [vivo App Store (CN)](https://h5.appstore.vivo.com.cn/)
-  - [RuStore](https://rustore.ru/)
-  - [Farsroid](https://www.farsroid.com)
-  - [Samsung Galaxy Store](https://galaxystore.samsung.com/)
-  - [LiteAPKs](https://liteapks.com/)
-  - [APK4Free](https://apk4free.net/)
-  - [CoolApk](https://coolapk.com/)
-  - [SourceForge](https://sourceforge.net/)
-  - Jenkins Jobs
-  - [APKMirror](https://apkmirror.com/) *(Track-Only)*
-  - [APKCombo](https://apkcombo.com/)
-  - [RockMods](https://rockmods.net/) *(Track-Only)*
-- Other - App-Specific:
-  - [Telegram App](https://telegram.org/)
-  - [Neutron Code](https://neutroncode.com/)
-- Direct APK Link
-- "HTML" (Fallback): Any other URL that returns an HTML page with links to APK files
+[![Release](https://img.shields.io/badge/release-0.1%20prerelease-orange)](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%201809%2B%20x64-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-## Finding App Configurations
+[**Download**](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-of-this-prerelease)
 
-You can find crowdsourced app configurations at [apps.obtainium.imranr.dev](https://apps.obtainium.imranr.dev).
+<br>
 
-If you can't find the configuration for an app you want, feel free to leave a request on the [issues page](https://github.com/ImranR98/apps.obtainium.imranr.dev/issues).
+<img src="windows/docs/screenshots/01b-apps-split-detail.png" alt="Apps list with the app detail pane" width="820">
 
-Or, contribute some configurations to the website by creating a PR at [this repo](https://github.com/ImranR98/apps.obtainium.imranr.dev).
+</div>
 
-## Installation
+## Introducing Obtainium-PC
 
-[<img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png"
-    alt="Get it on GitHub"
-    height="80">](https://github.com/ImranR98/Obtainium/releases)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
-     alt="Get it on IzzyOnDroid"
-     height="80">](https://apt.izzysoft.de/fdroid/index/apk/dev.imranr.obtainium)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-    alt="Get it on F-Droid"
-    height="80">](https://f-droid.org/packages/dev.imranr.obtainium.fdroid/)
-     
-Verification info:
+This is the first introductory release of Obtainium-PC for Windows, available as a prerelease for testing. It introduces the app and its features, rather than an update or a set of fixes to an earlier public version.
 
-- Package ID: `dev.imranr.obtainium`
-- SHA-256 hash of signing certificate:
-  ```text
-  B3:53:60:1F:6A:1D:5F:D6:60:3A:E2:F5:0B:E8:0C:F3:01:36:7B:86:B6:AB:8B:1F:66:24:3D:A9:6C:D5:73:62
-  ```
-  - Note: The above signature is also valid for the F-Droid flavour of Obtainium, thanks to [reproducible builds](https://f-droid.org/docs/Reproducible_Builds/).
-- [PGP Public Key](https://keyserver.ubuntu.com/pks/lookup?search=contact%40imranr.dev&fingerprint=on&op=index) (to verify APK hashes)
+Obtainium-PC is a native Windows (WinUI 3) port of [Obtainium](https://github.com/ImranR98/Obtainium) by ImranR98.
 
-## Contributing / Developing
+## Features
 
-Please see the pertinent documentation, [on contributing](docs/CONTRIBUTING.md) and [the developer guide](docs/DEVELOPER_GUIDE.md) (architecture description).
+| | Feature | What it does |
+|---|---|---|
+| ➕ | **Add by URL** | Paste a release page link. The app finds the latest release and the Windows files in it. |
+| 👁 | **Track-only mode** | Follow an app's releases without installing anything through the program. |
+| 🪟 | **Windows-only tracking** | Android store sources and APK-only releases are refused when adding, and Android records in an import are skipped with a note. Nothing already saved is deleted. |
+| 🩺 | **Update health** | See which apps are current, outdated, unchecked or failing. Ignore or restore individual apps. |
+| ⏳ | **Minimum update age** | Enforced when an update is applied. |
+| 🔁 | **Download retries** | On timeouts, network errors, 429 and 5xx. |
+| 🗂 | **Categories** | Group apps, and switch on "Skip update checks" for a whole category. |
+| 🔋 | **Background check guards** | "Don't check on a metered connection" and "Don't check on battery power". Both are off by default and affect background checks only. Manual update checks still run. |
+| 📦 | **Download size** | The detail page shows the size of the selected file when it is known. |
+| 💾 | **Import and export** | Export your app list, with optional automatic export after changes, and import it back. Existing records are kept as they are. |
+| 🎨 | **Look and language** | Light and dark themes, many languages including right-to-left, filter and sort, and `obtainium://` deep links. |
+| 🛡 | **Visible installers** | Installers run visibly. Nothing is installed silently. |
 
-## Limitations
-- For some sources, data is gathered using Web scraping and can easily break due to changes in website design. In such cases, more reliable methods may be unavailable.
+<details>
+<summary><b>Supported sources</b></summary>
+
+<br>
+
+GitHub, GitLab, Forgejo (including Codeberg), SourceForge, SourceHut, itch.io, Jenkins, any HTML page, and direct file links.
+
+</details>
 
 ## Screenshots
 
-| <img src="./assets/screenshots/1.apps.png" alt="Apps Page" /> | <img src="./assets/screenshots/2.dark_theme.png" alt="Dark Theme" />           | <img src="./assets/screenshots/3.material_you.png" alt="Material You" />    |
-| ------------------------------------------------------ | ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| <img src="./assets/screenshots/4.app.png" alt="App Page" />   | <img src="./assets/screenshots/5.app_opts.png" alt="App Options" /> | <img src="./assets/screenshots/6.app_webview.png" alt="App Web View" /> |
+The screenshots come from the automated UI test run of this build, with test data.
+
+<details open>
+<summary><b>Add App</b></summary>
+<br>
+<img src="windows/docs/screenshots/02-add.png" alt="Add App" width="820">
+</details>
+
+<details>
+<summary><b>Update Health</b></summary>
+<br>
+<img src="windows/docs/screenshots/03-health.png" alt="Update Health" width="820">
+</details>
+
+<details>
+<summary><b>Import / Export</b></summary>
+<br>
+<img src="windows/docs/screenshots/04-importexport.png" alt="Import and Export" width="820">
+</details>
+
+<details>
+<summary><b>Settings</b></summary>
+<br>
+<img src="windows/docs/screenshots/06-settings.png" alt="Settings" width="820">
+</details>
+
+## Install
+
+Download from the [Obtainium-PC 0.1 prerelease](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1):
+
+| File | Use it when |
+|---|---|
+| `Obtainium-PC-0.1-win-x64-Setup.exe` | You want a per-user installer. No admin needed, .NET runtime included. |
+| `Obtainium-PC-0.1-win-x64-portable.zip` | You want to unzip anywhere and run `ObtainiumPC.exe`. .NET runtime included. |
+
+Windows 10 1809 or newer, 64-bit. Not code-signed, so Windows SmartScreen may warn on first run.
+
+## Known limits of this prerelease
+
+<details open>
+<summary><b>Read before you rely on it</b></summary>
+
+<br>
+
+- A native crash (0xc000027b) was observed during development. It has not been reproduced in repeated stress testing and its cause is unknown. This build is not claimed to be stable.
+- The metered and battery checks use Windows' own state and were not tested on a real laptop.
+- Self-update through the public GitHub endpoint is not proven. It was tested only against a local test server.
+- Some store-specific error messages are still English only.
+- The app reports version 0.1.0 internally. Because the release tag is v0.1, self-update may offer this release as an update to itself. Install this prerelease manually from the installer or zip.
+
+</details>
+
+## Credit and license
+
+Obtainium-PC is a Windows port of [Obtainium](https://github.com/ImranR98/Obtainium) by ImranR98. All credit for the original idea, design and icon goes to the original author. This project keeps the original GPL-3.0 license (see [LICENSE.txt](LICENSE.txt)). The original Flutter/Android code stays in the repository for reference, and the original README is kept at [docs/README-upstream-android.md](docs/README-upstream-android.md).
+
+<div align="center">
+
+brought to you by Instinct
+
+</div>
