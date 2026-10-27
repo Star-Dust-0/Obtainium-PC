@@ -1200,7 +1200,7 @@ jobs:
           foreach ($i in 1..20) {
             Start-Sleep 1
             foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-              if ($el.Current.Name -like 'File name*') { $vp = $null; if ($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp)) { $fnEdit = $el; break } }
+              if ($el.Current.Name -like 'File name*') { $vp = $null; if ($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp) -and -not $vp.Current.IsReadOnly) { $fnEdit = $el; break } }
             }
             if ($fnEdit -ne $null) { break }
           }
