@@ -835,6 +835,51 @@ jobs:
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
           AssertAlive 'shuck-update'
+          # Add anyway: with the offer switched on, a source failure (nonexistent repository) shows the
+          # "Add without checking?" dialog; confirming adds a placeholder entry (URL as name, unknown version).
+          $phUrl = 'https://github.com/obtainium-smoke-nobody/does-not-exist-9731'
+          ClickNamedIn 'Settings' $win2
+          Start-Sleep 2
+          $aEl = FindNamed 'Offer to add apps without a version check when the source fails' $win2
+          if ($aEl -eq $null) { Shot 'addanyway-toggle-missing'; throw 'Settings has no add-without-check switch' }
+          try { $aEl.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {}
+          Start-Sleep 1
+          $aTp = $aEl.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+          if ($aTp.Current.ToggleState -ne 'On') { $aTp.Toggle(); Start-Sleep 1 }
+          $sj = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw | ConvertFrom-Json
+          if (-not $sj.AllowAddingAppsWithoutCheck) { throw 'add-without-check switch did not persist' }
+          Start-Process $exe -ArgumentList ('obtainium://add?url=' + [uri]::EscapeDataString($phUrl))
+          Start-Sleep 4
+          ClickNamedIn 'Add' $win2
+          $phDlg = $null
+          foreach ($i in 1..30) {
+            Start-Sleep 2
+            $phDlg = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Add without checking?')))
+            if ($phDlg -ne $null) { break }
+          }
+          Shot '40-add-anyway-dialog'
+          if ($phDlg -eq $null) { throw 'a failing source check did not offer to add without checking' }
+          ClickNamedIn 'Add anyway' $root
+          Start-Sleep 3
+          Shot '40b-add-anyway-added'
+          $phApps = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json
+          $phApp = @($phApps | Where-Object { $_.url -eq $phUrl })[0]
+          if ($phApp -eq $null) { throw 'Add anyway did not store the placeholder app' }
+          "placeholder stored: id=$($phApp.id) name=$($phApp.name) author=$($phApp.author) latest=$($phApp.latestVersion) apkUrls=$($phApp.apkUrls)"
+          if ($phApp.name -ne $phUrl) { throw "placeholder name is $($phApp.name), expected the URL" }
+          if ("$($phApp.id)" -notmatch '^[0-9a-f]{12}$') { throw "placeholder id is not a 12-char lowercase hex: $($phApp.id)" }
+          if ("$($phApp.apkUrls)" -notlike '*placeholder*') { throw 'placeholder asset list missing' }
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 3
+          Shot '40c-add-anyway-in-list'
+          AssertAlive 'add-anyway'
+          ClickNamedIn 'Settings' $win2
+          Start-Sleep 2
+          $aEl2 = FindNamed 'Offer to add apps without a version check when the source fails' $win2
+          if ($aEl2 -ne $null) { try { $aEl2.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {}; $t4 = $aEl2.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); if ($t4.Current.ToggleState -eq 'On') { $t4.Toggle(); Start-Sleep 1 } }
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+          'add anyway verified (dialog, placeholder stored, switch restored)'
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
 
