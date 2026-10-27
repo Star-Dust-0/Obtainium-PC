@@ -29,6 +29,7 @@ namespace ObtainiumPC
             // with the search box flexing; clamp instead of clipping them.
             SetMinimumTrackSize();
             Activated += MainWindow_Activated;
+            InitDownloadCenter();
         }
 
         private void MinimizeCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

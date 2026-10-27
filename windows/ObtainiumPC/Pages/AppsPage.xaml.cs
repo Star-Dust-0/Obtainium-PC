@@ -443,8 +443,10 @@ namespace ObtainiumPC.Pages
             // One download pipeline per app; errors land in results per app.
             async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress)
             {
-                var entry = Services.Download.DownloadRegistry.TryBegin(app.Id, asset.Key);
+                var entry = Services.Download.DownloadRegistry.TryBegin(app.Id, asset.Key, app.FinalName);
                 if (entry == null) { results.Add(app.FinalName + ": already downloading, skipped"); return; }
+                var outcome = Services.Download.DownloadState.Failed;
+                string? outcomeMessage = null;
                 try
                 {
                 var url = asset.Value;
@@ -459,7 +461,7 @@ namespace ObtainiumPC.Pages
                 Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
                     checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
                 var tracked = new Progress<(long Received, long? Total)>(pr => { Services.Download.DownloadRegistry.Report(entry, pr.Received, pr.Total); ((IProgress<(long Received, long? Total)>)progress).Report(pr); });
-                var path = await new DownloadService().DownloadAsync(url, asset.Key, tracked, pat, headers, verifyBeforePromote: checksumCheck);
+                var path = await new DownloadService().DownloadAsync(url, asset.Key, tracked, pat, headers, verifyBeforePromote: checksumCheck, ct: entry.Token);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
@@ -468,11 +470,24 @@ namespace ObtainiumPC.Pages
                 if (Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
                     dlSource?.SupportsInstall, asset.Key))
                 {
+                    outcome = Services.Download.DownloadState.InstallerOpened;
                     if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
                     else DownloadService.OpenInstaller(path);
                 }
+                else outcome = Services.Download.DownloadState.Saved;
                 }
-                finally { Services.Download.DownloadRegistry.End(entry); }
+                catch (OperationCanceledException) when (entry.CancelRequested)
+                {
+                    outcome = Services.Download.DownloadState.Cancelled;
+                    outcomeMessage = "Cancelled - partial file removed";
+                    results.Add(app.FinalName + ": cancelled");
+                }
+                catch (Exception ex)
+                {
+                    outcomeMessage = ex.Message;
+                    throw;
+                }
+                finally { Services.Download.DownloadRegistry.End(entry, outcome, outcomeMessage); }
             }
             // lib/providers/apps_provider_install.dart:1205 parallelDownloads
             // (default true): bulk downloads run concurrently when allowed;
@@ -489,7 +504,9 @@ namespace ObtainiumPC.Pages
                     bars[app.Id] = b;
                     panel.Children.Add(b);
                 }
-                var dlg = new ThemedContentDialog { Title = Services.Localization.Loc.T("Downloads"), Content = panel, XamlRoot = this.XamlRoot };
+                var dlg = new ThemedContentDialog { Title = Services.Localization.Loc.T("Downloads"), Content = panel, CloseButtonText = Services.Localization.Loc.T("Cancel downloads"), XamlRoot = this.XamlRoot };
+                var batchDone = false;
+                dlg.Closed += (_, _) => { if (!batchDone) foreach (var (a, _) in picks) Services.Download.DownloadRegistry.Get(a.Id)?.Cancel(); };
                 var showAll = dlg.ShowAsync();
                 await Task.WhenAll(picks.Select(async p =>
                 {
@@ -501,6 +518,7 @@ namespace ObtainiumPC.Pages
                     try { await DownloadOneAsync(p.App, p.Asset, progress); }
                     catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T)); }
                 }));
+                batchDone = true;
                 dlg.Hide();
                 try { await showAll; } catch { }
             }
@@ -509,7 +527,10 @@ namespace ObtainiumPC.Pages
                 foreach (var (app, asset) in picks)
                 {
                     var bar = new ProgressBar { Minimum = 0, Maximum = 100, Width = 320 };
-                    var progDlg = new ThemedContentDialog { Title = "Downloading " + app.FinalName, Content = bar, XamlRoot = this.XamlRoot };
+                    var progDlg = new ThemedContentDialog { Title = "Downloading " + app.FinalName, Content = bar, CloseButtonText = Services.Localization.Loc.T("Cancel download"), XamlRoot = this.XamlRoot };
+                    var oneDone = false;
+                    var capturedApp = app;
+                    progDlg.Closed += (_, _) => { if (!oneDone) Services.Download.DownloadRegistry.Get(capturedApp.Id)?.Cancel(); };
                     var showOp = progDlg.ShowAsync();
                     try
                     {
@@ -525,6 +546,7 @@ namespace ObtainiumPC.Pages
                     }
                     finally
                     {
+                        oneDone = true;
                         progDlg.Hide();
                         try { await showOp; } catch { }
                     }

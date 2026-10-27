@@ -3,6 +3,7 @@ using Xunit;
 
 namespace ObtainiumPC.Tests;
 
+[Collection("DownloadRegistry")]
 public class DownloadRegistryTests
 {
     [Fact]
@@ -53,6 +54,7 @@ public class DownloadRegistryTests
     }
 }
 
+[Collection("DownloadRegistry")]
 public class DownloadCenterTests
 {
     [Fact]
@@ -113,6 +115,56 @@ public class DownloadCenterTests
             DownloadRegistry.End(e, DownloadState.Saved);
         }
         Assert.True(DownloadRegistry.FinishedEntries().Count <= DownloadRegistry.HistoryLimit);
+        DownloadRegistry.ClearFinished();
+    }
+}
+
+[Collection("DownloadRegistry")]
+public class DownloadTextsTests
+{
+    [Fact]
+    public void Progress_with_and_without_a_known_total()
+    {
+        Assert.Equal("14.8 MB of 60.1 MB", DownloadTexts.Progress((long)(14.8 * 1048576), (long)(60.1 * 1048576)));
+        Assert.Equal("14.8 MB so far", DownloadTexts.Progress((long)(14.8 * 1048576), null));
+        Assert.Equal("14.8 MB so far", DownloadTexts.Progress((long)(14.8 * 1048576), 0));
+    }
+
+    [Fact]
+    public void Finished_states_never_say_installed()
+    {
+        foreach (var st in new[] { DownloadState.Saved, DownloadState.InstallerOpened, DownloadState.Cancelled, DownloadState.Failed })
+        {
+            var e = DownloadRegistry.TryBegin("tx-" + st, "x.exe", "X")!;
+            DownloadRegistry.End(e, st, "boom");
+            Assert.DoesNotContain("installed successfully", DownloadTexts.Status(e), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotMatch(@"^Installed", DownloadTexts.Status(e));
+        }
+        DownloadRegistry.ClearFinished();
+    }
+
+    [Fact]
+    public void Strip_prefers_active_jobs_and_summarises_several()
+    {
+        var a = DownloadRegistry.TryBegin("tx-a", "a.exe", "Alpha")!;
+        var b = DownloadRegistry.TryBegin("tx-b", "b.exe", "Beta")!;
+        a.Report(10 * 1048576, 100 * 1048576);
+        var (t1, _) = DownloadTexts.Strip(new[] { a }, new DownloadEntry[0], 0, null);
+        Assert.Equal("Downloading Alpha", t1);
+        var (t2, d2) = DownloadTexts.Strip(new[] { a, b }, new DownloadEntry[0], 20 * 1048576, null);
+        Assert.Equal("Downloading 2 apps", t2); Assert.Equal("20.0 MB so far", d2);
+        DownloadRegistry.End(a); DownloadRegistry.End(b); DownloadRegistry.ClearFinished();
+    }
+
+    [Fact]
+    public void Failed_without_message_and_cancelled_texts()
+    {
+        var a = DownloadRegistry.TryBegin("tx-c", "c.exe")!;
+        DownloadRegistry.End(a, DownloadState.Failed);
+        Assert.Equal("Failed", DownloadTexts.Status(a));
+        var b = DownloadRegistry.TryBegin("tx-d", "d.exe")!;
+        DownloadRegistry.End(b, DownloadState.Cancelled);
+        Assert.Equal("Cancelled - partial file removed", DownloadTexts.Status(b));
         DownloadRegistry.ClearFinished();
     }
 }

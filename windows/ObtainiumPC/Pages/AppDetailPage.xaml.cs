@@ -381,7 +381,7 @@ namespace ObtainiumPC.Pages
             var picked = await PickAssetAsync(assets, index);
             if (picked < 0) return;
             var asset = assets[picked];
-            var entry = Services.Download.DownloadRegistry.TryBegin(_app.Id, asset.Key);
+            var entry = Services.Download.DownloadRegistry.TryBegin(_app.Id, asset.Key, _app.FinalName);
             if (entry == null)
             {
                 Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("This app is already downloading."));
@@ -390,6 +390,8 @@ namespace ObtainiumPC.Pages
             UpdateButton.IsEnabled = false;
             InstallButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
+            var outcome = Services.Download.DownloadState.Failed;
+            string? outcomeMessage = null;
             try
             {
                 var progress = new Progress<(long Received, long? Total)>(p =>
@@ -417,7 +419,7 @@ namespace ObtainiumPC.Pages
                 Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
                     checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
                 var path = await new DownloadService().DownloadAsync(
-                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck);
+                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck, ct: entry.Token);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 _app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
                 await App.SaveAppsAsync();
@@ -427,6 +429,7 @@ namespace ObtainiumPC.Pages
                 // an installer on Windows.
                 var installable = Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
                     dlSource?.SupportsInstall, asset.Key);
+                outcome = installable ? Services.Download.DownloadState.InstallerOpened : Services.Download.DownloadState.Saved;
                 if (installable)
                 {
                     DownloadService.OpenInstaller(path);
@@ -452,13 +455,20 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 }
                 PostDownloadPanel.Visibility = Visibility.Visible;
             }
+            catch (OperationCanceledException) when (entry.CancelRequested)
+            {
+                outcome = Services.Download.DownloadState.Cancelled;
+                outcomeMessage = "Cancelled - partial file removed";
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("Download cancelled. The partial file was removed."));
+            }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
+                outcomeMessage = Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + outcomeMessage);
             }
             finally
             {
-                Services.Download.DownloadRegistry.End(entry);
+                Services.Download.DownloadRegistry.End(entry, outcome, outcomeMessage);
                 DownloadPanel.Visibility = Visibility.Collapsed;
                 // Recompute instead of blindly re-enabling: if detection already
                 // reconciled installed == latest, the action stays disabled.
