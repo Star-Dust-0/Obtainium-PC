@@ -171,8 +171,9 @@ namespace ObtainiumPC
         /// Explicit Exit (tray menu): always really exits, warning first when a download is running.
         private async System.Threading.Tasks.Task ExitAppAsync()
         {
+            Services.Logging.AppLogger.Info("Tray Exit requested");
             ShowFromTray();
-            if (DownloadRegistry.ActiveCount == 0) { _closeConfirmed = true; Close(); return; }
+            if (DownloadRegistry.ActiveCount == 0) { _closeConfirmed = true; Cleanup(); Close(); return; }
             await ConfirmCloseAsync();
         }
 
@@ -200,6 +201,7 @@ namespace ObtainiumPC
                 if (DownloadRegistry.ActiveCount > 0)
                     Services.Logging.AppLogger.Warn("Closing while a cancelled download was still unwinding; its partial file may remain in the download folder.");
                 _closeConfirmed = true;
+                Cleanup();
                 Close();
             }
             finally { _closeDialogOpen = false; }

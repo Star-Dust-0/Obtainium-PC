@@ -21,6 +21,8 @@ internal sealed class TrayFlyoutMenu
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtr(IntPtr h, int i);
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] static extern IntPtr SetWindowLongPtr(IntPtr h, int i, IntPtr v);
     [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr h, uint key, byte alpha, uint flags);
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     const int GWL_EXSTYLE = -20;
     const long WS_EX_LAYERED = 0x80000, WS_EX_TOOLWINDOW = 0x80;
 
@@ -98,7 +100,20 @@ internal sealed class TrayFlyoutMenu
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
         _current = flyout;
         var t0 = DateTime.UtcNow;
-        flyout.Opened += (_, _) => AppLogger.Info("Tray menu Opened");
+        var dismissTimer = host.DispatcherQueue.CreateTimer();
+        dismissTimer.Interval = TimeSpan.FromMilliseconds(150);
+        dismissTimer.Tick += (_, _) =>
+        {
+            GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
+            if (pid != (uint)Environment.ProcessId)
+            {
+                AppLogger.Info("Tray menu dismissed: foreground left app");
+                dismissTimer.Stop();
+                flyout.Hide();
+            }
+        };
+        flyout.Opened += (_, _) => { AppLogger.Info("Tray menu Opened"); dismissTimer.Start(); };
+        flyout.Closed += (_, _) => dismissTimer.Stop();
         flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");
         void ShowNow()
         {
