@@ -108,6 +108,18 @@ public static class SelfUpdate
         !(IsSelf(app) && SameRelease(app.InstalledVersion, app.LatestVersion))
         && Versioning.VersionService.IsAppUpdateable(app.InstalledVersion, app.LatestVersion, hideDowngrades);
 
+    /// <summary>The recorded install already is the latest release (exact match, or same release for the own app).</summary>
+    public static bool VersionsMatch(TrackedApp app) =>
+        app.InstalledVersion == app.LatestVersion || (IsSelf(app) && SameRelease(app.InstalledVersion, app.LatestVersion));
+
+    /// <summary>Detail-page action decision with the same own-app equivalence as the list.</summary>
+    public static (bool Enabled, bool FirstInstall) DetailAction(TrackedApp app)
+    {
+        var (enabled, first) = Versioning.VersionService.DetailAction(app.InstalledVersion, app.LatestVersion);
+        if (enabled && !first && VersionsMatch(app)) return (false, false);
+        return (enabled, first);
+    }
+
     /// <summary>Stable order with the own app moved to the end.</summary>
     public static List<T> OrderSelfLast<T>(IEnumerable<T> items, Func<T, TrackedApp> app) =>
         items.Where(i => !IsSelf(app(i))).Concat(items.Where(i => IsSelf(app(i)))).ToList();
