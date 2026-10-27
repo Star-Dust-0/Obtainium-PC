@@ -572,16 +572,18 @@ jobs:
           Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c);'
           foreach ($pn in 'WindowsTerminal','conhost','pwsh','powershell') { Get-Process $pn -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [W.U]::ShowWindow($_.MainWindowHandle, 6) | Out-Null } }
           Start-Sleep 2
+          $lg0 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          $c0 = ([regex]::Matches($lg0, 'Tray menu Closed')).Count
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 2
           $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
-          "tray menu Esc: Closed log count=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
+          "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           ClickAt 300 300; Start-Sleep 2
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
-          "tray menu click-away: Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
+          "tray menu click-away (count after Esc was above): Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
           Shot 'd23-after-clickaway'
           $script:shotWin = $w5
           $w3 = $w5
@@ -591,7 +593,7 @@ jobs:
           if ($tb) { RightClick $tb; Start-Sleep 2 }
           "clicked menu item Exit: $(MenuClick 'Exit' 813 668)"
           Start-Sleep 6
-          $p.Refresh(); "process exited after tray Exit: $($p.HasExited)"
+          "ObtainiumPC processes after tray Exit: $(@(Get-Process ObtainiumPC -ErrorAction SilentlyContinue).Count)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 
       - name: Preserve app logs

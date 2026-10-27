@@ -65,6 +65,17 @@ internal sealed class TrayFlyoutMenu
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(Item("Exit", "\uE7E8", _exit));
         flyout.Closed += (_, _) => host.DispatcherQueue.TryEnqueue(() => { try { host.AppWindow.Hide(); } catch { } });
+        // The default presenter paints its own opaque surface over any system backdrop. Make the
+        // presenter background a light tint so the acrylic behind the popup can show through.
+        try
+        {
+            var dark = (anchor.ActualTheme == ElementTheme.Dark);
+            var tint = dark ? Windows.UI.Color.FromArgb(0x66, 0x20, 0x20, 0x20) : Windows.UI.Color.FromArgb(0x66, 0xF3, 0xF3, 0xF3);
+            var style = new Style(typeof(MenuFlyoutPresenter));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(tint)));
+            flyout.MenuFlyoutPresenterStyle = style;
+        }
+        catch (Exception e) { AppLogger.Warn("Tray menu presenter tint failed", e); }
         string material = "none";
         try { flyout.SystemBackdrop = new DesktopAcrylicBackdrop(); material = "DesktopAcrylic"; }
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
