@@ -384,6 +384,45 @@ jobs:
             $script:shotWin = $null; Shot "w9-tray-$t"
             [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
           }
+
+          # ---- bulk / update-path cases: two updateable apps, Select -> Ctrl+A -> "Download updates" ----
+          function RunBulk($name, $over, $inst, $latest) {
+            Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+            $apps = @(@{ id='b1'; url='http://127.0.0.1:8099/slowtool.exe?b=1'; author='local'; name='BulkOne'; overrideSource='Direct File Link'; apkUrls='[]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest },
+                      @{ id='b2'; url='http://127.0.0.1:8099/slowtool.exe?b=2'; author='local'; name='BulkTwo'; overrideSource='Direct File Link'; apkUrls='[]'; otherAssetUrls='[]'; preferredApkIndex=0; additionalSettings='{}'; categories=@(); pinned=$false; disabled=$false; installedVersion=$inst; latestVersion=$latest })
+            ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
+            $st = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $false }
+            foreach ($k in $over.Keys) { $st[$k] = $over[$k] }
+            ($st | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+            Remove-Item (Join-Path $dir 'logs.jsonl') -ErrorAction SilentlyContinue
+            $script:cp = Start-Process $exe -PassThru; Start-Sleep 25
+            $wc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:cp.Id)
+            $script:cw = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wc)
+            if (-not $script:cw) { "WIRING [$name] no window"; return }
+            $script:win = $script:cw; $script:shotWin = $script:cw
+            $null = ClickByName 'Select' $script:cw; Start-Sleep 2
+            $null = ClickByName 'BulkOne' $script:cw; Start-Sleep 1
+            [System.Windows.Forms.SendKeys]::SendWait('^a'); Start-Sleep 1
+            Shot "w10-$name-selected"
+            $hasBtn = (FindNamed 'Download updates' $script:cw) -ne $null
+            $clicked = ClickByName 'Download updates' $script:cw; Start-Sleep 3
+            $texts = TextsLike '*'
+            $confirm = ($texts -match 'Download 2\?')
+            $picker = ($texts -match 'Choose a file')
+            $blocked = ($texts -match 'would downgrade')
+            Shot "w10-$name-after"
+            "WIRING [$name] inst=$inst latest=$latest downloadBtnPresent=$hasBtn clicked=$clicked bulkConfirmDialog=$confirm assetPicker=$picker downgradeBlockedMsg=$blocked"
+            "WIRING [$name] dialog/texts sample: $(($texts -split ' \| ' | Where-Object { $_ -match 'Download|Choose|downgrade|Cancel|blocked' } | Select-Object -First 8) -join ' | ')"
+            Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+          "== W10 SkipBulkUpdateConfirmation off/on =="
+          RunBulk 'bulk-confirm-default' @{} '1' '2'
+          RunBulk 'bulk-confirm-skipped' @{ SkipBulkUpdateConfirmation = $true } '1' '2'
+          "== W11 ShowAppDowngradeError on/off (installed 3 -> latest 2), confirmation skipped =="
+          RunBulk 'downgrade-error-on' @{ SkipBulkUpdateConfirmation = $true; ShowAppDowngradeError = $true } '3' '2'
+          RunBulk 'downgrade-error-off' @{ SkipBulkUpdateConfirmation = $true; ShowAppDowngradeError = $false } '3' '2'
+          "== W12 HideDowngrades on (installed 3 -> latest 2) =="
+          RunBulk 'hide-downgrades-on' @{ SkipBulkUpdateConfirmation = $true; HideDowngrades = $true } '3' '2'
           Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
 
       - name: Preserve app logs
