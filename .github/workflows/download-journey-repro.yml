@@ -612,9 +612,9 @@ jobs:
           $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
-          $tb = TrayButton; $oc = OpenedCount; if ($tb) { RightClick $tb; "menu opened before click-away: $(WaitMenuOpened $oc)" }
+          $opened = $false; for ($try = 1; $try -le 3 -and -not $opened; $try++) { $tb = TrayButton; $oc = OpenedCount; if ($tb) { RightClick $tb; $opened = [bool](WaitMenuOpened $oc); "click-away precondition attempt ${try}: menu opened = $opened" } else { "click-away precondition attempt ${try}: tray button not found" } }
           Shot 'd22b-before-clickaway'
-          ClickAt 300 300; Start-Sleep 3
+          if ($opened) { ClickAt 300 300; Start-Sleep 3 } else { "click-away SKIPPED: menu never opened, no assertion made" }
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           "tray menu click-away (count after Esc was above): Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
           Shot 'd23-after-clickaway'

@@ -41,6 +41,11 @@ internal sealed class TrayFlyoutMenu
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(CursorPoint p);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
     [StructLayout(LayoutKind.Sequential)] struct CursorPoint { public int X, Y; }
+    [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindow(string? cls, string? title);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out NativeRect r);
+    [StructLayout(LayoutKind.Sequential)] struct NativeRect { public int L, T, R, B; }
     readonly IntPtr _owner;
     const int GWL_EXSTYLE = -20;
     const long WS_EX_LAYERED = 0x80000, WS_EX_TOOLWINDOW = 0x80;
@@ -91,12 +96,37 @@ internal sealed class TrayFlyoutMenu
             SetLayeredWindowAttributes(hwnd, 0, 0, 2); // LWA_ALPHA, fully transparent host
         }
         var host = _host; var anchor = _anchor!;
-        host.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, Math.Max(0, y - 64), 1, 1));
+        var hostHwnd = WinRT.Interop.WindowNative.GetWindowHandle(host);
+        // Place the menu from the real work area and DPI: right-clamped, bottom-anchored above the click (or below it
+        // when the taskbar is at the top), and lifted above the notification overflow panel so it never covers it.
+        host.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, 1, 1));
+        double scale = Math.Max(1.0, GetDpiForWindow(hostHwnd) / 96.0);
+        int menuW = (int)(230 * scale), menuH = (int)(250 * scale);
+        var wa = Microsoft.UI.Windowing.DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(x, y), Microsoft.UI.Windowing.DisplayAreaFallback.Nearest).WorkArea;
+        int left = Math.Max(wa.X, Math.Min(x, wa.X + wa.Width - menuW));
+        int bottom = Math.Min(y, wa.Y + wa.Height);
+        string overflowNote = "none";
+        try
+        {
+            var ov = FindWindow("TopLevelWindowForOverflowXamlIsland", null);
+            if (ov != IntPtr.Zero && IsWindowVisible(ov) && GetWindowRect(ov, out var r)
+                && r.L < left + menuW && r.R > left && r.T < bottom && r.B > bottom - menuH)
+            {
+                overflowNote = $"overflow panel {r.L},{r.T},{r.R},{r.B}";
+                bottom = Math.Min(bottom, r.T - (int)(6 * scale));
+            }
+        }
+        catch { }
+        bool above = bottom - menuH >= wa.Y;
+        int anchorY = above ? bottom : Math.Min(Math.Max(y, wa.Y), wa.Y + wa.Height - menuH);
+        var placement = above ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft;
+        host.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(left, above ? anchorY - 1 : anchorY, 1, 1));
+        AppLogger.Info($"Tray menu placement: click={x},{y} workArea={wa.X},{wa.Y},{wa.Width}x{wa.Height} dpiScale={scale:0.00} anchor={left},{anchorY} placement={placement} overflow={overflowNote}");
         host.Activate();
-        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(host));
+        SetForegroundWindow(hostHwnd);
 
         var active = DownloadRegistry.ActiveCount;
-        var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.TopEdgeAlignedRight };
+        var flyout = new MenuFlyout { Placement = placement };
         MenuFlyoutItem Item(string text, string glyph, Action a, bool enabled = true)
         {
             var it = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
@@ -117,6 +147,7 @@ internal sealed class TrayFlyoutMenu
             var dark = (anchor.ActualTheme == ElementTheme.Dark);
             var tint = dark ? Windows.UI.Color.FromArgb(0x66, 0x20, 0x20, 0x20) : Windows.UI.Color.FromArgb(0x66, 0xF3, 0xF3, 0xF3);
             var style = new Style(typeof(MenuFlyoutPresenter));
+            if (Application.Current.Resources.TryGetValue("DefaultMenuFlyoutPresenterStyle", out var baseStyle) && baseStyle is Style bs) style.BasedOn = bs;
             style.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
             flyout.MenuFlyoutPresenterStyle = style;
         }
@@ -151,12 +182,29 @@ internal sealed class TrayFlyoutMenu
                 flyout.Hide();
             }
         };
-        flyout.Opened += (_, _) => { GetAsyncKeyState(1); AppLogger.Info("Tray menu Opened"); dismissTimer.Start(); };
+        flyout.Opened += (_, _) =>
+        {
+            GetAsyncKeyState(1); AppLogger.Info("Tray menu Opened"); dismissTimer.Start();
+            try
+            {
+                foreach (var pop in VisualTreeHelper.GetOpenPopupsForXamlRoot(anchor.XamlRoot))
+                {
+                    if (pop.Child is MenuFlyoutPresenter pr)
+                    {
+                        var before = (pr.Background as SolidColorBrush)?.Color.ToString() ?? pr.Background?.GetType().Name ?? "null";
+                        pr.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                        AppLogger.Info($"Tray menu presenter background was {before}, now transparent; popup child={pr.GetType().Name}");
+                    }
+                    else AppLogger.Info($"Tray menu popup child type={pop.Child?.GetType().Name}");
+                }
+            }
+            catch (Exception e) { AppLogger.Warn("Tray menu presenter walk failed", e); }
+        };
         flyout.Closed += (_, _) => dismissTimer.Stop();
         flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");
         void ShowNow()
         {
-            try { flyout.ShowAt(anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.TopEdgeAlignedRight, Position = new Windows.Foundation.Point(0, -80), ShowMode = FlyoutShowMode.Standard }); AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material}, host loaded={anchor.IsLoaded}, xamlRoot={anchor.XamlRoot != null})"); }
+            try { flyout.ShowAt(anchor, new FlyoutShowOptions { Placement = placement, ShowMode = FlyoutShowMode.Standard }); AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material}, host loaded={anchor.IsLoaded}, xamlRoot={anchor.XamlRoot != null})"); }
             catch (Exception e) { AppLogger.Warn("Tray menu ShowAt failed", e); }
         }
         // The first time, the host's XAML is not loaded yet; opening before that can show nothing.
