@@ -75,7 +75,7 @@ jobs:
                           while left > 0:
                               chunk = fh.read(min(65536, left))
                               self.wfile.write(chunk); left -= len(chunk)
-                              time.sleep(0.025)
+                              time.sleep(0.07)
                   except Exception as ex:
                       sys.stderr.write('abort %s\n' % ex)
           http.server.ThreadingHTTPServer(('127.0.0.1', 8099), H).serve_forever()
@@ -329,21 +329,23 @@ jobs:
           "installer launched (whoami processes ever started is unobservable); app alive"
 
           "== SCENARIO B: close the window while a download runs =="
-          ClickPartial 'SlowTool' $win | Out-Null
-          Start-Sleep 3
-          Remove-Item (Join-Path $dlDir '*slowtool.exe') -ErrorAction SilentlyContinue
-          StartDownload
-          Start-Sleep 5
-          "before close: $(PartInfo)"
-          Shot 'b1-before-close'
-          $null = $p.CloseMainWindow()
-          Start-Sleep 6
-          $p.Refresh()
-          "app exited after close: $($p.HasExited)"
-          Start-Sleep 5
-          "after close +11s: $(PartInfo)"
-          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
-          "ObtainiumPC processes remaining: $($procs.Count)"
+          try {
+            ClickPartial 'SlowTool' $win | Out-Null
+            Start-Sleep 3
+            Remove-Item (Join-Path $dlDir '*slowtool.exe') -ErrorAction SilentlyContinue
+            StartDownload
+            Start-Sleep 5
+            "before close: $(PartInfo)"
+            Shot 'b1-before-close'
+            $null = $p.CloseMainWindow()
+            Start-Sleep 6
+            $p.Refresh()
+            "app exited after close: $($p.HasExited)"
+            Start-Sleep 5
+            "after close +11s: $(PartInfo)"
+            $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+            "ObtainiumPC processes remaining: $($procs.Count)"
+          } catch { "SCENARIO B harness threw: $($_.Exception.Message)" }
           Get-Content (Join-Path $env:RUNNER_TEMP 'slow.log') -ErrorAction SilentlyContinue | Select-Object -Last 15
       - name: Preserve app logs
         if: always()
