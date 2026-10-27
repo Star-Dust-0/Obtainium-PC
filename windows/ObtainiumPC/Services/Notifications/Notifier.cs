@@ -17,6 +17,7 @@ public static class Notifier
 {
     static DispatcherQueue? _ui;
     static bool _registered;
+    static AppNotificationProgressResult? _lastProgressResult;
     static readonly HashSet<string> Tracked = new();
 
     public static bool Registered => _registered;
@@ -110,7 +111,9 @@ public static class Notifier
         try
         {
             var res = await AppNotificationManager.Default.UpdateAsync(p, tag, "downloads");
-            if (res != AppNotificationProgressResult.Succeeded) AppLogger.Info($"Notification progress update result: {res}");
+            if (res != AppNotificationProgressResult.Succeeded && _lastProgressResult != res)
+                AppLogger.Info($"Notification progress update result: {res}");
+            _lastProgressResult = res;
         }
         catch (Exception ex) { AppLogger.Warn("Notification progress update failed", ex); }
     }

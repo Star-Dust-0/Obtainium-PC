@@ -386,6 +386,11 @@ jobs:
           "part after close: $(PartInfo)"
           $script:shotWin = $null
           Shot 'd10-tray-after-close-fullscreen'
+          "clicked Show Hidden Icons: $(ClickByName 'Show Hidden Icons' $root)"
+          Start-Sleep 2
+          Shot 'd11-tray-overflow'
+          $tn = @(); foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like '*Obtainium*') { $tn += "$($el.Current.ControlType.ProgrammaticName):$($el.Current.Name)" } }
+          "tray/overflow elements named Obtainium: $($tn -join ' | ')"
           Start-Sleep 5
           "part 5s later: $(PartInfo)"
           foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
