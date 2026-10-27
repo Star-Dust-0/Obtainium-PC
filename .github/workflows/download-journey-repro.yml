@@ -113,11 +113,11 @@ jobs:
               author = 'local'; name = 'SlowTool'; overrideSource = 'Direct File Link'
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
-              installedVersion = '1'
+              installedVersion = '0'
             }
           )
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
-          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; ShowAppDowngradeError = $false }
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Enable crash dumps
         shell: pwsh
@@ -377,7 +377,7 @@ jobs:
           Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
           $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $aj = Get-Content $af -Raw | ConvertFrom-Json
-          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
           ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
           Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           $p = Start-Process $exe -PassThru
@@ -404,7 +404,7 @@ jobs:
           Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
           $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $aj = Get-Content $af -Raw | ConvertFrom-Json
-          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
           ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
           $sf = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $sj = Get-Content $sf -Raw | ConvertFrom-Json
@@ -484,7 +484,7 @@ jobs:
           Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
           $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $aj = Get-Content $af -Raw | ConvertFrom-Json
-          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
           ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
           Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           "== D9: tray menu: right-click the tray icon, list items, Open restores, Exit exits =="
