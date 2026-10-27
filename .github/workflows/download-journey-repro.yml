@@ -240,7 +240,7 @@ jobs:
 
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           function PartInfo() {
-            $x = Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'slowtool*' }
+            $x = Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*slowtool*' }
             if (-not $x) { return 'no slowtool files' }
             return (($x | ForEach-Object { "$($_.Name)=$($_.Length)" }) -join ', ')
           }
@@ -302,7 +302,7 @@ jobs:
           $up = FindNamed 'Update' $win; $ins = FindNamed 'Install' $win
           if ($up) { "a6 Update button enabled = $($up.Current.IsEnabled)" }
           if ($ins) { "a6 Install button enabled = $($ins.Current.IsEnabled)" }
-          foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter 'slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           Start-Sleep 3
           "after completion: $(PartInfo)"
           AssertAlive 'after-complete'; Shot 'a7-after-complete'
@@ -312,7 +312,7 @@ jobs:
           "== SCENARIO B: close the window while a download runs =="
           ClickPartial 'SlowTool' $win | Out-Null
           Start-Sleep 3
-          Remove-Item (Join-Path $dlDir 'slowtool.exe') -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $dlDir '*slowtool.exe') -ErrorAction SilentlyContinue
           StartDownload
           Start-Sleep 5
           "before close: $(PartInfo)"
