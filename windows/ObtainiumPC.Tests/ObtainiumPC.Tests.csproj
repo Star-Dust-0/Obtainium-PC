@@ -30,6 +30,7 @@
     <Compile Include="..\ObtainiumPC\Services\Download\InstallCheck.cs" Link="Services\InstallCheck.cs" />
     <Compile Include="..\ObtainiumPC\Services\Download\DownloadService.cs" Link="Services\DownloadService.cs" />
     <Compile Include="..\ObtainiumPC\Services\Versioning\*.cs" LinkBase="Services\Versioning" />
+    <Compile Include="..\ObtainiumPC\Services\ExeIconResource.cs" Link="Services\ExeIconResource.cs" />
     <Compile Include="..\ObtainiumPC\Services\Updates\UpdateHealthService.cs" Link="Services\UpdateHealthService.cs" />
     <Compile Include="..\ObtainiumPC\Services\Updates\SelfUpdate.cs" Link="Services\SelfUpdate.cs" />
     <Compile Include="..\ObtainiumPC\Services\Detection\InstalledAppsService.cs" Link="Services\InstalledAppsService.cs" />

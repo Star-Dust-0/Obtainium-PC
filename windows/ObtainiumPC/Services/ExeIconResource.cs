@@ -64,6 +64,9 @@ internal static class ExeIconResource
                 entries.Add((hdr, img));
             }
             if (entries.Count == 0) return null;
+            // The decoder shows the first frame. Exe groups are often authored smallest-first, which made a 16px frame get
+            // stretched to the 32-48 DIP list/detail slot (the soft, pixelated look). Largest frame first; width 0 means 256.
+            entries = entries.OrderByDescending(e => e.hdr[0] == 0 ? 256 : e.hdr[0]).ThenByDescending(e => BitConverter.ToUInt16(e.hdr, 6)).ToList();
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             bw.Write((ushort)0); bw.Write((ushort)1); bw.Write((ushort)entries.Count);

@@ -16,7 +16,7 @@ public static class AppIconService
         if (!u.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) && !u.Host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase)) return null;
         var parts = u.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 1) return null;
-        return new Uri("https://github.com/" + Uri.EscapeDataString(parts[0]) + ".png?size=96");
+        return new Uri("https://github.com/" + Uri.EscapeDataString(parts[0]) + ".png?size=192");
     }
 
     private static IReadOnlyList<ObtainiumPC.Services.Detection.InstalledAppInfo>? _installed;
