@@ -294,6 +294,7 @@ jobs:
             ClickNamed 'Download'
             Start-Sleep 2
             Shot 'sd-after-download-click'
+            Start-Sleep 5; Shot 'sd-5s-after-click'
             $pt = (TextsLike '*'); "post-click texts: $($pt.Substring(0, [Math]::Min(500, $pt.Length)))"
           }
 
@@ -615,6 +616,9 @@ jobs:
           if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
           $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           if (Test-Path $af) { Copy-Item $af shots\apps-final.json }
+          Get-ChildItem -Recurse (Join-Path $env:LOCALAPPDATA 'ObtainiumPC') -ErrorAction SilentlyContinue | Select-Object FullName,Length | Out-String -Width 300 | Out-File shots\appdata-listing.txt
+          $sl = Join-Path $env:RUNNER_TEMP 'slow.log'; if (Test-Path $sl) { Copy-Item $sl shots\slow-server.log }
+          Get-ChildItem (Join-Path $env:LOCALAPPDATA 'ObtainiumPC') -Filter *.jsonl* -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName ("shots\applog-" + $_.Name) }
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
           # Native-crash evidence (WinUI/CLR faults do not reach logs.jsonl).
