@@ -71,6 +71,7 @@ public static class DownloadCoordinator
                 catch { /* registry read failed: treated as not detected */ }
                 lastDetected = detected;
                 lastResult = InstallCheck.Evaluate(detected, expected, previous);
+                Logging.AppLogger.Info($"Install check for {app.FinalName}: detected='{detected}' expected='{expected}' previous='{previous}' -> {lastResult}");
                 if (lastResult == InstallCheckResult.Confirmed)
                 {
                     app.InstalledVersionSource = "os";
