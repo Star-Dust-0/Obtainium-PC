@@ -321,7 +321,7 @@ jobs:
               author = 'local'; name = 'SlowTool'; overrideSource = 'Direct File Link'
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
-              installedVersion = '1'
+              installedVersion = '1'; latestVersion = '1'
             }, @{
               id = 'seed-other'; url = 'http://127.0.0.1:8099/slowtool.exe?o=1'
               author = 'local'; name = 'OtherTool'; overrideSource = 'Direct File Link'
