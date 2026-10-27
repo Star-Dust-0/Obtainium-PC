@@ -243,6 +243,7 @@ namespace ObtainiumPC.Pages
         {
             if ((sender as Button)?.Tag is not string name) return;
             App.Settings.CategoryColors.Remove(name);
+            App.Settings.PruneExcludedCategories();
             App.Settings.Save();
             foreach (var a in App.TrackedApps.Where(a => a.Categories.Remove(name))) { }
             await App.SaveAppsAsync();

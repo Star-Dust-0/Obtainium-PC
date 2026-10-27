@@ -61,6 +61,9 @@ public sealed class BackgroundUpdateService
             foreach (var app in App.SnapshotApps().Where(a => !a.Disabled).ToList())
             {
                 if (!manual && app.GetSettingBool("exemptFromBackgroundUpdates")) continue;
+                // lib/providers/apps_provider_updates.dart getAppsSortedByUpdateCheckTime:
+                // apps in a category excluded from checks are skipped.
+                if (App.Settings.IsExcludedFromChecks(app.Categories)) continue;
                 // lib/providers/apps_provider_updates.dart: when
                 // onlyCheckInstalledOrTrackOnlyApps is on, checks are limited
                 // to installed or track-only apps.

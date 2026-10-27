@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 
 namespace ObtainiumPC.Services.Settings;
@@ -40,6 +41,13 @@ public sealed class AppSettings
     public bool ExportInstalledOnly { get; set; }
     // lib/providers/settings_provider.dart categories: name -> ARGB color int.
     public System.Collections.Generic.Dictionary<string, int> CategoryColors { get; set; } = new();
+    // lib/providers/settings_provider.dart categoriesExcludedFromChecks: apps in any of
+    // these categories are skipped by update checks (default: none).
+    public System.Collections.Generic.HashSet<string> CategoriesExcludedFromChecks { get; set; } = new();
+    public bool IsExcludedFromChecks(System.Collections.Generic.IEnumerable<string> appCategories)
+        => CategoriesExcludedFromChecks.Count > 0 && appCategories.Any(CategoriesExcludedFromChecks.Contains);
+    /// <summary>Upstream setCategories prunes exclusions for removed categories.</summary>
+    public void PruneExcludedCategories() => CategoriesExcludedFromChecks.RemoveWhere(c => !CategoryColors.ContainsKey(c));
     public string Language { get; set; } = ""; // "" = follow system (upstream forcedLocale null)
     // lib/providers/settings_provider.dart groupBy: none | category | source.
     public string GroupBy { get; set; } = "none";
