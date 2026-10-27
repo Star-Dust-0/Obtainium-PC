@@ -24,6 +24,19 @@ internal sealed class TrayFlyoutMenu
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, System.Text.StringBuilder sb, int max);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder sb, int max);
+    static string DescribeForeground()
+    {
+        try
+        {
+            var h = GetForegroundWindow(); var cls = new System.Text.StringBuilder(128); var ttl = new System.Text.StringBuilder(128);
+            GetClassName(h, cls, 128); GetWindowText(h, ttl, 128); GetWindowThreadProcessId(h, out var pid);
+            string pn; try { pn = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { pn = "?"; }
+            return $"foreground hwnd={h} class='{cls}' title='{ttl}' process={pn}({pid}) ownPid={Environment.ProcessId}";
+        }
+        catch (Exception e) { return "foreground unknown: " + e.Message; }
+    }
     [DllImport("user32.dll")] static extern bool GetCursorPos(out CursorPoint p);
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(CursorPoint p);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
@@ -61,7 +74,7 @@ internal sealed class TrayFlyoutMenu
             {
                 if (a.WindowActivationState == WindowActivationState.Deactivated && _current != null)
                 {
-                    AppLogger.Info("Tray menu hidden: focus moved to another window");
+                    AppLogger.Info("Tray menu hidden: focus moved to another window; " + DescribeForeground());
                     try { _current.Hide(); } catch { }
                 }
             };

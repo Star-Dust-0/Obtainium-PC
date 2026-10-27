@@ -585,13 +585,14 @@ jobs:
           Start-Sleep 2
           $lg0 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           $c0 = ([regex]::Matches($lg0, 'Tray menu Closed')).Count
-          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep -Milliseconds 700 }
           $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
+          Start-Sleep 2; Shot 'd21b-2s-later'
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 2
           $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
-          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep -Milliseconds 700 }
           Shot 'd22b-before-clickaway'
           ClickAt 300 300; Start-Sleep 3
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
