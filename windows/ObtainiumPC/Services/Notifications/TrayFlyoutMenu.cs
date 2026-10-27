@@ -27,6 +27,13 @@ internal sealed class TrayFlyoutMenu
     readonly Action _open, _downloads, _cancelAll, _check, _exit;
     Window? _host;
     Grid? _anchor;
+    MenuFlyout? _current;
+
+    /// The hidden host is a real window: it must be closed on exit or the process never ends.
+    public void Close()
+    {
+        try { var h = _host; _host = null; _current = null; h?.Close(); } catch (Exception e) { AppLogger.Warn("Tray menu host close failed", e); }
+    }
 
     public TrayFlyoutMenu(Action open, Action downloads, Action cancelAll, Action check, Action exit)
     { _open = open; _downloads = downloads; _cancelAll = cancelAll; _check = check; _exit = exit; }
@@ -40,6 +47,16 @@ internal sealed class TrayFlyoutMenu
             var ap = _host.AppWindow;
             if (ap.Presenter is OverlappedPresenter op) { op.SetBorderAndTitleBar(false, false); op.IsResizable = false; op.IsMinimizable = false; op.IsMaximizable = false; }
             ap.IsShownInSwitchers = false;
+            // Clicking another window leaves the flyout open (light dismiss only covers this XAML root): hide it
+            // when the host loses activation.
+            _host.Activated += (_, a) =>
+            {
+                if (a.WindowActivationState == WindowActivationState.Deactivated && _current != null)
+                {
+                    AppLogger.Info("Tray menu hidden: focus moved to another window");
+                    try { _current.Hide(); } catch { }
+                }
+            };
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_host);
             var ex = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64() | WS_EX_LAYERED | WS_EX_TOOLWINDOW;
             SetWindowLongPtr(hwnd, GWL_EXSTYLE, (IntPtr)ex);
@@ -79,6 +96,7 @@ internal sealed class TrayFlyoutMenu
         string material = "none";
         try { flyout.SystemBackdrop = new DesktopAcrylicBackdrop(); material = "DesktopAcrylic"; }
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
+        _current = flyout;
         var t0 = DateTime.UtcNow;
         flyout.Opened += (_, _) => AppLogger.Info("Tray menu Opened");
         flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");

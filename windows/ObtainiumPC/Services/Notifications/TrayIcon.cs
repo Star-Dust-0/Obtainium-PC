@@ -81,7 +81,7 @@ public sealed class TrayIcon : IDisposable
         if (_icon != IntPtr.Zero) { DestroyIcon(_icon); _icon = IntPtr.Zero; }
     }
 
-    public void Dispose() => Hide();
+    public void Dispose() { Hide(); _flyout?.Close(); _flyout = null; }
 
     NOTIFYICONDATA Data() => new()
     {
