@@ -503,13 +503,22 @@ jobs:
           "clicked Close (hide to tray): $(ClickByName 'Close' $win)"
           Start-Sleep 3
           $script:shotWin = $null
+          function OnTaskbar($el) {
+            # The running app's own taskbar button has the same name as its tray icon; a right-click there opens a jump list.
+            try {
+              $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+              $cur = $el; $top = $el
+              while ($cur -ne $null) { $top = $cur; $cur = $walker.GetParent($cur); if ($cur -ne $null -and $cur.Equals($root)) { break } }
+              return ($top.Current.ClassName -eq 'Shell_TrayWnd')
+            } catch { return $false }
+          }
           function TrayButton() {
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium-PC')
             $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
-            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0) { return $el } }
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0 -and -not (OnTaskbar $el)) { return $el } }
             ClickByName 'Show Hidden Icons' $root | Out-Null; Start-Sleep 2
             $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
-            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0) { return $el } }
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0 -and -not (OnTaskbar $el)) { return $el } }
             return $null
           }
           function RightClick($el) {
