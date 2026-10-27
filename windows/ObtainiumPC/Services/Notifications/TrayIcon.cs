@@ -104,6 +104,28 @@ public sealed class TrayIcon : IDisposable
 
     void ShowMenu()
     {
+        // Native-first: the WinUI 3 MenuFlyout (Windows 11 rounded menu, theme-following, acrylic when the
+        // OS material is available). If it cannot be shown, fall back to the classic menu and log why,
+        // so the tray is never left without a menu.
+        try
+        {
+            GetCursorPos(out var p);
+            _flyout ??= new TrayFlyoutMenu(Open, Downloads, CancelAll, Check, Exit);
+            if (_flyout.Show(p.X, p.Y)) return;
+        }
+        catch (Exception ex) { AppLogger.Warn("WinUI tray menu failed; using classic menu", ex); }
+        ShowClassicMenu();
+    }
+
+    TrayFlyoutMenu? _flyout;
+    void Open() => _open();
+    void Downloads() => _downloads();
+    void CancelAll() => DownloadRegistry.CancelAll();
+    void Check() => _check();
+    void Exit() => _exit();
+
+    void ShowClassicMenu()
+    {
         var m = CreatePopupMenu();
         try
         {
