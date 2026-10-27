@@ -361,6 +361,36 @@ jobs:
           $p.Refresh()
           "app exited after confirmed close: $($p.HasExited)"
           "after confirmed close: $(PartInfo)"
+          "== D7: tray opt-in. Close must hide the window, keep the process and the download running =="
+          $sf = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $sj = Get-Content $sf -Raw | ConvertFrom-Json
+          $sj | Add-Member -NotePropertyName TrayIcon -NotePropertyValue $true -Force
+          ($sj | ConvertTo-Json) | Set-Content $sf
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $p.Refresh(); "tray run alive: $(-not $p.HasExited)"
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          StartDownload
+          Start-Sleep 4
+          "part before close: $(PartInfo)"
+          "clicked Close (tray on): $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          $p.Refresh(); "process alive after Close with tray: $(-not $p.HasExited)"
+          $w2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          "window still visible to UIA: $($w2 -ne $null)"
+          "part after close: $(PartInfo)"
+          $script:shotWin = $null
+          Shot 'd10-tray-after-close-fullscreen'
+          Start-Sleep 5
+          "part 5s later: $(PartInfo)"
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          "download finished while window hidden: $(PartInfo)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 
       - name: Preserve app logs
         if: always()
