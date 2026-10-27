@@ -346,6 +346,7 @@ jobs:
           StartDownload
           Start-Sleep 3
           Shot 'd5-restarted'
+          $keep = $script:shotWin; $script:shotWin = $null; Shot 'd17-taskbar-progress-fullscreen'; $script:shotWin = $keep
           "== D5: close the window while downloading: warning must appear and keep downloading =="
           "clicked Close: $(ClickByName 'Close' $win)"
           Start-Sleep 3
