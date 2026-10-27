@@ -604,7 +604,7 @@ jobs:
           $lg0 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           $c0 = ([regex]::Matches($lg0, 'Tray menu Closed')).Count
           # Same state as the passing tray steps: window hidden to the tray, so the overflow tray icon is the only match.
-          "clicked Close (hide to tray) for D10: $(ClickByName 'Close' $win)"; Start-Sleep 3
+          "clicked Close (hide to tray) for D10: $(ClickByName 'Close' $w5)"; Start-Sleep 3
           $tb = TrayButton; $oc = OpenedCount; "D10 tray button: $(if ($tb) { $tb.Current.BoundingRectangle.ToString() + ' class=' + $tb.Current.ClassName } else { 'null' })"; if ($tb) { RightClick $tb; "menu opened after click: $(WaitMenuOpened $oc)" }
           $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
           Start-Sleep -Milliseconds 800; Shot 'd21b-800ms-later'
