@@ -679,7 +679,7 @@ namespace ObtainiumPC.Pages
             // WinUI 3: SelectedItems.Clear() once SelectionMode is already
             // None throws COMException 0x8000FFFF (smoke run 40201607255
             // crash evidence). Clear while the list is still Multiple.
-            if (!selecting) AppsList.SelectedItems.Clear();
+            if (!selecting && AppsList.SelectionMode != ListViewSelectionMode.None) AppsList.SelectedItems.Clear();
             AppsList.SelectionMode = selecting ? ListViewSelectionMode.Multiple : ListViewSelectionMode.None;
             AppsList.IsItemClickEnabled = !selecting;
             BatchBar.Visibility = selecting ? Visibility.Visible : Visibility.Collapsed;
@@ -690,8 +690,10 @@ namespace ObtainiumPC.Pages
 
         private void ExitSelection()
         {
-            SelectToggle.IsChecked = false;
-            SelectToggle_Changed(this, new RoutedEventArgs());
+            // Setting IsChecked raises Unchecked synchronously. Do not run the handler twice:
+            // the second pass would clear SelectedItems after SelectionMode became None (COM 8000FFFF).
+            if (SelectToggle.IsChecked == true) SelectToggle.IsChecked = false;
+            else SelectToggle_Changed(this, new RoutedEventArgs());
         }
 
         // lib/pages/apps.dart pinSelectedApps: unpin only when every selected

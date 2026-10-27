@@ -406,6 +406,8 @@ jobs:
             Shot "w10-$name-selected"
             $hasBtn = (FindNamed 'Download updates' $script:cw) -ne $null
             $clicked = ClickByName 'Download updates' $script:cw; Start-Sleep 8
+            $script:cp.Refresh()
+            if ($script:cp.HasExited) { throw "WIRING [$name] app exited after bulk action" }
             $texts = TextsLike '*'
             $confirm = ($texts -match 'Download 2\?')
             $picker = ($texts -match 'Choose a file')
