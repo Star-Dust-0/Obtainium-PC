@@ -537,6 +537,7 @@ jobs:
           $script:shotWin = $w4; Shot 'd19-tray-downloads-flyout'
           "flyout texts after tray Downloads: $(TextsLike 'Cancelled*') ; $(TextsLike '*partial*')"
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          $win = $w4
           $before = TextsLike 'Last update check*'
           $luBefore = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
           "clicked Close (hide again): $(ClickByName 'Close' $w4)"; Start-Sleep 3; $script:shotWin = $null
@@ -545,9 +546,10 @@ jobs:
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
           ClickAt 850 572; Start-Sleep 3
           $w5 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond); $script:shotWin = $w5
+          $win = $w5
           $after = TextsLike 'Last update check*'
           $luAfter = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
-          "tray Check for updates: apps.json lastUpdateCheck before=$luBefore after=$luAfter changed=$($luBefore -ne $luAfter)"
+          "tray Check for updates: UI text changed=$($before -ne $after) (before: $before ; after: $after) ; apps.json lastUpdateCheck before=$luBefore after=$luAfter changed=$($luBefore -ne $luAfter)"
           "update check text before: $before ; after: $after"
           Shot 'd20-after-tray-check'
           $w3 = $w5

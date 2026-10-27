@@ -34,6 +34,8 @@ namespace ObtainiumPC.Pages
             base.OnNavigatedTo(e);
             Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
             Services.Download.DownloadRegistry.ListChanged += OnRegistryListChanged;
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdatedElsewhere;
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated += OnAppsUpdatedElsewhere;
             await App.InitAsync();
             var id = e.Parameter as string;
             _app = App.TrackedApps.FirstOrDefault(a => a.Id == id);
@@ -315,8 +317,20 @@ namespace ObtainiumPC.Pages
             }
         });
 
+        /// A check that finished elsewhere (background pass, tray "Check for updates", bulk update) changed
+        /// the stored app: show its new latest version, last-check time and Update state here too.
+        private void OnAppsUpdatedElsewhere(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_app == null) return;
+            var fresh = App.TrackedApps.FirstOrDefault(a => a.Id == _app.Id);
+            if (fresh == null) return;
+            _app = fresh;
+            Render();
+        });
+
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdatedElsewhere;
             Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
             DetachInFlightDownload();
             base.OnNavigatedFrom(e);
