@@ -1218,10 +1218,10 @@ jobs:
           foreach ($i in 1..6) {
             Start-Sleep 1
             $yes = $null
-            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))) {
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
               if ($el.Current.Name -eq 'Yes') { $yes = $el; break }
             }
-            if ($yes -ne $null) { try { $yes.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {}; 'overwrite confirmation accepted'; break }
+            if ($yes -ne $null) { $acc = $false; try { $yes.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $acc = $true } catch { 'Yes invoke failed: ' + $_.Exception.Message }; if (-not $acc) { [System.Windows.Forms.SendKeys]::SendWait('%y') }; 'overwrite confirmation accepted'; break }
           }
           $exportDone = $false
           foreach ($i in 1..20) {
