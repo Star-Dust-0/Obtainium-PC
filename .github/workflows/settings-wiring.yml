@@ -322,6 +322,12 @@ jobs:
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
               installedVersion = '1'
+            }, @{
+              id = 'seed-other'; url = 'http://127.0.0.1:8099/slowtool.exe?o=1'
+              author = 'local'; name = 'OtherTool'; overrideSource = 'Direct File Link'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+              installedVersion = $null
             })
             ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
           }
@@ -337,18 +343,20 @@ jobs:
             Start-Sleep $waitSec
             $script:cp.Refresh()
             if ($script:cp.HasExited) { "WIRING [$name] app exited at launch"; return }
-            $a = (Get-Content (Join-Path $dir 'apps.json') -Raw | ConvertFrom-Json)[0]
+            $all2 = @(Get-Content (Join-Path $dir 'apps.json') -Raw | ConvertFrom-Json); $a = $all2 | Where-Object { $_.id -eq 'seed-slow' }; $o = $all2 | Where-Object { $_.id -eq 'seed-other' }
             $logs = ''
             if (Test-Path (Join-Path $dir 'logs.jsonl')) { $logs = Get-Content (Join-Path $dir 'logs.jsonl') -Raw }
             $notify = ([regex]::Matches($logs, 'Notification requested: update available')).Count
             $wc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:cp.Id)
             $script:cw = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wc)
-            "WIRING [$name] latestVersion='$($a.latestVersion)' lastUpdateCheck='$($a.lastUpdateCheck)' apkUrls='$($a.apkUrls)' notifyLogs=$notify deepLinkKey=$(Test-Path $classes) window=$($script:cw -ne $null)"
+            "WIRING [$name] latestVersion='$($a.latestVersion)' lastUpdateCheck='$($a.lastUpdateCheck)' apkUrls='$($a.apkUrls)' notifyLogs=$notify deepLinkKey=$(Test-Path $classes) window=$($script:cw -ne $null) other.lastUpdateCheck='$($o.lastUpdateCheck)' other.latest='$($o.latestVersion)'"
+            foreach ($ln in ($logs -split "`n" | Where-Object { $_ -match 'otification' } | Select-Object -First 3)) { "WIRING [$name] log: $($ln.Substring(0, [Math]::Min(200, $ln.Length)))" }
           }
           "== W1 baseline defaults =="; RunCase 'baseline' @{} 40
           if ($script:cw) { $script:shotWin = $script:cw; Shot 'w1-baseline-list' }
           "== W2 GlobalVersionExtractionRegEx '^.{4}' =="; RunCase 'global-version-regex' @{ GlobalVersionExtractionRegEx = '^.{4}' } 40
           "== W3 GlobalAssetFilterRegEx 'zzz-nomatch' =="; RunCase 'global-asset-filter' @{ GlobalAssetFilterRegEx = 'zzz-nomatch' } 40
+          "== W3b OnlyCheckInstalledOrTrackOnlyApps on =="; RunCase 'only-installed-on' @{ OnlyCheckInstalledOrTrackOnlyApps = $true } 45
           "== W4 CheckOnStart off =="; RunCase 'check-on-start-off' @{ CheckOnStart = $false } 40
           "== W5 NotifyUpdates off (check on start on) =="; RunCase 'notify-off' @{ NotifyUpdates = $false } 40
           "== W6 HandleObtainiumLinks off =="; RunCase 'deep-links-off' @{ HandleObtainiumLinks = $false } 30
