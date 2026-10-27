@@ -65,7 +65,7 @@ internal sealed class TrayFlyoutMenu
             SetLayeredWindowAttributes(hwnd, 0, 0, 2); // LWA_ALPHA, fully transparent host
         }
         var host = _host; var anchor = _anchor!;
-        host.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, 1, 1));
+        host.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, Math.Max(0, y - 64), 1, 1));
         host.Activate();
         SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(host));
 
@@ -95,6 +95,11 @@ internal sealed class TrayFlyoutMenu
             flyout.MenuFlyoutPresenterStyle = style;
         }
         catch (Exception e) { AppLogger.Warn("Tray menu presenter tint failed", e); }
+        try
+        {
+            AppLogger.Info($"Tray acrylic environment: supported={Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController.IsSupported()}, advancedEffects={new Windows.UI.ViewManagement.UISettings().AdvancedEffectsEnabled}, energySaver={Windows.System.Power.PowerManager.EnergySaverStatus}");
+        }
+        catch (Exception e) { AppLogger.Warn("Tray acrylic environment unavailable", e); }
         string material = "none";
         try { flyout.SystemBackdrop = new DesktopAcrylicBackdrop(); material = "DesktopAcrylic"; }
         catch (Exception e) { AppLogger.Warn("Tray menu acrylic backdrop unavailable", e); }
