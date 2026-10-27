@@ -54,6 +54,18 @@ public static class AssetFilterService
         return stored.Count > 0 && IsAndroidOnlyArtifactSet(stored);
     }
 
+    /// Port of apps_provider_updates.dart _isReleaseYoungerThanMinAge: true when a fetched release that
+    /// differs from the stored latest version is younger than the minimum update age. A record with no
+    /// stored latest version is never suppressed (there would be nothing to fall back to).
+    public static bool ShouldSuppressYoungRelease(string? currentLatestVersion, string? fetchedVersion,
+        DateTimeOffset? releaseDate, int minAgeDays, DateTimeOffset? now = null)
+    {
+        if (string.IsNullOrEmpty(currentLatestVersion)) return false;
+        if (currentLatestVersion == fetchedVersion) return false;
+        if (releaseDate is null || minAgeDays <= 0) return false;
+        return ((now ?? DateTimeOffset.UtcNow) - releaseDate.Value).TotalDays < minAgeDays;
+    }
+
     public static bool IsAndroidPackage(string name) =>
         AndroidPackageExtensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase));
 

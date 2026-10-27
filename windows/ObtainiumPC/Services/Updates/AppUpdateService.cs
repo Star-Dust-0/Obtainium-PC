@@ -180,18 +180,28 @@ public sealed class AppUpdateService
             if (corrected != null) app.InstalledVersion = corrected;
         }
 
-        app.LatestVersion = version;
-        app.AssetUrls = assetUrls;
-        app.OtherAssetUrls = details.AllAssetUrls;
-        app.ReleaseDateUs = details.ReleaseDate is { } rd2 ? TrackedApp.ToMicroseconds(rd2) : null;
-        app.ChangeLog = details.ChangeLog;
-        app.ReleaseUrl = source.ChangeLogPageFromStandardUrl(standardUrl) ?? standardUrl + "/releases";
+        // lib/providers/apps_provider_updates.dart: an update whose release is younger than the
+        // minimum update age stays suppressed (release fields keep the current values) so a source
+        // that cannot look back to an older release still honors the supply-chain delay.
+        var perAppMinAge = SettingString(settings, "minimumUpdateAgeDays") is { } rawAge && int.TryParse(rawAge, out var pAge)
+            ? pAge : _settings.MinimumUpdateAgeDays;
+        var suppressYoung = currentApp != null
+            && AssetFilterService.ShouldSuppressYoungRelease(currentApp.LatestVersion, version, details.ReleaseDate, perAppMinAge);
+        if (!suppressYoung)
+        {
+            app.LatestVersion = version;
+            app.AssetUrls = assetUrls;
+            app.OtherAssetUrls = details.AllAssetUrls;
+            app.ReleaseDateUs = details.ReleaseDate is { } rd2 ? TrackedApp.ToMicroseconds(rd2) : null;
+            app.ChangeLog = details.ChangeLog;
+            app.ReleaseUrl = source.ChangeLogPageFromStandardUrl(standardUrl) ?? standardUrl + "/releases";
+        }
         app.IsArchived = details.IsArchived;
         app.NewerReleasesFilteredOut = details.NewerReleasesFilteredOut;
         app.LastUpdateCheckUs = TrackedApp.ToMicroseconds(DateTimeOffset.Now);
         app.ConsecutiveFailedChecks = 0;
         if (currentApp == null) app.AdditionalSettingsJson = JsonSerializer.Serialize(settings);
-        if (app.LatestVersionChangedAtUs == null || currentApp?.LatestVersion != version)
+        if (!suppressYoung && (app.LatestVersionChangedAtUs == null || currentApp?.LatestVersion != version))
             app.LatestVersionChangedAtUs = TrackedApp.ToMicroseconds(DateTimeOffset.Now);
         return app;
     }
