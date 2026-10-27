@@ -78,6 +78,7 @@ public static class DownloadCoordinator
                     var corrected = Versioning.VersionService.ReconcileTrackedVersion(app.InstalledVersion, detected!, expected ?? detected!, true, false);
                     app.InstalledVersion = corrected ?? detected;
                     await App.SaveAppsAsync();
+                    Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
                     entry.SetState(DownloadState.Installed, "version " + detected + " confirmed");
                     return;
                 }

@@ -251,6 +251,7 @@ namespace ObtainiumPC.Pages
         }
 
         private Services.Download.DownloadEntry? _attached;
+        private Services.Download.DownloadEntry? _renderedInstalled;
 
         /// Opened again while this app is downloading: show the live progress and keep the action off.
         private void AttachInFlightDownload()
@@ -306,6 +307,12 @@ namespace ObtainiumPC.Pages
         {
             if (_app != null && Services.Download.DownloadRegistry.Get(_app.Id) != null && !ReferenceEquals(_attached, Services.Download.DownloadRegistry.Get(_app.Id)))
                 AttachInFlightDownload();
+            // The independent install check confirmed the new version: show it (and the Update state) now.
+            if (_app != null)
+            {
+                var done = Services.Download.DownloadRegistry.FinishedEntries().FirstOrDefault(x => x.AppId == _app.Id && x.State == Services.Download.DownloadState.Installed);
+                if (done != null && !ReferenceEquals(_renderedInstalled, done)) { _renderedInstalled = done; Render(); }
+            }
         });
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
