@@ -411,7 +411,8 @@ jobs:
           "server pids on 8099: $($own -join ',')"
           foreach ($o in $own) { Stop-Process -Id $o -Force -ErrorAction SilentlyContinue }
           Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Sleep 6
+          $failedSeen = ''
+          foreach ($i in 1..60) { Start-Sleep 3; $failedSeen = TextsLike '*ailed*'; if ($failedSeen) { "failure shown after ~$($i*3)s: $failedSeen"; break } }
           "part after server drop: $(PartInfo)"
           Shot 'd12-failed-strip'
           "clicked Downloads: $(ClickByName 'Downloads' $win)"
