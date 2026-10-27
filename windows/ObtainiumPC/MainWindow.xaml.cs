@@ -116,6 +116,7 @@ namespace ObtainiumPC
                     _ => ElementTheme.Default,
                 };
             Services.Updates.BackgroundUpdateService.Instance.Start();
+            ApplyTraySetting();
             // obtainium:// protocol registration follows the setting (HKCU,
             // no admin, reversible from Settings).
             Services.DeepLinkService.ApplyRegistrationSetting();

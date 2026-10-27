@@ -118,6 +118,7 @@ namespace ObtainiumPC.Pages
             var mi = Array.IndexOf(MinAgeOptions, s.MinimumUpdateAgeDays);
             MinAgeCombo.SelectedIndex = mi >= 0 ? mi : 0;
 
+            TrayToggle.IsOn = s.TrayIcon;
             CheckOnStartToggle.IsOn = s.CheckOnStart;
             SkipMeteredToggle.IsOn = s.SkipBackgroundChecksOnMeteredConnection;
             SkipBatteryToggle.IsOn = s.SkipBackgroundChecksOnBattery;
@@ -210,6 +211,11 @@ namespace ObtainiumPC.Pages
             if (ts.IsOn) App.Settings.CategoriesExcludedFromChecks.Add(name);
             else App.Settings.CategoriesExcludedFromChecks.Remove(name);
             App.Settings.Save();
+        }
+        private void TrayToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            App.Settings.TrayIcon = TrayToggle.IsOn; Save();
+            (App.MainWindowInstance as MainWindow)?.ApplyTraySetting();
         }
         private void CheckOnStartToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CheckOnStart = CheckOnStartToggle.IsOn; Save(); }
         private void HandleLinksToggle_Toggled(object sender, RoutedEventArgs e)

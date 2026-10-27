@@ -61,7 +61,7 @@ namespace ObtainiumPC
         private void BuildDownloadsFlyout()
         {
             if (_downloadsFlyout == null) return;
-            var list = new StackPanel { Spacing = 10, MinWidth = 380, MaxWidth = 460 };
+            var list = new StackPanel { Spacing = 10, Width = 430 };
             list.Children.Add(new TextBlock { Text = Loc.T("Downloads"), FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             foreach (var entry in DownloadRegistry.ActiveEntries().Concat(DownloadRegistry.FinishedEntries()))
             {
@@ -116,18 +116,64 @@ namespace ObtainiumPC
             _downloadsFlyout.Content = new ScrollViewer { MaxHeight = 420, Content = list };
         }
 
+        private Services.Notifications.TrayIcon? _tray;
+
+        /// Applies the opt-in tray setting (default off).
+        public void ApplyTraySetting()
+        {
+            if (App.Settings.TrayIcon)
+            {
+                _tray ??= new Services.Notifications.TrayIcon(Hwnd,
+                    () => DispatcherQueue.TryEnqueue(ShowFromTray),
+                    () => DispatcherQueue.TryEnqueue(() => { ShowFromTray(); if (!_flyoutOpen) StripListButton.Flyout?.ShowAt(StripListButton); }),
+                    () => DispatcherQueue.TryEnqueue(() => _ = Services.Updates.BackgroundUpdateService.Instance.CheckAllAsync(true)),
+                    () => DispatcherQueue.TryEnqueue(() => _ = ExitAppAsync()));
+                _tray.Show();
+            }
+            else
+            {
+                _tray?.Hide();
+                if (!AppWindow.IsVisible) ShowFromTray();
+            }
+        }
+
+        private bool TrayActive => App.Settings.TrayIcon && _tray?.IsVisible == true;
+
+        private void ShowFromTray()
+        {
+            AppWindow.Show();
+            Activate();
+        }
+
         /// Window.Close() does not raise AppWindow.Closing, so the caption Close button asks here first.
         private void RequestClose()
         {
-            if (_closeConfirmed || DownloadRegistry.ActiveCount == 0) { Close(); return; }
+            if (_closeConfirmed) { Close(); return; }
+            if (TrayActive) { AppWindow.Hide(); return; }
+            if (DownloadRegistry.ActiveCount == 0) { Close(); return; }
             _ = ConfirmCloseAsync();
         }
 
         private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
         {
-            if (_closeConfirmed || DownloadRegistry.ActiveCount == 0) return;
+            if (_closeConfirmed) { Cleanup(); return; }
+            if (TrayActive) { args.Cancel = true; AppWindow.Hide(); return; }   // Alt+F4 / taskbar close with the tray on: keep running
+            if (DownloadRegistry.ActiveCount == 0) { Cleanup(); return; }
             args.Cancel = true;
             _ = ConfirmCloseAsync();
+        }
+
+        private void Cleanup()
+        {
+            try { _tray?.Dispose(); Services.Notifications.Notifier.Shutdown(); } catch { }
+        }
+
+        /// Explicit Exit (tray menu): always really exits, warning first when a download is running.
+        private async System.Threading.Tasks.Task ExitAppAsync()
+        {
+            ShowFromTray();
+            if (DownloadRegistry.ActiveCount == 0) { _closeConfirmed = true; Close(); return; }
+            await ConfirmCloseAsync();
         }
 
         private async System.Threading.Tasks.Task ConfirmCloseAsync()
@@ -139,8 +185,10 @@ namespace ObtainiumPC
                 var dlg = new ThemedContentDialog
                 {
                     Title = Loc.T("A download is running"),
-                    Content = Loc.T("Closing now cancels the running download and removes its partial file. Resuming is not supported, so it would start again from the beginning."),
-                    PrimaryButtonText = Loc.T("Cancel downloads and close"),
+                    Content = TrayActive
+                        ? Loc.T("Exiting now cancels the running download and removes its partial file. Resuming is not supported, so it would start again from the beginning.")
+                        : Loc.T("Closing now cancels the running download and removes its partial file. Resuming is not supported, so it would start again from the beginning."),
+                    PrimaryButtonText = Loc.T(TrayActive ? "Cancel downloads and exit" : "Cancel downloads and close"),
                     CloseButtonText = Loc.T("Keep downloading"),
                     DefaultButton = ContentDialogButton.Close,
                     XamlRoot = Content.XamlRoot,
@@ -149,6 +197,8 @@ namespace ObtainiumPC
                 DownloadRegistry.CancelAll();
                 // Each job deletes its own .part as it unwinds; wait briefly so none is left behind.
                 for (var i = 0; i < 40 && DownloadRegistry.ActiveCount > 0; i++) await System.Threading.Tasks.Task.Delay(100);
+                if (DownloadRegistry.ActiveCount > 0)
+                    Services.Logging.AppLogger.Warn("Closing while a cancelled download was still unwinding; its partial file may remain in the download folder.");
                 _closeConfirmed = true;
                 Close();
             }

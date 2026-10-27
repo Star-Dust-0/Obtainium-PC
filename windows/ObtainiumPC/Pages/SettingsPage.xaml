@@ -41,6 +41,7 @@
                 <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <ComboBox x:Name="UpdateIntervalCombo" Header="Background update interval" MinWidth="260" SelectionChanged="UpdateIntervalCombo_SelectionChanged"/>
                 <ComboBox x:Name="MinAgeCombo" Header="Minimum age for updates (global default)" MinWidth="260" SelectionChanged="MinAgeCombo_SelectionChanged"/>
+                <ToggleSwitch x:Name="TrayToggle" Header="Keep running in the notification area when the window is closed" Toggled="TrayToggle_Toggled"/>
                 <ToggleSwitch x:Name="CheckOnStartToggle" Header="Check for updates on app start" Toggled="CheckOnStartToggle_Toggled"/>
                 <ToggleSwitch x:Name="SkipMeteredToggle" Header="Don't check on a metered connection" Toggled="SkipMeteredToggle_Toggled"/>
                 <ToggleSwitch x:Name="SkipBatteryToggle" Header="Don't check on battery power" Toggled="SkipBatteryToggle_Toggled"/>
