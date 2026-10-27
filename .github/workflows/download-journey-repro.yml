@@ -583,16 +583,25 @@ jobs:
           Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c);'
           foreach ($pn in 'WindowsTerminal','conhost','pwsh','powershell') { Get-Process $pn -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [W.U]::ShowWindow($_.MainWindowHandle, 6) | Out-Null } }
           Start-Sleep 2
+          function WaitMenuOpened($before) {
+            foreach ($i in 1..80) {
+              $n = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Opened')).Count
+              if ($n -gt $before) { return $true }
+              Start-Sleep -Milliseconds 50
+            }
+            return $false
+          }
+          function OpenedCount() { return ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Opened')).Count }
           $lg0 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           $c0 = ([regex]::Matches($lg0, 'Tray menu Closed')).Count
-          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep -Milliseconds 700 }
+          $tb = TrayButton; $oc = OpenedCount; if ($tb) { RightClick $tb; "menu opened after click: $(WaitMenuOpened $oc)" }
           $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
-          Start-Sleep 2; Shot 'd21b-2s-later'
+          Start-Sleep -Milliseconds 800; Shot 'd21b-800ms-later'
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 2
           $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
-          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep -Milliseconds 700 }
+          $tb = TrayButton; $oc = OpenedCount; if ($tb) { RightClick $tb; "menu opened before click-away: $(WaitMenuOpened $oc)" }
           Shot 'd22b-before-clickaway'
           ClickAt 300 300; Start-Sleep 3
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
