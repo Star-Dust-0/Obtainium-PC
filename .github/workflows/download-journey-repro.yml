@@ -33,7 +33,19 @@ jobs:
         shell: pwsh
         run: |
           $big = Join-Path $env:RUNNER_TEMP 'slowtool.exe'
-          Copy-Item "$env:WINDIR\System32\whoami.exe" $big
+          # Harmless installer fixture: on run it registers a fake "SlowTool" uninstall entry under HKCU
+          # (isolated ephemeral runner) with the release version, so the app's production discovery can confirm it.
+          $cs = Join-Path $env:RUNNER_TEMP 'fixture.cs'
+          @'
+          using System; using Microsoft.Win32;
+          class P { static void Main() {
+            using (var k = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture")) {
+              k.SetValue("DisplayName", "SlowTool"); k.SetValue("DisplayVersion", "f6fb8463"); k.SetValue("Publisher", "local"); }
+            System.Threading.Thread.Sleep(3000);
+          } }
+          '@ | Set-Content $cs
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /out:$big $cs
+          if (-not (Test-Path $big)) { throw 'fixture compile failed' }
           $fs = [System.IO.File]::OpenWrite($big); $fs.Seek(0, 'End') | Out-Null
           $buf = New-Object byte[] 1048576
           foreach ($i in 1..60) { $fs.Write($buf, 0, $buf.Length) }
@@ -431,6 +443,45 @@ jobs:
           try { $win.SetFocus() } catch { 'SetFocus failed' }; Start-Sleep 1
           [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
           $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          "== D9: tray menu: right-click the tray icon, list items, Open restores, Exit exits =="
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          "clicked Close (hide to tray): $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          $script:shotWin = $null
+          function TrayButton() {
+            ClickByName 'Show Hidden Icons' $root | Out-Null; Start-Sleep 2
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium-PC')
+            return $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+          }
+          function RightClick($el) {
+            $r = $el.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 400
+            [M]::mouse_event(0x08,0,0,0,0); [M]::mouse_event(0x10,0,0,0,0)
+          }
+          $tb = TrayButton
+          "tray button found: $($tb -ne $null)"
+          if ($tb) { RightClick $tb; Start-Sleep 2 }
+          Shot 'd15-tray-menu'
+          $items = @(); foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem) { $items += $el.Current.Name } }
+          "tray menu items: $($items -join ' | ')"
+          "clicked Open Obtainium-PC: $(ClickByName 'Open Obtainium-PC' $root)"
+          Start-Sleep 3
+          $w3 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          "window visible after tray Open: $($w3 -ne $null)"
+          $script:shotWin = $w3; Shot 'd16-after-tray-open'
+          "clicked Close again: $(ClickByName 'Close' $w3)"
+          Start-Sleep 3; $script:shotWin = $null
+          $tb = TrayButton
+          if ($tb) { RightClick $tb; Start-Sleep 2 }
+          "clicked Exit: $(ClickByName 'Exit' $root)"
+          Start-Sleep 6
+          $p.Refresh(); "process exited after tray Exit: $($p.HasExited)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 
       - name: Preserve app logs
