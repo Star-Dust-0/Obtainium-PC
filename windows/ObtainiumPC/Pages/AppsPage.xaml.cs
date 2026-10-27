@@ -456,7 +456,7 @@ namespace ObtainiumPC.Pages
                     checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
                 var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
-                app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
+                app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
                 // Same per-asset installability gate as the detail page: an
                 // Android package never reaches the installer.

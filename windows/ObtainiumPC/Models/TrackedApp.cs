@@ -45,6 +45,14 @@ public sealed class TrackedApp
     [JsonPropertyName("allowIdChange")] public bool AllowIdChange { get; set; }
     [JsonPropertyName("pendingRepoRenameUrl")] public string? PendingRepoRenameUrl { get; set; }
     [JsonPropertyName("apkSizeBytes")] public long? AssetSizeBytes { get; set; }
+    // Identity (latest version + asset URL) the saved size belongs to. Records saved before this
+    // field existed have none, so their size is never presented as the size of a given release.
+    [JsonPropertyName("assetSizeFor")] public string? AssetSizeFor { get; set; }
+    public static string SizeIdentity(string? version, string? assetUrl) => (version ?? "") + "|" + (assetUrl ?? "");
+    public void RecordAssetSize(long bytes, string? assetUrl) { AssetSizeBytes = bytes; AssetSizeFor = SizeIdentity(LatestVersion, assetUrl); }
+    /// <summary>Saved size only when it was recorded for exactly this release and file; otherwise null (unknown).</summary>
+    public long? KnownSizeFor(string? assetUrl) =>
+        AssetSizeBytes is > 0 && AssetSizeFor != null && AssetSizeFor == SizeIdentity(LatestVersion, assetUrl) ? AssetSizeBytes : null;
     [JsonPropertyName("latestVersionChangedAt")] public long? LatestVersionChangedAtUs { get; set; }
     [JsonPropertyName("consecutiveFailedChecks")] public int ConsecutiveFailedChecks { get; set; }
     [JsonPropertyName("isArchived")] public bool? IsArchived { get; set; }

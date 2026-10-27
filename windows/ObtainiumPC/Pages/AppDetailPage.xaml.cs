@@ -310,7 +310,7 @@ namespace ObtainiumPC.Pages
                 var path = await new DownloadService().DownloadAsync(
                     downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
-                _app.AssetSizeBytes = new System.IO.FileInfo(path).Length;
+                _app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
                 await App.SaveAppsAsync();
                 // Installability is per-asset, not only per-source: an APK fetched
                 // from a general source (e.g. a track-only GitHub app) is still an
