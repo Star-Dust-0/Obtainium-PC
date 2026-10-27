@@ -302,9 +302,28 @@ jobs:
           $up = FindNamed 'Update' $win; $ins = FindNamed 'Install' $win
           if ($up) { "a6 Update button enabled = $($up.Current.IsEnabled)" }
           if ($ins) { "a6 Install button enabled = $($ins.Current.IsEnabled)" }
+          "== SCENARIO C: press Update again for the same in-flight download (fixture only) =="
+          "before 2nd start: $(PartInfo)"
+          try {
+            StartDownload
+            Start-Sleep 4
+            Shot 'c1-second-start'
+            "after 2nd start +4s: $(PartInfo)"
+            UiaProgressSeen 'c1 after second start'
+            $infos = @()
+            $allc = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $allc) { $n = $el.Current.Name; if ($n -and ($n -like '*process cannot access*' -or $n -like '*Download*failed*' -or $n -like '*being used*' -or $n -like '*Failed*')) { $infos += $n } }
+            "error-like UIA text after 2nd start: $($infos -join ' | ')"
+          } catch { "second start attempt threw in harness: $($_.Exception.Message)" }
           foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           Start-Sleep 3
           "after completion: $(PartInfo)"
+          $fin = Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($fin) {
+            $h1 = (Get-FileHash $fin.FullName -Algorithm SHA256).Hash
+            $h2 = (Get-FileHash (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -Algorithm SHA256).Hash
+            "final file $($fin.Name) size=$($fin.Length) sha256-match-source=$($h1 -eq $h2)"
+          } else { "final file missing" }
           AssertAlive 'after-complete'; Shot 'a7-after-complete'
           UiaProgressSeen 'a7 after complete'
           "installer launched (whoami processes ever started is unobservable); app alive"
