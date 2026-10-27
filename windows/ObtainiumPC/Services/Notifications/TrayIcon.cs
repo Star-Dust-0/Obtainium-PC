@@ -36,6 +36,7 @@ public sealed class TrayIcon : IDisposable
     [DllImport("comctl32.dll")] static extern bool RemoveWindowSubclass(IntPtr h, SubclassProc p, UIntPtr id);
     [DllImport("comctl32.dll")] static extern IntPtr DefSubclassProc(IntPtr h, uint msg, IntPtr w, IntPtr l);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr LoadImageW(IntPtr inst, string name, uint type, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] static extern IntPtr CreatePopupMenu();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool AppendMenuW(IntPtr m, uint flags, UIntPtr id, string? text);
     [DllImport("user32.dll")] static extern int TrackPopupMenu(IntPtr m, uint flags, int x, int y, int r, IntPtr h, IntPtr rect);
@@ -56,6 +57,10 @@ public sealed class TrayIcon : IDisposable
         _proc = WndProc;
     }
 
+    // SM_CXSMICON is the DPI-correct small-icon size (16 at 100%, 20 at 125%, 24 at 150%, 32 at 200%); a fixed 16 gets
+    // upscaled and looks pixelated on scaled displays. The .ico carries 16/20/24/32/40/48/64/... frames.
+    static int TrayIconSize() { var n = GetSystemMetrics(49); return n >= 16 ? n : 16; }
+
     public bool IsVisible => _added;
 
     public void Show()
@@ -63,7 +68,7 @@ public sealed class TrayIcon : IDisposable
         if (_added) return;
         try
         {
-            _icon = LoadImageW(IntPtr.Zero, System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"), IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+            _icon = LoadImageW(IntPtr.Zero, System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"), IMAGE_ICON, TrayIconSize(), TrayIconSize(), LR_LOADFROMFILE);
             SetWindowSubclass(_hwnd, _proc, (UIntPtr)1, UIntPtr.Zero);
             var d = Data();
             _added = Shell_NotifyIconW(NIM_ADD, ref d);
