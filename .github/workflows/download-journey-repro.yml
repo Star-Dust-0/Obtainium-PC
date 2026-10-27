@@ -407,7 +407,10 @@ jobs:
           Start-Sleep 3
           StartDownload
           Start-Sleep 4
-          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          $own = @(Get-NetTCPConnection -LocalPort 8099 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+          "server pids on 8099: $($own -join ',')"
+          foreach ($o in $own) { Stop-Process -Id $o -Force -ErrorAction SilentlyContinue }
+          Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep 6
           "part after server drop: $(PartInfo)"
           Shot 'd12-failed-strip'
@@ -424,7 +427,7 @@ jobs:
           foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           "retry finished: $(PartInfo)"
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
-          $win.SetFocus(); Start-Sleep 1
+          try { $win.SetFocus() } catch { 'SetFocus failed' }; Start-Sleep 1
           [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
           $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
