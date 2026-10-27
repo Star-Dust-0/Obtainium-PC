@@ -1244,6 +1244,8 @@ jobs:
           "manual export onto the auto-export path verified: $($exp.apps.Count) apps, valid JSON, no temp files"
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
+          # Navigating back recreates the page with groups collapsed: expand GitHub if its rows are not shown.
+          if ((FindNamed 'bat' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
 
           # Light-theme twin check: the disabled Mark updated twin must render
           # with the disabled brush under Light as well (28h covered Dark).
