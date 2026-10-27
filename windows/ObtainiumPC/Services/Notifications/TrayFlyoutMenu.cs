@@ -74,6 +74,13 @@ internal sealed class TrayFlyoutMenu
             {
                 if (a.WindowActivationState == WindowActivationState.Deactivated && _current != null)
                 {
+                    // Logged evidence (run 40584225412): several Deactivated events arrive while the foreground window is the
+                    // host itself (the flyout popup takes activation from it). That is not the user leaving: keep the menu.
+                    if (GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(_host))
+                    {
+                        AppLogger.Info("Tray menu kept: host deactivated but is still the foreground window");
+                        return;
+                    }
                     AppLogger.Info("Tray menu hidden: focus moved to another window; " + DescribeForeground());
                     try { _current.Hide(); } catch { }
                 }
