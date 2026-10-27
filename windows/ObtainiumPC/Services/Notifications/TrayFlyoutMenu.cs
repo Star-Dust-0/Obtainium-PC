@@ -97,7 +97,7 @@ internal sealed class TrayFlyoutMenu
             var dark = (anchor.ActualTheme == ElementTheme.Dark);
             var tint = dark ? Windows.UI.Color.FromArgb(0x66, 0x20, 0x20, 0x20) : Windows.UI.Color.FromArgb(0x66, 0xF3, 0xF3, 0xF3);
             var style = new Style(typeof(MenuFlyoutPresenter));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(tint)));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
             flyout.MenuFlyoutPresenterStyle = style;
         }
         catch (Exception e) { AppLogger.Warn("Tray menu presenter tint failed", e); }
@@ -136,7 +136,7 @@ internal sealed class TrayFlyoutMenu
         flyout.Closed += (_, _) => AppLogger.Info($"Tray menu Closed after {(DateTime.UtcNow - t0).TotalMilliseconds:0} ms");
         void ShowNow()
         {
-            try { flyout.ShowAt(anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.TopEdgeAlignedRight, ShowMode = FlyoutShowMode.Standard }); AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material}, host loaded={anchor.IsLoaded}, xamlRoot={anchor.XamlRoot != null})"); }
+            try { flyout.ShowAt(anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.TopEdgeAlignedRight, Position = new Windows.Foundation.Point(0, -80), ShowMode = FlyoutShowMode.Standard }); AppLogger.Info($"Tray menu shown (WinUI MenuFlyout, backdrop={material}, host loaded={anchor.IsLoaded}, xamlRoot={anchor.XamlRoot != null})"); }
             catch (Exception e) { AppLogger.Warn("Tray menu ShowAt failed", e); }
         }
         // The first time, the host's XAML is not loaded yet; opening before that can show nothing.

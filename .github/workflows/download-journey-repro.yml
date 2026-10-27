@@ -497,9 +497,13 @@ jobs:
           Start-Sleep 3
           $script:shotWin = $null
           function TrayButton() {
-            ClickByName 'Show Hidden Icons' $root | Out-Null; Start-Sleep 2
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium-PC')
-            return $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0) { return $el } }
+            ClickByName 'Show Hidden Icons' $root | Out-Null; Start-Sleep 2
+            $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0) { return $el } }
+            return $null
           }
           function RightClick($el) {
             $r = $el.Current.BoundingRectangle
@@ -581,7 +585,8 @@ jobs:
           "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
           Shot 'd22-after-esc'
           $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
-          ClickAt 300 300; Start-Sleep 2
+          Shot 'd22b-before-clickaway'
+          ClickAt 300 300; Start-Sleep 3
           $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
           "tray menu click-away (count after Esc was above): Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
           Shot 'd23-after-clickaway'
