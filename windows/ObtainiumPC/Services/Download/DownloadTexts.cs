@@ -16,7 +16,9 @@ public static class DownloadTexts
         {
             DownloadState.Downloading => e.CancelRequested ? "Cancelling..." : Progress(r, t),
             DownloadState.Saved => "Saved - not a Windows installer, so it was not launched",
-            DownloadState.InstallerOpened => "Installer opened - the installed version has not been confirmed yet",
+            DownloadState.InstallerOpened => "Installer opened - waiting for it to finish, then the installed version is checked",
+            DownloadState.Installed => string.IsNullOrWhiteSpace(e.Message) ? "Installed - version confirmed" : "Installed - " + e.Message,
+            DownloadState.InstallUnconfirmed => string.IsNullOrWhiteSpace(e.Message) ? "Installer finished, but the installed version could not be confirmed" : e.Message,
             DownloadState.Cancelled => "Cancelled - partial file removed",
             DownloadState.Failed => string.IsNullOrWhiteSpace(e.Message) ? "Failed" : "Failed - " + e.Message,
             _ => "",

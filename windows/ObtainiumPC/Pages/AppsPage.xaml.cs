@@ -449,30 +449,16 @@ namespace ObtainiumPC.Pages
                 string? outcomeMessage = null;
                 try
                 {
-                var url = asset.Value;
-                SourceCatalog.TryResolve(app.Url, App.Settings, out var dlSource);
-                if (dlSource != null)
-                    url = await dlSource.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
-                var pat = url.Contains("github.com") || url.Contains("githubusercontent.com")
-                    ? App.Settings.GitHubPersonalAccessToken : null;
-                var headers = dlSource?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
-                var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
-                // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
-                Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
-                    checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
-                var tracked = new Progress<(long Received, long? Total)>(pr => { Services.Download.DownloadRegistry.Report(entry, pr.Received, pr.Total); ((IProgress<(long Received, long? Total)>)progress).Report(pr); });
-                var path = await new DownloadService().DownloadAsync(url, asset.Key, tracked, pat, headers, verifyBeforePromote: checksumCheck, ct: entry.Token);
-                Services.Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
-                app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
+                var fetched = await Services.Download.DownloadCoordinator.FetchAsync(app, asset, entry, progress);
+                var path = fetched.Path;
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
                 // Same per-asset installability gate as the detail page: an
                 // Android package never reaches the installer.
-                if (Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
-                    dlSource?.SupportsInstall, asset.Key))
+                if (fetched.Installable)
                 {
                     outcome = Services.Download.DownloadState.InstallerOpened;
                     if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
-                    else DownloadService.OpenInstaller(path);
+                    else Services.Download.DownloadCoordinator.LaunchInstaller(app, entry, path);
                 }
                 else outcome = Services.Download.DownloadState.Saved;
                 }

@@ -52,7 +52,8 @@ namespace ObtainiumPC
         private static Microsoft.UI.Xaml.Media.Brush DotBrush(DownloadState s) => new SolidColorBrush(s switch
         {
             DownloadState.Downloading => Windows.UI.Color.FromArgb(255, 0, 95, 184),
-            DownloadState.InstallerOpened or DownloadState.Saved => Windows.UI.Color.FromArgb(255, 157, 93, 0),
+            DownloadState.InstallerOpened or DownloadState.Saved or DownloadState.InstallUnconfirmed => Windows.UI.Color.FromArgb(255, 157, 93, 0),
+            DownloadState.Installed => Windows.UI.Color.FromArgb(255, 16, 124, 16),
             DownloadState.Failed => Windows.UI.Color.FromArgb(255, 196, 43, 28),
             _ => Windows.UI.Color.FromArgb(255, 96, 96, 96),
         });
@@ -88,7 +89,17 @@ namespace ObtainiumPC
                     action = new Button { Content = Loc.T("Cancel"), IsEnabled = !entry.CancelRequested };
                     action.Click += (_, _) => captured.Cancel();
                 }
-                else if (entry.State is DownloadState.Failed or DownloadState.Cancelled or DownloadState.InstallerOpened)
+                else if (entry.State is DownloadState.Failed or DownloadState.Cancelled)
+                {
+                    action = new Button { Content = Loc.T("Retry"), IsEnabled = entry.Asset != null };
+                    action.Click += (_, _) => _ = DownloadCoordinator.RetryAsync(captured);
+                }
+                else if (entry.State == DownloadState.InstallUnconfirmed)
+                {
+                    action = new Button { Content = Loc.T("Check again") };
+                    action.Click += (_, _) => DownloadCoordinator.CheckAgain(captured);
+                }
+                else if (entry.State is DownloadState.InstallerOpened or DownloadState.Installed)
                 {
                     action = new Button { Content = Loc.T("Open app") };
                     action.Click += (_, _) => { _downloadsFlyout?.Hide(); NavigateToApp(captured.AppId); };

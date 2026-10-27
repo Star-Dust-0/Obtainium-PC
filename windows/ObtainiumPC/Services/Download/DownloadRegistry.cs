@@ -5,8 +5,12 @@ public enum DownloadState
     Downloading,
     /// File saved; not a Windows installer, so nothing was launched.
     Saved,
-    /// Installer was launched; the installed version has not been verified (yet).
+    /// Installer was launched; waiting for it to finish and for the installed version to be checked.
     InstallerOpened,
+    /// The installed version was read independently and equals the downloaded release.
+    Installed,
+    /// The installer ended or the wait ran out, but the installed version could not be confirmed.
+    InstallUnconfirmed,
     Cancelled,
     Failed,
 }
@@ -30,6 +34,9 @@ public sealed class DownloadEntry
     public DownloadState State { get; private set; } = DownloadState.Downloading;
     /// Short English outcome text for failed/cancelled/saved states.
     public string? Message { get; private set; }
+    /// Caller context for a one-click retry (the tracked app and the chosen asset).
+    public object? Tag { get; set; }
+    public KeyValuePair<string, string>? Asset { get; set; }
     public DateTimeOffset StartedAt { get; } = DateTimeOffset.Now;
     public DateTimeOffset? FinishedAt { get; private set; }
     public CancellationToken Token => _cts.Token;
@@ -58,9 +65,18 @@ public sealed class DownloadEntry
         Changed?.Invoke();
     }
 
+    /// Later state change of a finished job (install verification). Raises Changed only.
+    public void SetState(DownloadState state, string? message)
+    {
+        State = state; Message = message;
+        Changed?.Invoke();
+    }
+
     internal void Finish(DownloadState state, string? message)
     {
-        State = state; Message = message; FinishedAt = DateTimeOffset.Now;
+        // A later install check may already have settled the job; the end of the transfer must not undo it.
+        if (State is not (DownloadState.Installed or DownloadState.InstallUnconfirmed)) { State = state; Message = message; }
+        FinishedAt = DateTimeOffset.Now;
         Changed?.Invoke();
         Ended?.Invoke();
     }

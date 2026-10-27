@@ -394,9 +394,8 @@ namespace ObtainiumPC.Pages
             string? outcomeMessage = null;
             try
             {
-                var progress = new Progress<(long Received, long? Total)>(p =>
+                var ui = new Progress<(long Received, long? Total)>(p =>
                 {
-                    Services.Download.DownloadRegistry.Report(entry, p.Received, p.Total);
                     if (p.Total is > 0)
                     {
                         DownloadBar.Value = Math.Min(100, (double)p.Received / p.Total.Value * 100);
@@ -407,32 +406,13 @@ namespace ObtainiumPC.Pages
                         DownloadText.Text = $"{p.Received / 1048576.0:F1} MB";
                     }
                 });
-                var downloadUrl = asset.Value;
-                if (SourceCatalog.TryResolve(_app.Url, App.Settings, out var dlSource) && dlSource != null)
-                    downloadUrl = await dlSource.AssetUrlPrefetchModifierAsync(downloadUrl, _app.Url, _app.AdditionalSettings);
-                // The GitHub PAT is only attached to GitHub asset requests.
-                var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
-                    ? App.Settings.GitHubPersonalAccessToken : null;
-                var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
-                var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
-                // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
-                Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
-                    checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
-                var path = await new DownloadService().DownloadAsync(
-                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck, ct: entry.Token);
-                Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
-                _app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
-                await App.SaveAppsAsync();
-                // Installability is per-asset, not only per-source: an APK fetched
-                // from a general source (e.g. a track-only GitHub app) is still an
-                // Android package - saved for manual transfer, never launched as
-                // an installer on Windows.
-                var installable = Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
-                    dlSource?.SupportsInstall, asset.Key);
+                var fetched = await Services.Download.DownloadCoordinator.FetchAsync(_app, asset, entry, ui);
+                var path = fetched.Path;
+                var installable = fetched.Installable;
                 outcome = installable ? Services.Download.DownloadState.InstallerOpened : Services.Download.DownloadState.Saved;
                 if (installable)
                 {
-                    DownloadService.OpenInstaller(path);
+                    Services.Download.DownloadCoordinator.LaunchInstaller(_app, entry, path);
                     Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0} and opened the installer."), asset.Key));
                     if (CanDetectInstalled())
                     {
