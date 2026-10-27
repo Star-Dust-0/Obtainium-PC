@@ -23,9 +23,55 @@ public sealed class DownloadService
     public static string DownloadDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "ObtainiumPC");
 
-    /// Downloads url into the ObtainiumPC downloads folder, reporting progress.
+    private readonly int _retries;
+    private readonly TimeSpan _retryDelay;
+
+    /// lib/providers/apps_provider.dart downloadFileWithRetry: 3 retries, 5 s apart (defaults).
+    public DownloadService(int retries = 3, TimeSpan? retryDelay = null)
+    {
+        _retries = Math.Max(0, retries);
+        _retryDelay = retryDelay ?? TimeSpan.FromSeconds(5);
+    }
+
+    /// Transient failures are retried: transport errors, timeouts, and HTTP 429 or 5xx. A user
+    /// cancellation, other HTTP statuses, a wrong payload (web page, metadata, hash mismatch) are not.
+    internal static bool IsRetryable(Exception e, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested) return false;
+        return e switch
+        {
+            HttpRequestException h => h.StatusCode is null || (int)h.StatusCode == 429 || (int)h.StatusCode >= 500,
+            TaskCanceledException => true, // HttpClient timeout (the caller did not cancel)
+            IOException => true,
+            _ => false,
+        };
+    }
+
+    /// Downloads url into the ObtainiumPC downloads folder, reporting progress, retrying transient failures.
     /// Returns the full path of the downloaded file.
     public async Task<string> DownloadAsync(
+        string url,
+        string fileName,
+        IProgress<(long Received, long? Total)>? progress = null,
+        string? personalAccessToken = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        Func<string, Task>? verifyBeforePromote = null,
+        CancellationToken ct = default)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await DownloadOnceAsync(url, fileName, progress, personalAccessToken, extraHeaders, verifyBeforePromote, ct);
+            }
+            catch (Exception e) when (attempt < _retries && IsRetryable(e, ct))
+            {
+                await Task.Delay(_retryDelay, ct);
+            }
+        }
+    }
+
+    private async Task<string> DownloadOnceAsync(
         string url,
         string fileName,
         IProgress<(long Received, long? Total)>? progress = null,

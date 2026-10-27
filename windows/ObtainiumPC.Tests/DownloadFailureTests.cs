@@ -31,7 +31,7 @@ public class DownloadFailureTests
         var serve = Task.Run(async () => { try { await handler(await listener.GetContextAsync()); } catch { } });
         Exception? err = null;
         string target = Path.Combine(DownloadService.DownloadDir, name);
-        try { await new DownloadService().DownloadAsync($"http://127.0.0.1:{port}/f", name, verifyBeforePromote: verify); }
+        try { await new DownloadService(retries: 0).DownloadAsync($"http://127.0.0.1:{port}/f", name, verifyBeforePromote: verify); }
         catch (Exception e) { err = e; }
         await Task.WhenAny(serve, Task.Delay(3000));
         return (err, target);
