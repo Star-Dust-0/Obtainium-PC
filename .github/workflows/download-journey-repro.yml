@@ -45,9 +45,9 @@ jobs:
               var path = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "ObtainiumPC", "apps.json");
               foreach (var o in (ArrayList)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path))) {
                 var d = (System.Collections.Generic.Dictionary<string, object>)o;
-                if ((string)d["id"] == "seed-slow") v = (string)d["latestVersion"];
+                if (d.ContainsKey("url") && ((string)d["url"]).Contains("slowtool") && d.ContainsKey("latestVersion") && d["latestVersion"] != null) v = (string)d["latestVersion"];
               }
-            } catch (Exception) { }
+            } catch (Exception ex) { v = "err-" + ex.GetType().Name; }
             using (var k = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture")) {
               k.SetValue("DisplayName", "SlowTool"); k.SetValue("DisplayVersion", v); k.SetValue("Publisher", "local"); }
             System.Threading.Thread.Sleep(3000);
@@ -503,6 +503,8 @@ jobs:
           # entry) and the script-visible process state travel with the shots.
           $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
           if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          if (Test-Path $af) { Copy-Item $af shots\apps-final.json }
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
           # Native-crash evidence (WinUI/CLR faults do not reach logs.jsonl).
