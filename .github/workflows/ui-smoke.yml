@@ -778,13 +778,62 @@ jobs:
           if ($inst1 -notlike '*1.0.1*') { Shot 'shuck-after-update-wrong'; throw "after the update the app did not detect 1.0.1 (got: $inst1)" }
           $upd1 = FindNamed 'Update' $win2
           if ($upd1 -ne $null -and $upd1.Current.IsEnabled) { Shot 'shuck-update-still-enabled'; throw 'Update stays enabled after the installed version caught up' }
+          # Mismatch case: the installer picked in the picker is NOT the preferred file, so its
+          # saved size must not be shown as the detail page's "Download size" (exact current file only).
           $sizeEl = $null
           foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-            if ($el.Current.Name -like 'Download*size: *') { $sizeEl = $el.Current.Name; break }
+            if ($el.Current.Name -like '*size: *') { $sizeEl = $el.Current.Name; break }
           }
-          "shuck download size line: [$sizeEl]"
+          "shuck size line after downloading a non-preferred installer (expected none): [$sizeEl]"
           Shot '26d-shuck-updated-detail'
-          if ($sizeEl -eq $null) { throw 'detail page shows no download size for the just-downloaded release file' }
+          if ($sizeEl -ne $null) { throw "detail page shows a size ($sizeEl) after downloading a file that is not the selected one" }
+          # Probe case: with 'Check for updates on opening an app detail page' on, the size of the
+          # preferred asset is fetched (HEAD, then headers-only GET) and shown; compare to the real size.
+          ClickNamedIn 'Settings' $win2
+          Start-Sleep 2
+          $dEl = FindNamed 'Check for updates on opening an app detail page' $win2
+          if ($dEl -eq $null) { Shot 'detail-check-toggle-missing'; throw 'Settings has no detail-page check switch' }
+          try { $dEl.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {}
+          Start-Sleep 1
+          $dTp = $dEl.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+          if ($dTp.Current.ToggleState -ne 'On') { $dTp.Toggle(); Start-Sleep 1 }
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 3
+          ClickPartial 'shuck' $win2 | Out-Null
+          Start-Sleep 3
+          $probeEl = $null
+          foreach ($i in 1..20) {
+            foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -like 'Download size: *') { $probeEl = $el.Current.Name; break }
+            }
+            if ($probeEl) { break }
+            Start-Sleep 2
+          }
+          "shuck probed size line: [$probeEl]"
+          Shot '26e-shuck-probed-size'
+          if (-not $probeEl) { throw 'detail page did not show the probed size of the selected file' }
+          $apps2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json
+          $shApp = @($apps2 | Where-Object { $_.name -like 'shuck*' -or $_.name -like 'Shuck*' })[0]
+          $shAssets = @($shApp.apkUrls | ConvertFrom-Json)
+          $prefIdx = [int]$shApp.preferredApkIndex
+          "shuck preferred asset index $prefIdx of $($shAssets.Count): $($shAssets[$prefIdx][0])"
+          $prefUrl = $shAssets[$prefIdx][1]
+          $hdr = @{ Accept = 'application/octet-stream'; 'User-Agent' = 'obtainium-pc-smoke' }
+          if ($env:SMOKE_GH_TOKEN) { $hdr['Authorization'] = "Bearer $($env:SMOKE_GH_TOKEN)" }
+          $realLen = $null
+          try { $hr = Invoke-WebRequest -Uri $prefUrl -Headers $hdr -Method Head -UseBasicParsing; $realLen = [long]($hr.Headers['Content-Length'] | Select-Object -First 1) } catch { "HEAD for preferred asset failed: $($_.Exception.Message)" }
+          if ($realLen) {
+            $expect = ('{0:F1} MB' -f ($realLen / 1048576.0))
+            "preferred asset real size: $realLen bytes ($expect)"
+            if ($probeEl -notlike "*$expect*") { throw "probed size line [$probeEl] does not match the preferred asset ($expect)" }
+          } else { "could not read the preferred asset size independently; probe line shown but not cross-checked" }
+          $dEl2 = FindNamed 'Check for updates on opening an app detail page' $win2
+          ClickNamedIn 'Settings' $win2
+          Start-Sleep 2
+          $dEl3 = FindNamed 'Check for updates on opening an app detail page' $win2
+          if ($dEl3 -ne $null) { $t3 = $dEl3.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); if ($t3.Current.ToggleState -eq 'On') { $t3.Toggle(); Start-Sleep 1 } }
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
           AssertAlive 'shuck-update'
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
