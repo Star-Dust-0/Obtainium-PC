@@ -117,7 +117,7 @@ jobs:
             }
           )
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
-          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; ShowAppDowngradeError = $false }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Enable crash dumps
         shell: pwsh
