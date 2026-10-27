@@ -46,7 +46,7 @@ namespace ObtainiumPC
             }
         }
 
-        private void CloseCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Close();
+        private void CloseCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RequestClose();
 
         private void UpdateMaximizeGlyph()
         {

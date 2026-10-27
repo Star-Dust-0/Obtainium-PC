@@ -116,10 +116,22 @@ namespace ObtainiumPC
             _downloadsFlyout.Content = new ScrollViewer { MaxHeight = 420, Content = list };
         }
 
-        private async void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+        /// Window.Close() does not raise AppWindow.Closing, so the caption Close button asks here first.
+        private void RequestClose()
+        {
+            if (_closeConfirmed || DownloadRegistry.ActiveCount == 0) { Close(); return; }
+            _ = ConfirmCloseAsync();
+        }
+
+        private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
         {
             if (_closeConfirmed || DownloadRegistry.ActiveCount == 0) return;
             args.Cancel = true;
+            _ = ConfirmCloseAsync();
+        }
+
+        private async System.Threading.Tasks.Task ConfirmCloseAsync()
+        {
             if (_closeDialogOpen) return;
             _closeDialogOpen = true;
             try

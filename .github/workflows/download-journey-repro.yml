@@ -342,6 +342,14 @@ jobs:
           Shot 'd7-after-complete'
           "after complete: $(PartInfo)"
           "strip after complete: $(TextsLike '*nstaller*')"
+          Start-Sleep 45
+          Shot 'd8-install-check-result'
+          "strip 45s later: $(TextsLike '*nstall*') ; $(TextsLike '*version*')"
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd9-flyout-states'
+          "flyout texts: $(TextsLike '*nstall*') ; $(TextsLike 'Cancelled*') ; $(TextsLike 'Retry')"
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
           "== D6: start again, close, confirm: partial file must be removed and app exit =="
           StartDownload
           Start-Sleep 4
