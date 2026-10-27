@@ -780,7 +780,7 @@ jobs:
           if ($upd1 -ne $null -and $upd1.Current.IsEnabled) { Shot 'shuck-update-still-enabled'; throw 'Update stays enabled after the installed version caught up' }
           $sizeEl = $null
           foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-            if ($el.Current.Name -like 'Download size: *') { $sizeEl = $el.Current.Name; break }
+            if ($el.Current.Name -like 'Download*size: *') { $sizeEl = $el.Current.Name; break }
           }
           "shuck download size line: [$sizeEl]"
           Shot '26d-shuck-updated-detail'

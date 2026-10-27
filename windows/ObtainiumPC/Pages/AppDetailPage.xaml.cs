@@ -119,7 +119,15 @@ namespace ObtainiumPC.Pages
             var sizeUrl = _app.AssetUrls.Count == 0 ? null
                 : _app.AssetUrls[Math.Clamp(_app.PreferredAssetIndex, 0, _app.AssetUrls.Count - 1)].Value;
             var known = sizeUrl == null ? null : _app.KnownSizeFor(sizeUrl);
-            SizeText.Text = known is { } sz ? Services.Localization.Loc.T("Download size: ") + FormatSize(sz) : "";
+            var sizeLabel = "Download size: ";
+            if (known == null)
+            {
+                // The file the user picked last may not be the preferred one: a size measured for
+                // another file of this same release is shown under its own label.
+                foreach (var a in _app.AssetUrls)
+                    if (_app.KnownSizeFor(a.Value) is { } other) { known = other; sizeLabel = "Downloaded file size: "; break; }
+            }
+            SizeText.Text = known is { } sz ? Services.Localization.Loc.T(sizeLabel) + FormatSize(sz) : "";
             SizeText.Visibility = known != null ? Visibility.Visible : Visibility.Collapsed;
             if (known == null && sizeUrl != null && App.Settings.CheckUpdateOnDetailPage && _sizeProbeKey != Models.TrackedApp.SizeIdentity(_app.LatestVersion, sizeUrl))
             {
