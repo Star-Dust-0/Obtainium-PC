@@ -233,6 +233,7 @@ namespace ObtainiumPC.Pages
         {
             public string Name { get; set; } = "";
             public bool Excluded { get; set; }
+            public string AutomationName => "Skip update checks: " + Name;
             public Microsoft.UI.Xaml.Media.Brush Swatch { get; set; } = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
         }
 

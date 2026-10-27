@@ -93,7 +93,7 @@
                                 <Ellipse Width="14" Height="14" Fill="{Binding Swatch}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding Name}" VerticalAlignment="Center" MinWidth="120"/>
                                 <TextBlock Text="Skip update checks" VerticalAlignment="Center"/>
-                                <ToggleSwitch IsOn="{Binding Excluded}" Tag="{Binding Name}" Toggled="SkipChecksToggle_Toggled" OnContent="On" OffContent="Off" MinWidth="0"/>
+                                <ToggleSwitch IsOn="{Binding Excluded}" Tag="{Binding Name}" AutomationProperties.Name="{Binding AutomationName}" Toggled="SkipChecksToggle_Toggled" OnContent="On" OffContent="Off" MinWidth="0"/>
                                 <Button Content="Delete" Tag="{Binding Name}" Click="DeleteCategory_Click" FontSize="12" Padding="8,2"/>
                             </StackPanel>
                         </DataTemplate>

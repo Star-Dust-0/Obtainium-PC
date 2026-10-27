@@ -75,7 +75,7 @@ jobs:
           # Make the first-run state deterministic.
           # The runner's per-job token is throwaway and never leaves the runner;
           # it only raises the GitHub API rate limit for the live check.
-          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json'); UpdateHealthFailedChecksCount = 1 }
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json'); UpdateHealthFailedChecksCount = 1; CategoryColors = @{ 'Smoke' = 16711680 } }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Enable crash dumps
         shell: pwsh
@@ -412,6 +412,51 @@ jobs:
             Start-Sleep 2
           } catch { 'scroll capture unsupported: ' + $_.Exception.Message }
           Shot '07b-settings-scrolled'
+          # Approved additions: Updates guards (default off, persisted) and the per-category
+          # Skip update checks switch. Each switch is found by name, scrolled into view,
+          # toggled on, verified in settings.json, then restored.
+          function ScrollToName($name) {
+            $el = FindNamed $name $win
+            if ($el -eq $null) { return $null }
+            try { $el.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch { 'scroll-into-view unsupported for ' + $name }
+            Start-Sleep 1
+            return $el
+          }
+          function ToggleByName($name) {
+            $el = ScrollToName $name
+            if ($el -eq $null) { return $null }
+            $tp = $el.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+            $tp.Toggle()
+            Start-Sleep 1
+            return $tp
+          }
+          $setPath = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $mEl = ScrollToName "Don't check on a metered connection"
+          if ($mEl -eq $null) { Shot 'guards-missing'; throw "Settings has no metered-connection guard switch" }
+          $bEl = FindNamed "Don't check on battery power" $win
+          if ($bEl -eq $null) { Shot 'guards-missing'; throw "Settings has no battery guard switch" }
+          if ($mEl.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne 'Off') { throw 'metered guard is not off by default' }
+          Shot '38-settings-update-guards'
+          $tp = ToggleByName "Don't check on a metered connection"
+          Shot '38b-settings-metered-guard-on'
+          $json = Get-Content $setPath -Raw | ConvertFrom-Json
+          if (-not $json.SkipBackgroundChecksOnMeteredConnection) { throw 'metered guard switch did not persist to settings.json' }
+          $tp.Toggle(); Start-Sleep 1
+          $json = Get-Content $setPath -Raw | ConvertFrom-Json
+          if ($json.SkipBackgroundChecksOnMeteredConnection) { throw 'metered guard did not turn back off' }
+          "update guards verified (default off, persists, restores)"
+          $catName = 'Skip update checks: Smoke'
+          $cEl = ScrollToName $catName
+          if ($cEl -eq $null) { Shot 'category-switch-missing'; throw 'Settings > Categories has no Skip update checks switch for the seeded category' }
+          Shot '39-settings-category-skip-off'
+          $tp = ToggleByName $catName
+          Shot '39b-settings-category-skip-on'
+          $json = Get-Content $setPath -Raw | ConvertFrom-Json
+          if (@($json.CategoriesExcludedFromChecks) -notcontains 'Smoke') { throw 'category skip switch did not persist to settings.json' }
+          $tp.Toggle(); Start-Sleep 1
+          $json = Get-Content $setPath -Raw | ConvertFrom-Json
+          if (@($json.CategoriesExcludedFromChecks) -contains 'Smoke') { throw 'category skip switch did not turn back off' }
+          "category skip switch verified (persists, restores)"
           $comboType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ComboBox)
           $combos = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           if ($combos.Count -eq 0) { throw 'no combo boxes on Settings page' }
@@ -720,7 +765,13 @@ jobs:
           if ($inst1 -notlike '*1.0.1*') { Shot 'shuck-after-update-wrong'; throw "after the update the app did not detect 1.0.1 (got: $inst1)" }
           $upd1 = FindNamed 'Update' $win2
           if ($upd1 -ne $null -and $upd1.Current.IsEnabled) { Shot 'shuck-update-still-enabled'; throw 'Update stays enabled after the installed version caught up' }
+          $sizeEl = $null
+          foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like 'Download size: *') { $sizeEl = $el.Current.Name; break }
+          }
+          "shuck download size line: [$sizeEl]"
           Shot '26d-shuck-updated-detail'
+          if ($sizeEl -eq $null) { throw 'detail page shows no download size for the just-downloaded release file' }
           AssertAlive 'shuck-update'
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
