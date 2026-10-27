@@ -290,7 +290,11 @@ jobs:
               }
             }
             Start-Sleep 1
+            Shot 'sd-picker-selected'
             ClickNamed 'Download'
+            Start-Sleep 2
+            Shot 'sd-after-download-click'
+            $pt = (TextsLike '*'); "post-click texts: $($pt.Substring(0, [Math]::Min(500, $pt.Length)))"
           }
 
           $root = [System.Windows.Automation.AutomationElement]::RootElement
