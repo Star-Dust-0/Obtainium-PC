@@ -383,6 +383,13 @@ jobs:
           "app exited after confirmed close: $($p.HasExited)"
           "after confirmed close: $(PartInfo)"
           "== D7: tray opt-in. Close must hide the window, keep the process and the download running =="
+          # The confirmed install above moved the app to the new version; put the seed back to "outdated" and
+          # remove the fixture's fake uninstall entry so the tray scenarios start from a clean state.
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '1'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
           $sf = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
           $sj = Get-Content $sf -Raw | ConvertFrom-Json
           $sj | Add-Member -NotePropertyName TrayIcon -NotePropertyValue $true -Force
