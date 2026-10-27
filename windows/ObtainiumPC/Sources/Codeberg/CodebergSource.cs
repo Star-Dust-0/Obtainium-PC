@@ -65,6 +65,21 @@ public sealed class CodebergSource : AppSourceBase
 
     // lib/app_sources/codeberg.dart search (searchCommon on the Forgejo API,
     // root prop "data").
+    /// <summary>Port of Codeberg.searchUriFor: origin of the Forgejo instance used for a
+    /// search. Accepts scheme-less hosts, keeps scheme and port, drops path and query.</summary>
+    internal static Uri SearchUriFor(string? configuredUrl, string fallbackHost = "codeberg.org")
+    {
+        var raw = configuredUrl?.Trim() ?? "";
+        if (raw.Length == 0) raw = fallbackHost;
+        if (!raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            raw = "https://" + raw;
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != "http" && uri.Scheme != "https") || string.IsNullOrEmpty(uri.Host))
+            throw new InvalidUrlException("Codeberg");
+        return uri;
+    }
+
     public override bool CanSearch => true;
     public override bool IncludeAdditionalOptsInMainSearch => true;
 
@@ -74,17 +89,14 @@ public sealed class CodebergSource : AppSourceBase
         // lib/app_sources/codeberg.dart search: host override via the dialog's
         // url field, Forgejo token from the dialog (codeberg.org tokens persist
         // in the source config), minStarCount filter via GitHub's searchCommon.
-        var host = Hosts[0];
-        var urlSetting = GetQueryString(querySettings, "url");
-        if (urlSetting != null && Uri.TryCreate(urlSetting, UriKind.Absolute, out var u) && !string.IsNullOrEmpty(u.Host))
-            host = u.Host;
+        var origin = SearchUriFor(GetQueryString(querySettings, "url"), Hosts[0]);
         using var http = ObtainiumHttp.CreateClient();
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         var token = GetQueryString(querySettings, "forgejo-creds") ?? GetQueryString(querySettings, "github-creds");
         if (token != null)
             http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
         var res = await http.GetAsync(
-            $"https://{host}/api/v1/repos/search?q=" + Uri.EscapeDataString(query) + "&limit=100", ct);
+            origin.GetLeftPart(UriPartial.Authority) + "/api/v1/repos/search?q=" + Uri.EscapeDataString(query) + "&limit=100", ct);
         res.EnsureSuccessStatusCode();
         var results = new Dictionary<string, IReadOnlyList<string>>();
         var data = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct))?["data"]?.AsArray();
