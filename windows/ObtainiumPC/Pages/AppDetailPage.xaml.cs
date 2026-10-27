@@ -70,6 +70,34 @@ namespace ObtainiumPC.Pages
                 await Windows.System.Launcher.LaunchUriAsync(u);
         }
 
+        private string? _sizeProbeKey;
+
+        private static string FormatSize(long bytes) =>
+            bytes >= 1048576 ? $"{bytes / 1048576.0:F1} MB" : $"{Math.Max(1, bytes / 1024)} KB";
+
+        // lib/pages/app.dart _maybeProbeDownloadSize: best-effort, never blocks the page.
+        private async System.Threading.Tasks.Task ProbeSizeAsync(string assetUrl)
+        {
+            var app = _app;
+            if (app == null) return;
+            var version = app.LatestVersion;
+            try
+            {
+                var url = assetUrl;
+                if (SourceCatalog.TryResolve(app.Url, App.Settings, out var src) && src != null)
+                    url = await src.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
+                var pat = url.Contains("github.com") || url.Contains("githubusercontent.com") ? App.Settings.GitHubPersonalAccessToken : null;
+                var headers = src?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
+                var size = await Services.Download.DownloadService.ProbeSizeAsync(url, pat, headers);
+                // Ignore a result for a different release or app than the one now shown.
+                if (size == null || _app != app || app.LatestVersion != version) return;
+                app.RecordAssetSize(size.Value, assetUrl);
+                await App.SaveAppsAsync();
+                Render();
+            }
+            catch (Exception e) { Services.Logging.AppLogger.Info("Size probe failed: " + e.Message); }
+        }
+
         private void Render()
         {
             if (_app == null) return;
@@ -86,6 +114,18 @@ namespace ObtainiumPC.Pages
                 || !string.IsNullOrEmpty(_app.ReleaseUrl);
             ReleaseDateLink.Visibility = hasChangeLog && _app.ReleaseDate != null
                 ? Visibility.Visible : Visibility.Collapsed;
+            // Download size: shown only when known for the exact release and file that would be
+            // downloaded (never a size saved for an older release or another file).
+            var sizeUrl = _app.AssetUrls.Count == 0 ? null
+                : _app.AssetUrls[Math.Clamp(_app.PreferredAssetIndex, 0, _app.AssetUrls.Count - 1)].Value;
+            var known = sizeUrl == null ? null : _app.KnownSizeFor(sizeUrl);
+            SizeText.Text = known is { } sz ? Services.Localization.Loc.T("Download size: ") + FormatSize(sz) : "";
+            SizeText.Visibility = known != null ? Visibility.Visible : Visibility.Collapsed;
+            if (known == null && sizeUrl != null && App.Settings.CheckUpdateOnDetailPage && _sizeProbeKey != Models.TrackedApp.SizeIdentity(_app.LatestVersion, sizeUrl))
+            {
+                _sizeProbeKey = Models.TrackedApp.SizeIdentity(_app.LatestVersion, sizeUrl);
+                _ = ProbeSizeAsync(sizeUrl);
+            }
             ReleaseLink.Visibility = !string.IsNullOrEmpty(_app.ReleaseUrl) ? Visibility.Visible : Visibility.Collapsed;
             TrackButton.Label = _app.Disabled ? "Enable tracking" : "Disable tracking";
             // lib/pages/app.dart: reset is offered only for track-only apps or

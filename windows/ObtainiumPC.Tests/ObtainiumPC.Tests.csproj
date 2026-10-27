@@ -21,6 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\ObtainiumPC\Models\TrackedApp.cs" Link="Models\TrackedApp.cs" />
+    <Compile Include="..\ObtainiumPC\Services\Updates\BackgroundCheckGuards.cs" Link="Services\BackgroundCheckGuards.cs" />
     <Compile Include="..\ObtainiumPC\Services\Settings\AppSettings.cs" Link="Services\AppSettings.cs" />
     <Compile Include="..\ObtainiumPC\Services\Http\ObtainiumHttp.cs" Link="Services\ObtainiumHttp.cs" />
     <Compile Include="..\ObtainiumPC\Services\Download\BatchDownloadPlanner.cs" Link="Services\BatchDownloadPlanner.cs" />

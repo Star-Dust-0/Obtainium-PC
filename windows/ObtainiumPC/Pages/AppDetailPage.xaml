@@ -103,6 +103,7 @@
                         <HyperlinkButton x:Name="ReleaseDateLink" Click="ReleaseDate_Click" Visibility="Collapsed" Padding="0">
                             <TextBlock x:Name="ReleaseDateText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </HyperlinkButton>
+                        <TextBlock x:Name="SizeText" TextWrapping="Wrap" Visibility="Collapsed"/>
                         <HyperlinkButton x:Name="ReleaseLink" Content="Open release page" Click="ReleaseLink_Click"/>
                         <HyperlinkButton x:Name="HealthLink" Content="Update health: view details" Click="HealthLink_Click" Visibility="Collapsed"/>
                     </StackPanel>

@@ -48,6 +48,11 @@ public sealed class AppSettings
         => CategoriesExcludedFromChecks.Count > 0 && appCategories.Any(CategoriesExcludedFromChecks.Contains);
     /// <summary>Upstream setCategories prunes exclusions for removed categories.</summary>
     public void PruneExcludedCategories() => CategoriesExcludedFromChecks.RemoveWhere(c => !CategoryColors.ContainsKey(c));
+    // Windows analogue of upstream's Wi-Fi/charging background guards (bg_update_guards.dart):
+    // background checks are skipped on a metered connection / on battery power. Both default off;
+    // a manual check always runs.
+    public bool SkipBackgroundChecksOnMeteredConnection { get; set; }
+    public bool SkipBackgroundChecksOnBattery { get; set; }
     public string Language { get; set; } = ""; // "" = follow system (upstream forcedLocale null)
     // lib/providers/settings_provider.dart groupBy: none | category | source.
     public string GroupBy { get; set; } = "none";

@@ -119,6 +119,8 @@ namespace ObtainiumPC.Pages
             MinAgeCombo.SelectedIndex = mi >= 0 ? mi : 0;
 
             CheckOnStartToggle.IsOn = s.CheckOnStart;
+            SkipMeteredToggle.IsOn = s.SkipBackgroundChecksOnMeteredConnection;
+            SkipBatteryToggle.IsOn = s.SkipBackgroundChecksOnBattery;
             HandleLinksToggle.IsOn = s.HandleObtainiumLinks;
             NotifyToggle.IsOn = s.NotifyUpdates;
             HideDowngradesToggle.IsOn = s.HideDowngrades;
@@ -200,6 +202,15 @@ namespace ObtainiumPC.Pages
             Save();
         }
 
+        private void SkipMeteredToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.SkipBackgroundChecksOnMeteredConnection = SkipMeteredToggle.IsOn; Save(); }
+        private void SkipBatteryToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.SkipBackgroundChecksOnBattery = SkipBatteryToggle.IsOn; Save(); }
+        private void SkipChecksToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ToggleSwitch ts || ts.Tag is not string name) return;
+            if (ts.IsOn) App.Settings.CategoriesExcludedFromChecks.Add(name);
+            else App.Settings.CategoriesExcludedFromChecks.Remove(name);
+            App.Settings.Save();
+        }
         private void CheckOnStartToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.CheckOnStart = CheckOnStartToggle.IsOn; Save(); }
         private void HandleLinksToggle_Toggled(object sender, RoutedEventArgs e)
         {
@@ -221,6 +232,7 @@ namespace ObtainiumPC.Pages
         public sealed class CategoryRow
         {
             public string Name { get; set; } = "";
+            public bool Excluded { get; set; }
             public Microsoft.UI.Xaml.Media.Brush Swatch { get; set; } = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
         }
 
@@ -231,6 +243,7 @@ namespace ObtainiumPC.Pages
                 .Select(kv => new CategoryRow
                 {
                     Name = kv.Key,
+                    Excluded = App.Settings.CategoriesExcludedFromChecks.Contains(kv.Key),
                     Swatch = new Microsoft.UI.Xaml.Media.SolidColorBrush(
                         Windows.UI.Color.FromArgb(255, (byte)(kv.Value >> 16), (byte)(kv.Value >> 8), (byte)kv.Value)),
                 })

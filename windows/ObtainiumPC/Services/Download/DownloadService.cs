@@ -133,6 +133,28 @@ public sealed class DownloadService
 
     /// GitHub release-asset API URLs (api.github.com/.../releases/assets/ID) answer with
     /// JSON metadata unless the request asks for the binary, with or without a token.
+    /// <summary>Best-effort size of a download without fetching the body: HEAD, then a headers-only GET.
+    /// Null when unknown (never 0, never throws).</summary>
+    public static async Task<long?> ProbeSizeAsync(string url, string? personalAccessToken = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null, CancellationToken ct = default)
+    {
+        foreach (var method in new[] { HttpMethod.Head, HttpMethod.Get })
+        {
+            try
+            {
+                using var req = BuildRequest(url, personalAccessToken, extraHeaders);
+                req.Method = method;
+                using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!res.IsSuccessStatusCode) continue;
+                var len = res.Content.Headers.ContentLength;
+                if (len is > 0) return len;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+            catch { }
+        }
+        return null;
+    }
+
     internal static HttpRequestMessage BuildRequest(string url, string? personalAccessToken, IReadOnlyDictionary<string, string>? extraHeaders)
     {
         var req = new HttpRequestMessage(HttpMethod.Get, url);

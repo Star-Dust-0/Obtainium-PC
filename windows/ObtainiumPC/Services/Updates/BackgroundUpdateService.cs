@@ -47,9 +47,40 @@ public sealed class BackgroundUpdateService
         if (App.Settings.CheckOnStart) _ = CheckAllAsync(manual: false);
     }
 
+    private static bool? DetectMetered()
+    {
+        try
+        {
+            var cost = Windows.Networking.Connectivity.NetworkInformation.GetInternetConnectionProfile()?.GetConnectionCost();
+            if (cost == null) return null;
+            return cost.NetworkCostType != Windows.Networking.Connectivity.NetworkCostType.Unrestricted
+                && cost.NetworkCostType != Windows.Networking.Connectivity.NetworkCostType.Unknown;
+        }
+        catch { return null; }
+    }
+
+    private static bool? DetectOnBattery()
+    {
+        try
+        {
+            // No battery present (desktop) reports NotPresent: not on battery.
+            return Windows.System.Power.PowerManager.BatteryStatus == Windows.System.Power.BatteryStatus.Discharging;
+        }
+        catch { return null; }
+    }
+
     public async Task CheckAllAsync(bool manual)
     {
         if (_checking) return;
+        var guard = BackgroundCheckGuards.SkipReason(manual,
+            App.Settings.SkipBackgroundChecksOnMeteredConnection, App.Settings.SkipBackgroundChecksOnBattery,
+            App.Settings.SkipBackgroundChecksOnMeteredConnection ? DetectMetered() : null,
+            App.Settings.SkipBackgroundChecksOnBattery ? DetectOnBattery() : null);
+        if (guard != null)
+        {
+            Logging.AppLogger.Info($"Background update check skipped: {guard}");
+            return;
+        }
         _checking = true;
         try
         {
