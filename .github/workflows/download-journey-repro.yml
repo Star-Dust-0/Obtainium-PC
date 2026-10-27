@@ -565,6 +565,25 @@ jobs:
           "tray Check for updates: UI text changed=$($before -ne $after) (before: $before ; after: $after) ; apps.json lastUpdateCheck before=$luBefore after=$luAfter changed=$($luBefore -ne $luAfter)"
           "update check text before: $before ; after: $after"
           Shot 'd20-after-tray-check'
+          # --- D10: tray menu over the app window (neutral background), material, Esc and click-away ---
+          $pers = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          "runner transparency setting before: $((Get-ItemProperty $pers -ErrorAction SilentlyContinue).EnableTransparency)"
+          New-Item $pers -Force | Out-Null; Set-ItemProperty $pers -Name EnableTransparency -Value 1 -Type DWord   # isolated runner only
+          Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c);'
+          foreach ($pn in 'WindowsTerminal','conhost','pwsh','powershell') { Get-Process $pn -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [W.U]::ShowWindow($_.MainWindowHandle, 6) | Out-Null } }
+          Start-Sleep 2
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 2
+          $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          "tray menu Esc: Closed log count=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
+          Shot 'd22-after-esc'
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          ClickAt 300 300; Start-Sleep 2
+          $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          "tray menu click-away: Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
+          Shot 'd23-after-clickaway'
+          $script:shotWin = $w5
           $w3 = $w5
           "clicked Close again: $(ClickByName 'Close' $w3)"
           Start-Sleep 3; $script:shotWin = $null
