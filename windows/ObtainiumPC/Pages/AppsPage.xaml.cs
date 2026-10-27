@@ -443,6 +443,10 @@ namespace ObtainiumPC.Pages
             // One download pipeline per app; errors land in results per app.
             async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress)
             {
+                var entry = Services.Download.DownloadRegistry.TryBegin(app.Id, asset.Key);
+                if (entry == null) { results.Add(app.FinalName + ": already downloading, skipped"); return; }
+                try
+                {
                 var url = asset.Value;
                 SourceCatalog.TryResolve(app.Url, App.Settings, out var dlSource);
                 if (dlSource != null)
@@ -454,7 +458,8 @@ namespace ObtainiumPC.Pages
                 // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
                 Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
                     checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
-                var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck);
+                var tracked = new Progress<(long Received, long? Total)>(pr => { Services.Download.DownloadRegistry.Report(entry, pr.Received, pr.Total); ((IProgress<(long Received, long? Total)>)progress).Report(pr); });
+                var path = await new DownloadService().DownloadAsync(url, asset.Key, tracked, pat, headers, verifyBeforePromote: checksumCheck);
                 Services.Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
                 app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
                 results.Add(app.FinalName + ": downloaded " + asset.Key);
@@ -466,6 +471,8 @@ namespace ObtainiumPC.Pages
                     if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
                     else DownloadService.OpenInstaller(path);
                 }
+                }
+                finally { Services.Download.DownloadRegistry.End(entry); }
             }
             // lib/providers/apps_provider_install.dart:1205 parallelDownloads
             // (default true): bulk downloads run concurrently when allowed;

@@ -200,6 +200,7 @@ namespace ObtainiumPC.Pages
             UpdateButton.Visibility = !trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
             InstallButton.Visibility = !trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
             DownloadButton.Visibility = trackOnlyApp ? Visibility.Visible : Visibility.Collapsed;
+            AttachInFlightDownload();
             // lib/pages/app.dart:508/511: track-only apps also keep the upstream
             // markInstalled/markUpdated bookkeeping action (records
             // installedVersion = latestVersion, no download, no install). Same
@@ -247,6 +248,62 @@ namespace ObtainiumPC.Pages
             return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
         }
 
+        private Services.Download.DownloadEntry? _attached;
+
+        /// Opened again while this app is downloading: show the live progress and keep the action off.
+        private void AttachInFlightDownload()
+        {
+            if (_app == null) return;
+            var entry = Services.Download.DownloadRegistry.Get(_app.Id);
+            if (entry == null) return;
+            UpdateButton.IsEnabled = false;
+            InstallButton.IsEnabled = false;
+            DownloadButton.IsEnabled = false;
+            DownloadPanel.Visibility = Visibility.Visible;
+            ApplyDownloadProgress(entry);
+            if (ReferenceEquals(_attached, entry)) return;
+            DetachInFlightDownload();
+            _attached = entry;
+            entry.Changed += OnAttachedChanged;
+            entry.Ended += OnAttachedEnded;
+        }
+
+        private void DetachInFlightDownload()
+        {
+            if (_attached == null) return;
+            _attached.Changed -= OnAttachedChanged;
+            _attached.Ended -= OnAttachedEnded;
+            _attached = null;
+        }
+
+        private void OnAttachedChanged()
+        {
+            var entry = _attached;
+            if (entry != null) DispatcherQueue.TryEnqueue(() => ApplyDownloadProgress(entry));
+        }
+
+        private void OnAttachedEnded()
+        {
+            DispatcherQueue.TryEnqueue(() => { DetachInFlightDownload(); if (_app != null) Render(); });
+        }
+
+        private void ApplyDownloadProgress(Services.Download.DownloadEntry entry)
+        {
+            var (received, total) = entry.Snapshot;
+            if (total is > 0)
+            {
+                DownloadBar.Value = Math.Min(100, (double)received / total.Value * 100);
+                DownloadText.Text = $"{received / 1048576.0:F1} MB of {total.Value / 1048576.0:F1} MB";
+            }
+            else DownloadText.Text = $"{received / 1048576.0:F1} MB";
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            DetachInFlightDownload();
+            base.OnNavigatedFrom(e);
+        }
+
         private bool IsEmbedded => Frame.Name == "DetailFrame";
 
         /// Single-pane: go back to the list. Split view: show the empty pane.
@@ -263,6 +320,11 @@ namespace ObtainiumPC.Pages
 
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
+            if (_app != null && Services.Download.DownloadRegistry.Get(_app.Id) != null)
+            {
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("This app is already downloading."));
+                return;
+            }
             if (_app == null) return;
             // lib/providers/apps_provider_install.dart:802 showAppDowngradeError
             // (default true): block an update that would downgrade. Android
@@ -319,6 +381,12 @@ namespace ObtainiumPC.Pages
             var picked = await PickAssetAsync(assets, index);
             if (picked < 0) return;
             var asset = assets[picked];
+            var entry = Services.Download.DownloadRegistry.TryBegin(_app.Id, asset.Key);
+            if (entry == null)
+            {
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("This app is already downloading."));
+                return;
+            }
             UpdateButton.IsEnabled = false;
             InstallButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
@@ -326,6 +394,7 @@ namespace ObtainiumPC.Pages
             {
                 var progress = new Progress<(long Received, long? Total)>(p =>
                 {
+                    Services.Download.DownloadRegistry.Report(entry, p.Received, p.Total);
                     if (p.Total is > 0)
                     {
                         DownloadBar.Value = Math.Min(100, (double)p.Received / p.Total.Value * 100);
@@ -389,6 +458,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             }
             finally
             {
+                Services.Download.DownloadRegistry.End(entry);
                 DownloadPanel.Visibility = Visibility.Collapsed;
                 // Recompute instead of blindly re-enabling: if detection already
                 // reconciled installed == latest, the action stays disabled.
