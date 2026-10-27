@@ -37,14 +37,23 @@ jobs:
           # (isolated ephemeral runner) with the release version, so the app's production discovery can confirm it.
           $cs = Join-Path $env:RUNNER_TEMP 'fixture.cs'
           @'
-          using System; using Microsoft.Win32;
+          using System; using System.IO; using System.Collections; using Microsoft.Win32; using System.Web.Script.Serialization;
           class P { static void Main() {
+            // Like a real installer, register the version the app was told is the latest release.
+            string v = "unknown";
+            try {
+              var path = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "ObtainiumPC", "apps.json");
+              foreach (var o in (ArrayList)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path))) {
+                var d = (System.Collections.Generic.Dictionary<string, object>)o;
+                if ((string)d["id"] == "seed-slow") v = (string)d["latestVersion"];
+              }
+            } catch (Exception) { }
             using (var k = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture")) {
-              k.SetValue("DisplayName", "SlowTool"); k.SetValue("DisplayVersion", "f6fb8463"); k.SetValue("Publisher", "local"); }
+              k.SetValue("DisplayName", "SlowTool"); k.SetValue("DisplayVersion", v); k.SetValue("Publisher", "local"); }
             System.Threading.Thread.Sleep(3000);
           } }
           '@ | Set-Content $cs
-          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /out:$big $cs
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /r:System.Web.Extensions.dll /out:$big $cs
           if (-not (Test-Path $big)) { throw 'fixture compile failed' }
           $fs = [System.IO.File]::OpenWrite($big); $fs.Seek(0, 'End') | Out-Null
           $buf = New-Object byte[] 1048576
