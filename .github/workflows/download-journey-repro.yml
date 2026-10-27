@@ -570,7 +570,7 @@ jobs:
           Start-Sleep 3; $script:shotWin = $null
           $tb = TrayButton
           if ($tb) { RightClick $tb; Start-Sleep 2 }
-          ClickAt 813 668; "clicked menu item Exit (by position)"
+          "clicked menu item Exit: $(MenuClick 'Exit' 813 668)"
           Start-Sleep 6
           $p.Refresh(); "process exited after tray Exit: $($p.HasExited)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
