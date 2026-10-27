@@ -52,3 +52,67 @@ public class DownloadRegistryTests
         DownloadRegistry.End(second);
     }
 }
+
+public class DownloadCenterTests
+{
+    [Fact]
+    public void Cancel_sets_the_token_of_that_job_only()
+    {
+        var a = DownloadRegistry.TryBegin("dc-a", "a.exe", "A")!;
+        var b = DownloadRegistry.TryBegin("dc-b", "b.exe", "B")!;
+        a.Cancel();
+        Assert.True(a.Token.IsCancellationRequested);
+        Assert.False(b.Token.IsCancellationRequested);
+        DownloadRegistry.End(a, DownloadState.Cancelled, "Cancelled"); DownloadRegistry.End(b);
+    }
+
+    [Fact]
+    public void Ended_job_moves_to_the_finished_list_with_its_state_and_a_new_job_replaces_it()
+    {
+        var a = DownloadRegistry.TryBegin("dc-c", "c.exe", "C")!;
+        DownloadRegistry.End(a, DownloadState.Failed, "connection lost");
+        Assert.Contains(DownloadRegistry.FinishedEntries(), e => e.AppId == "dc-c" && e.State == DownloadState.Failed && e.Message == "connection lost");
+        Assert.Null(DownloadRegistry.Get("dc-c"));
+        var again = DownloadRegistry.TryBegin("dc-c", "c.exe", "C")!;
+        Assert.DoesNotContain(DownloadRegistry.FinishedEntries(), e => e.AppId == "dc-c");
+        DownloadRegistry.End(again);
+        DownloadRegistry.ClearFinished();
+        Assert.DoesNotContain(DownloadRegistry.FinishedEntries(), e => e.AppId == "dc-c");
+    }
+
+    [Fact]
+    public void Cancelling_a_finished_job_does_nothing()
+    {
+        var a = DownloadRegistry.TryBegin("dc-d", "d.exe")!;
+        DownloadRegistry.End(a, DownloadState.Saved);
+        a.Cancel();
+        Assert.False(a.Token.IsCancellationRequested);
+        Assert.Equal(DownloadState.Saved, a.State);
+        DownloadRegistry.ClearFinished();
+    }
+
+    [Fact]
+    public void Aggregate_progress_is_unknown_when_any_total_is_unknown()
+    {
+        var a = DownloadRegistry.TryBegin("dc-e", "e.exe")!;
+        var b = DownloadRegistry.TryBegin("dc-f", "f.exe")!;
+        a.Report(50, 100); b.Report(10, null);
+        var agg = DownloadRegistry.Aggregate();
+        Assert.Null(agg.Fraction); Assert.Equal(60, agg.Received);
+        b.Report(25, 100);
+        Assert.Equal(0.375, DownloadRegistry.Aggregate().Fraction);
+        DownloadRegistry.End(a); DownloadRegistry.End(b); DownloadRegistry.ClearFinished();
+    }
+
+    [Fact]
+    public void History_is_capped()
+    {
+        for (var i = 0; i < DownloadRegistry.HistoryLimit + 5; i++)
+        {
+            var e = DownloadRegistry.TryBegin("dc-h" + i, "h.exe")!;
+            DownloadRegistry.End(e, DownloadState.Saved);
+        }
+        Assert.True(DownloadRegistry.FinishedEntries().Count <= DownloadRegistry.HistoryLimit);
+        DownloadRegistry.ClearFinished();
+    }
+}
