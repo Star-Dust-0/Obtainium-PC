@@ -43,7 +43,7 @@ jobs:
             string v = "unknown";
             try {
               var path = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "ObtainiumPC", "apps.json");
-              foreach (var o in (ArrayList)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path))) {
+              foreach (var o in (object[])new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path))) {
                 var d = (System.Collections.Generic.Dictionary<string, object>)o;
                 if (d.ContainsKey("url") && ((string)d["url"]).Contains("slowtool") && d.ContainsKey("latestVersion") && d["latestVersion"] != null) v = (string)d["latestVersion"];
               }
