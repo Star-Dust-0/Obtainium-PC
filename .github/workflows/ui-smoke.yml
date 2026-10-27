@@ -7,6 +7,10 @@ on:
         description: 'Ref to build (default: main)'
         required: false
         default: 'main'
+      stress_minutes:
+        description: 'Extra navigation stress at the end of the dark stress step, in minutes (0 = none). Diagnostic for the intermittent native crash 0xc000027b.'
+        required: false
+        default: '0'
 
 permissions:
   contents: read
@@ -92,6 +96,7 @@ jobs:
         shell: pwsh
         env:
           SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRESS_MINUTES: ${{ inputs.stress_minutes }}
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           New-Item -ItemType Directory -Force shots | Out-Null
@@ -1040,6 +1045,29 @@ jobs:
           AssertAlive 'stress-done'
           Shot '28e-after-stress-dark'
           'dark navigation stress verified (20 cycles x 8 switches)'
+          # Diagnostic extension (stress_minutes > 0): keep switching pages, toggling groups and opening
+          # and closing app details until the deadline. Only process death fails this; a missed UIA
+          # lookup is counted, not fatal. Dumps and event-log entries are collected afterwards.
+          $stressMin = 0
+          [void][int]::TryParse("$env:STRESS_MINUTES", [ref]$stressMin)
+          if ($stressMin -gt 0) {
+            $deadline = (Get-Date).AddMinutes($stressMin)
+            $loops = 0; $misses = 0
+            while ((Get-Date) -lt $deadline) {
+              $loops++
+              foreach ($pg in @('Apps','Logs','Apps','Update Health','Apps','Import / Export','Settings','Logs','Apps','Add App','Apps')) {
+                try { ClickNamedIn $pg $win2 } catch { $misses++ }
+                Start-Sleep -Milliseconds 150
+                if ($pg -eq 'Apps') {
+                  try { ToggleGroupIfPresent 'GitHub' $win2 } catch { $misses++ }
+                  if (($loops % 2) -eq 0) { try { ClickPartial 'Notepad' $win2 | Out-Null } catch { $misses++ }; Start-Sleep -Milliseconds 400 }
+                }
+              }
+              AssertAlive "extended-stress-$loops"
+            }
+            "extended stress done: $loops loops in $stressMin min, $misses missed lookups, app alive"
+            Shot '28f-after-extended-stress'
+          }
           Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Tail 30 | Select-String 'ThemeLookup' | ForEach-Object { $_.Line }
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
