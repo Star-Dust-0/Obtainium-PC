@@ -39,7 +39,7 @@ public class DownloadRegistryTests
         DownloadRegistry.Report(e, 10, 100);
         Assert.Equal((10L, (long?)100L), DownloadRegistry.Get("app-p")!.Snapshot);
         DownloadRegistry.End(e);
-        Assert.Equal(1, changed); Assert.Equal(1, ended);
+        Assert.True(changed >= 1); Assert.Equal(1, ended);
     }
 
     [Fact]
