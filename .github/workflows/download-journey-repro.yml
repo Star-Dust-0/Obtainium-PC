@@ -1,0 +1,354 @@
+name: Download journey repro (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build (default: main)'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  repro:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+      - name: Restore
+        run: msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+      - name: Build
+        run: msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
+      - name: Log source revision
+        shell: pwsh
+        run: 'git rev-parse HEAD'
+      - name: Slow local file server and seed
+        shell: pwsh
+        run: |
+          $big = Join-Path $env:RUNNER_TEMP 'slowtool.exe'
+          Copy-Item "$env:WINDIR\System32\whoami.exe" $big
+          $fs = [System.IO.File]::OpenWrite($big); $fs.Seek(0, 'End') | Out-Null
+          $buf = New-Object byte[] 1048576
+          foreach ($i in 1..60) { $fs.Write($buf, 0, $buf.Length) }
+          $fs.Close()
+          "slow file: $((Get-Item $big).Length) bytes"
+          $py = Join-Path $env:RUNNER_TEMP 'slow.py'
+          @'
+          import http.server, os, sys, time
+          F = sys.argv[1]
+          SIZE = os.path.getsize(F)
+          class H(http.server.BaseHTTPRequestHandler):
+              protocol_version = 'HTTP/1.1'
+              def log_message(self, fmt, *a):
+                  sys.stderr.write('%s %s\n' % (self.command, self.path)); sys.stderr.flush()
+              def _head(self, start, end, code):
+                  self.send_response(code)
+                  self.send_header('Content-Type', 'application/octet-stream')
+                  self.send_header('Accept-Ranges', 'bytes')
+                  self.send_header('ETag', '"slow-1"')
+                  self.send_header('Content-Length', str(end - start + 1))
+                  if code == 206:
+                      self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, SIZE))
+                  self.end_headers()
+              def _range(self):
+                  r = self.headers.get('Range')
+                  if r and r.startswith('bytes='):
+                      a, b = r[6:].split('-')
+                      s = int(a) if a else 0
+                      e = int(b) if b else SIZE - 1
+                      return s, min(e, SIZE - 1), 206
+                  return 0, SIZE - 1, 200
+              def do_HEAD(self):
+                  s, e, c = self._range(); self._head(s, e, c)
+              def do_GET(self):
+                  s, e, c = self._range(); self._head(s, e, c)
+                  try:
+                      with open(F, 'rb') as fh:
+                          fh.seek(s); left = e - s + 1
+                          while left > 0:
+                              chunk = fh.read(min(65536, left))
+                              self.wfile.write(chunk); left -= len(chunk)
+                              time.sleep(0.025)
+                  except Exception as ex:
+                      sys.stderr.write('abort %s\n' % ex)
+          http.server.ThreadingHTTPServer(('127.0.0.1', 8099), H).serve_forever()
+          '@ | Set-Content $py
+          Start-Process python -ArgumentList $py, $big -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
+          Start-Sleep 3
+          $t = Measure-Command { (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length' | Out-String }
+          "server reachable"
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $apps = @(
+            @{
+              id = 'seed-slow'; url = 'http://127.0.0.1:8099/slowtool.exe'
+              author = 'local'; name = 'SlowTool'; overrideSource = 'Direct File Link'
+              apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+              additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+              installedVersion = '1'
+            }
+          )
+          ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
+          ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+      - name: Enable crash dumps
+        shell: pwsh
+        run: |
+          # Native XAML fault 0xc000027b is intermittent: keep a full dump so the
+          # managed/native stacks can be read instead of guessed.
+          New-Item -ItemType Directory -Force C:\dumps | Out-Null
+          $k = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\ObtainiumPC.exe'
+          New-Item -Path $k -Force | Out-Null
+          New-ItemProperty $k -Name DumpFolder -Value 'C:\dumps' -PropertyType ExpandString -Force | Out-Null
+          New-ItemProperty $k -Name DumpType -Value 2 -PropertyType DWord -Force | Out-Null
+          New-ItemProperty $k -Name DumpCount -Value 3 -PropertyType DWord -Force | Out-Null
+      - name: Launch and capture
+        shell: pwsh
+        env:
+          SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRESS_MINUTES: ${{ inputs.stress_minutes }}
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory -Force shots | Out-Null
+          # Screenshots capture the app window's actual bounds (set
+          # $script:shotWin) so no console or desktop bleeds in; full screen
+          # only when no window is tracked (e.g. the external installer).
+          $script:shotWin = $null
+          $dwmSrc = 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
+          Add-Type -TypeDefinition $dwmSrc
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $x=$b.X; $y=$b.Y; $w=$b.Width; $h=$b.Height
+            if ($script:shotWin -ne $null) {
+              # UIA BoundingRectangle includes the invisible resize border, so
+              # whatever sits behind the window (console, desktop) bleeds into
+              # the capture. DWM extended frame bounds are the visible frame.
+              try {
+                $hwnd = [IntPtr]$script:shotWin.Current.NativeWindowHandle
+                $fr = New-Object DwmFrame+RECT
+                if ($hwnd -ne [IntPtr]::Zero -and
+                    [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+                  $fw = $fr.Right - $fr.Left; $fh = $fr.Bottom - $fr.Top
+                  if ($fw -gt 50 -and $fh -gt 50) {
+                    $x=$fr.Left; $y=$fr.Top; $w=$fw; $h=$fh
+                  }
+                } else {
+                  $r=$script:shotWin.Current.BoundingRectangle
+                  if ($r.Width -gt 50 -and $r.Height -gt 50) {
+                    $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height
+                  }
+                }
+              } catch {}
+            }
+            $bmp=New-Object System.Drawing.Bitmap $w,$h
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x,$y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $w,$h))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          $exe = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe'
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $p.Refresh()
+          if ($p.HasExited) { Shot 'exited'; throw "app exited at launch (code $($p.ExitCode))" }
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          if ($win -eq $null) { throw 'main window not found for walkthrough' }
+          $script:shotWin = $win
+          function ClickNamed($name, $verifyName) {
+            # Invoke/click, then (when a verification element is given) confirm
+            # it appears, retrying the click - one stray click must not derail
+            # the whole walkthrough.
+            foreach ($attempt in 1..3) {
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -eq $null) {
+                if ($attempt -eq 3) { throw "nav item '$name' not found" }
+                Start-Sleep 1; continue
+              }
+              $invoked = $false
+              try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $invoked = $true } catch {}
+              if (-not $invoked) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              }
+              if (-not $verifyName) { return }
+              foreach ($w in 1..6) {
+                Start-Sleep 1
+                $vc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $verifyName)
+                if ($win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $vc) -ne $null) { return }
+              }
+            }
+            throw "clicking '$name' never produced '$verifyName'"
+          }
+          function ClickPartial($prefix, $scope) {
+            $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              $n = $el.Current.Name
+              if ($n -and $n.StartsWith($prefix)) {
+                $r = $el.Current.BoundingRectangle
+                if ($r.Width -gt 10 -and $r.Height -gt 10) {
+                  [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                  Start-Sleep -Milliseconds 300
+                  [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                  return $el
+                }
+              }
+            }
+            Shot "missing-$($prefix -replace '[^\w]','_')"
+            throw "element starting with '$prefix' not found"
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+          }
+          # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
+          function FindNamedScrolling($name, $scope) {
+            $el = FindNamed $name $scope
+            if ($el -ne $null) { return $el }
+            $wr = $scope.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
+            foreach ($k in 1..8) {
+              [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0)
+              Start-Sleep -Milliseconds 400
+              $el = FindNamed $name $scope
+              if ($el -ne $null) { return $el }
+            }
+            return $null
+          }
+
+          function AssertAlive($tag) {
+            $p.Refresh()
+            if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" }
+          }
+
+
+          $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
+          function PartInfo() {
+            $x = Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'slowtool*' }
+            if (-not $x) { return 'no slowtool files' }
+            return (($x | ForEach-Object { "$($_.Name)=$($_.Length)" }) -join ', ')
+          }
+          function UiaProgressSeen($tag) {
+            $hits = @()
+            $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              $n = $el.Current.Name
+              if ($n -and ($n -like '*Download progress*' -or $n -like '* MB of *' -or $n -like 'Downloading*')) { $hits += $n }
+            }
+            "[$tag] progress-like UIA elements: $($hits.Count) $($hits -join ' | ')"
+          }
+          function StartDownload() {
+            if ((FindNamed 'Update' $win) -ne $null) { ClickNamed 'Update' } elseif ((FindNamed 'Install' $win) -ne $null) { ClickNamed 'Install' } else { ClickNamed 'Download' }
+            Start-Sleep 3
+            $dlg = FindNamed 'Choose a file' $root
+            if ($dlg -eq $null) { Shot 'no-asset-picker'; throw 'asset picker did not appear' }
+            $all = $dlg.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              if ($el.Current.ControlType -eq [System.Windows.Automation.ControlType]::RadioButton) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                "picked: $($el.Current.Name)"; break
+              }
+            }
+            Start-Sleep 1
+            ClickNamed 'Download'
+          }
+
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          "== SCENARIO A: start a download, leave the page, come back =="
+          Shot 'a0-apps-initial'
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3; AssertAlive 'detail'; Shot 'a1-detail'
+          StartDownload
+          Start-Sleep 4
+          Shot 'a2-detail-downloading'
+          "t+4s: $(PartInfo)"
+          UiaProgressSeen 'a2 on detail'
+          ClickNamed 'Settings'
+          Start-Sleep 3
+          Shot 'a3-settings-while-downloading'
+          "t+7s on Settings: $(PartInfo)"
+          UiaProgressSeen 'a3 on Settings'
+          ClickNamed 'Update Health'
+          Start-Sleep 2
+          Shot 'a4-health-while-downloading'
+          ClickNamed 'Apps'
+          Start-Sleep 3
+          Shot 'a5-apps-back'
+          "back on Apps: $(PartInfo)"
+          UiaProgressSeen 'a5 Apps list'
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          Shot 'a6-detail-revisited'
+          UiaProgressSeen 'a6 detail revisited'
+          $up = FindNamed 'Update' $win; $ins = FindNamed 'Install' $win
+          if ($up) { "a6 Update button enabled = $($up.Current.IsEnabled)" }
+          if ($ins) { "a6 Install button enabled = $($ins.Current.IsEnabled)" }
+          foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter 'slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          Start-Sleep 3
+          "after completion: $(PartInfo)"
+          AssertAlive 'after-complete'; Shot 'a7-after-complete'
+          UiaProgressSeen 'a7 after complete'
+          "installer launched (whoami processes ever started is unobservable); app alive"
+
+          "== SCENARIO B: close the window while a download runs =="
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          Remove-Item (Join-Path $dlDir 'slowtool.exe') -ErrorAction SilentlyContinue
+          StartDownload
+          Start-Sleep 5
+          "before close: $(PartInfo)"
+          Shot 'b1-before-close'
+          $null = $p.CloseMainWindow()
+          Start-Sleep 6
+          $p.Refresh()
+          "app exited after close: $($p.HasExited)"
+          Start-Sleep 5
+          "after close +11s: $(PartInfo)"
+          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+          "ObtainiumPC processes remaining: $($procs.Count)"
+          Get-Content (Join-Path $env:RUNNER_TEMP 'slow.log') -ErrorAction SilentlyContinue | Select-Object -Last 15
+      - name: Preserve app logs
+        if: always()
+        shell: pwsh
+        run: |
+          # Crash evidence: the app's logs.jsonl (with any unhandled-exception
+          # entry) and the script-visible process state travel with the shots.
+          $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+          $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
+          "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
+          # Native-crash evidence (WinUI/CLR faults do not reach logs.jsonl).
+          try {
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-60) } -ErrorAction Stop |
+              Where-Object { $_.ProviderName -in @('Application Error', '.NET Runtime', 'Windows Error Reporting') -and $_.Message -match 'ObtainiumPC' } |
+              Select-Object -First 8 TimeCreated, ProviderName, Message | Format-List | Out-String -Width 400 | Out-File shots\app-crash-events.txt
+          } catch { "event log query failed: $_" | Out-File shots\app-crash-events.txt }
+          $dump = Get-ChildItem C:\dumps -Filter *.dmp -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($dump) {
+            "dump: $($dump.FullName) $($dump.Length)" | Out-File shots\dump-analysis.txt
+            try {
+              dotnet tool install -g dotnet-dump 2>&1 | Out-File -Append shots\dump-analysis.txt
+              $dd = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-dump.exe'
+              & $dd analyze $dump.FullName -c 'threads' -c 'pe -nested' -c 'clrstack -all' -c 'exit' 2>&1 | Out-File -Append -Width 400 shots\dump-analysis.txt
+            } catch { "analysis failed: $_" | Out-File -Append shots\dump-analysis.txt }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-shots
+          path: shots/
