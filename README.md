@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/graphics/icon-512x512.png" alt="Obtainium-PC icon" width="96" height="96">
+<img src="assets/graphics/icon-512x512.png" alt="Obtainium-PC icon" width="220" height="220">
 
 # Obtainium-PC
 
