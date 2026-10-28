@@ -27,8 +27,8 @@ public static class InstallCheck
     {
         if (string.IsNullOrWhiteSpace(detectedVersion)) return InstallCheckResult.NotDetected;
         var d = Normalize(detectedVersion);
-        if (!string.IsNullOrEmpty(expectedLatest) && d == Normalize(expectedLatest)) return InstallCheckResult.Confirmed;
-        if (!string.IsNullOrEmpty(previousInstalled) && d == Normalize(previousInstalled)) return InstallCheckResult.Unchanged;
+        if (!string.IsNullOrEmpty(expectedLatest) && (d == Normalize(expectedLatest) || Updates.SelfUpdate.SameRelease(detectedVersion, expectedLatest))) return InstallCheckResult.Confirmed;
+        if (!string.IsNullOrEmpty(previousInstalled) && (d == Normalize(previousInstalled) || Updates.SelfUpdate.SameRelease(detectedVersion, previousInstalled))) return InstallCheckResult.Unchanged;
         return InstallCheckResult.Different;
     }
 

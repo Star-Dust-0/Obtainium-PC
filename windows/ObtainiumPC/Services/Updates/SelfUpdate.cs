@@ -98,24 +98,30 @@ public static class SelfUpdate
     /// beta or rc stay significant, so a real newer or pre-release tag still
     /// counts as an update. Nothing stored is rewritten.
     /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex VersionPrefix =
+        new(@"^\s*(?:version|ver|release|v)?[\s._\-]*(?=\d)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Drops a cosmetic lead-in such as "v", "V", "v.", "version " or "release " before the first digit.</summary>
+    public static string StripPrefix(string v) => VersionPrefix.Replace(v.Trim(), "", 1);
+
     public static bool SameRelease(string? installed, string? latest)
     {
         if (string.IsNullOrWhiteSpace(installed) || string.IsNullOrWhiteSpace(latest)) return false;
-        var a = Versioning.VersionNormalization.NormalizeVersionForComparison(installed).Split('.').ToList();
-        var b = Versioning.VersionNormalization.NormalizeVersionForComparison(latest).Split('.').ToList();
-        while (a.Count > 1 && a[^1] == "0") a.RemoveAt(a.Count - 1);
-        while (b.Count > 1 && b[^1] == "0") b.RemoveAt(b.Count - 1);
+        var a = Versioning.VersionNormalization.NormalizeVersionForComparison(StripPrefix(installed)).Split('.').ToList();
+        var b = Versioning.VersionNormalization.NormalizeVersionForComparison(StripPrefix(latest)).Split('.').ToList();
+        while (a.Count > 1 && a[^1].Length > 0 && a[^1].All(c => c == '0')) a.RemoveAt(a.Count - 1);
+        while (b.Count > 1 && b[^1].Length > 0 && b[^1].All(c => c == '0')) b.RemoveAt(b.Count - 1);
         return a.Count > 0 && a[0].Length > 0 && a.SequenceEqual(b);
     }
 
-    /// <summary>Update decision: exact comparison for every app, plus same-release equivalence for the own app.</summary>
+    /// <summary>Update decision: same-release equivalence for every app (prefix, trailing .0 parts), exact otherwise.</summary>
     public static bool IsUpdateable(TrackedApp app, bool hideDowngrades) =>
-        !(IsSelf(app) && SameRelease(app.InstalledVersion, app.LatestVersion))
+        !SameRelease(app.InstalledVersion, app.LatestVersion)
         && Versioning.VersionService.IsAppUpdateable(app.InstalledVersion, app.LatestVersion, hideDowngrades);
 
     /// <summary>The recorded install already is the latest release (exact match, or same release for the own app).</summary>
     public static bool VersionsMatch(TrackedApp app) =>
-        app.InstalledVersion == app.LatestVersion || (IsSelf(app) && SameRelease(app.InstalledVersion, app.LatestVersion));
+        app.InstalledVersion == app.LatestVersion || SameRelease(app.InstalledVersion, app.LatestVersion);
 
     /// <summary>Detail-page action decision with the same own-app equivalence as the list.</summary>
     public static (bool Enabled, bool FirstInstall) DetailAction(TrackedApp app)

@@ -109,8 +109,8 @@ public class SelfUpdateVersionEquivalenceTests
         => Assert.True(SelfUpdate.IsUpdateable(App(SelfUpdate.OwnUrl, "0.1.0", "v0.1.1"), false));
 
     [Fact]
-    public void Other_apps_keep_the_exact_string_comparison()
-        => Assert.True(SelfUpdate.IsUpdateable(App("https://github.com/someone/else", "0.1.0", "v0.1"), false));
+    public void Other_apps_use_the_same_equivalence()
+        => Assert.False(SelfUpdate.IsUpdateable(App("https://github.com/someone/else", "0.1.0", "v0.1"), false));
 }
 
 public class SelfUpdateDerivedDecisionTests
@@ -127,8 +127,8 @@ public class SelfUpdateDerivedDecisionTests
         => Assert.True(SelfUpdate.DetailAction(A(SelfUpdate.OwnUrl, "0.1.0", "v0.1.1")).Enabled);
 
     [Fact]
-    public void Other_apps_detail_action_stays_exact()
-        => Assert.True(SelfUpdate.DetailAction(A("https://github.com/a/b", "0.1.0", "v0.1")).Enabled);
+    public void Other_apps_detail_action_uses_the_same_equivalence()
+        => Assert.False(SelfUpdate.DetailAction(A("https://github.com/a/b", "0.1.0", "v0.1")).Enabled);
 
     [Fact]
     public void First_install_is_unchanged_for_the_own_app()
@@ -141,7 +141,7 @@ public class SelfUpdateDerivedDecisionTests
     public void VersionsMatch_follows_the_same_rule_as_the_list()
     {
         Assert.True(SelfUpdate.VersionsMatch(A(SelfUpdate.OwnUrl, "0.1.0", "v0.1")));
-        Assert.False(SelfUpdate.VersionsMatch(A("https://github.com/a/b", "0.1.0", "v0.1")));
+        Assert.True(SelfUpdate.VersionsMatch(A("https://github.com/a/b", "0.1.0", "v0.1")));
         Assert.False(SelfUpdate.VersionsMatch(A(SelfUpdate.OwnUrl, "0.1.0", "v0.2")));
     }
 
@@ -152,4 +152,50 @@ public class SelfUpdateDerivedDecisionTests
         _ = SelfUpdate.IsUpdateable(app, false); _ = SelfUpdate.DetailAction(app); _ = SelfUpdate.VersionsMatch(app);
         Assert.Equal("0.1.0", app.InstalledVersion); Assert.Equal("v0.1", app.LatestVersion);
     }
+}
+
+public class VersionEquivalenceAuditTests
+{
+    [Theory]
+    [InlineData("6.3.0.0", "v6.3")]            // BCUninstaller: 4-part Windows version vs tag
+    [InlineData("3.8.7", "v.3.8.7")]          // simplewall: odd "v." prefix
+    [InlineData("3.8.7", "V3.8.7")]
+    [InlineData("3.8.7", "version 3.8.7")]
+    [InlineData("3.8.7", "Version-3.8.7")]
+    [InlineData("8.9.8.1", "v8.9.8.1")]       // Notepad++
+    [InlineData("8.9.8.1", "8.9.8.1")]
+    [InlineData("1.0.1.0", "1.0.1")]
+    [InlineData("26.00", "26.00")]
+    [InlineData("26.00", "26.0")]
+    [InlineData("17.1.0", "v17.1")]
+    [InlineData("2.47.1", "v2.47.1")]
+    public void Same_release_is_not_an_update(string installed, string latest)
+    {
+        var app = new TrackedApp { Id = "x", Url = "https://github.com/a/b", Name = "x", InstalledVersion = installed, LatestVersion = latest };
+        Assert.False(SelfUpdate.IsUpdateable(app, false));
+        Assert.False(SelfUpdate.DetailAction(app).Enabled);
+        Assert.True(SelfUpdate.VersionsMatch(app));
+    }
+
+    [Theory]
+    [InlineData("1.0.1", "v1.0.2")]
+    [InlineData("6.3.0.0", "v6.3.1")]
+    [InlineData("6.3.0.0", "v6.4")]
+    [InlineData("3.8.7", "v.3.8.8")]
+    [InlineData("3.8.7", "v3.9")]
+    [InlineData("3.8.7", "v.3.8.7-beta")]
+    [InlineData("3.8.7", "v.3.8.7.1")]
+    [InlineData("1.0", "v1.0rc1")]
+    public void Real_differences_still_offer_an_update(string installed, string latest)
+    {
+        var app = new TrackedApp { Id = "x", Url = "https://github.com/a/b", Name = "x", InstalledVersion = installed, LatestVersion = latest };
+        Assert.True(SelfUpdate.IsUpdateable(app, false));
+        Assert.True(SelfUpdate.DetailAction(app).Enabled);
+    }
+
+    [Theory]
+    [InlineData("6.3.0.0", "v6.3", InstallCheckResult.Confirmed)]
+    [InlineData("3.8.7", "v.3.8.7", InstallCheckResult.Confirmed)]
+    public void Post_install_check_accepts_the_same_release(string detected, string expected, InstallCheckResult want)
+        => Assert.Equal(want, InstallCheck.Evaluate(detected, expected, "1.0"));
 }
