@@ -310,16 +310,11 @@ public sealed class DownloadService
 
     /// Opens the downloaded installer for the user. .msi goes through msiexec;
     /// everything else launches directly. Never silent, never auto-elevated.
-    public static void OpenInstaller(string path)
+    public static Process? OpenInstaller(string path)
     {
         if (path.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
-        {
-            Process.Start(new ProcessStartInfo("msiexec.exe", $"/i \"{path}\"") { UseShellExecute = true });
-        }
-        else
-        {
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
+            return Process.Start(new ProcessStartInfo("msiexec.exe", $"/i \"{path}\"") { UseShellExecute = true });
+        return Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
     /// Reveals the file in Explorer.

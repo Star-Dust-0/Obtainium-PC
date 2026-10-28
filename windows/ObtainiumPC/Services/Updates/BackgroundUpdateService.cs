@@ -158,12 +158,12 @@ public sealed class BackgroundUpdateService
                 .AddText("Obtainium-PC")
                 .AddText(text)
                 .BuildNotification();
-            AppNotificationManager.Default.Show(notification);
+            Notifications.Notifier.Show(notification, "update available");
         }
-        catch
+        catch (Exception ex)
         {
-            // Toast unavailable (e.g. unpackaged identity limits); the in-app
-            // list remains the source of truth.
+            // The in-app list remains the source of truth; the failure is logged now.
+            Logging.AppLogger.Warn("Update notification could not be built", ex);
         }
     }
 }

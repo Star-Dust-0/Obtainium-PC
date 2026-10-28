@@ -9,6 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Same custom title bar as Fluent Prayer Times / Sakhr Dictionary / TLS
@@ -83,5 +84,27 @@
             <Frame x:Name="ContentFrame"/>
         </Border>
     </muxc:NavigationView>
+
+        <!-- Global download strip: visible on every page while a download runs, and after it
+             ends until the finished list is cleared. -->
+        <Border x:Name="DownloadStrip" Grid.Row="2" Visibility="Collapsed" Padding="16,8,16,8"
+                Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0"
+                AutomationProperties.AutomationId="DownloadStrip">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="StripTitle" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="DownloadStripTitle"/>
+                    <TextBlock x:Name="StripDetail" FontSize="12" Opacity="0.75" TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="DownloadStripDetail"/>
+                </StackPanel>
+                <ProgressBar x:Name="StripBar" Grid.Column="1" VerticalAlignment="Center" Minimum="0" Maximum="100" AutomationProperties.Name="Download progress (all downloads)"/>
+                <Button x:Name="StripListButton" Grid.Column="2" Content="Downloads" AutomationProperties.AutomationId="DownloadStripList"/>
+                <Button x:Name="StripCancel" Grid.Column="3" Content="Cancel" Click="StripCancel_Click" AutomationProperties.AutomationId="DownloadStripCancel"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

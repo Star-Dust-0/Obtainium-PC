@@ -32,6 +32,10 @@ namespace ObtainiumPC.Pages
         protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
+            Services.Download.DownloadRegistry.ListChanged += OnRegistryListChanged;
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdatedElsewhere;
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated += OnAppsUpdatedElsewhere;
             await App.InitAsync();
             var id = e.Parameter as string;
             _app = App.TrackedApps.FirstOrDefault(a => a.Id == id);
@@ -200,6 +204,7 @@ namespace ObtainiumPC.Pages
             UpdateButton.Visibility = !trackOnlyApp && !firstInstall ? Visibility.Visible : Visibility.Collapsed;
             InstallButton.Visibility = !trackOnlyApp && firstInstall ? Visibility.Visible : Visibility.Collapsed;
             DownloadButton.Visibility = trackOnlyApp ? Visibility.Visible : Visibility.Collapsed;
+            AttachInFlightDownload();
             // lib/pages/app.dart:508/511: track-only apps also keep the upstream
             // markInstalled/markUpdated bookkeeping action (records
             // installedVersion = latestVersion, no download, no install). Same
@@ -247,6 +252,90 @@ namespace ObtainiumPC.Pages
             return await dialog.ShowAsync() == ContentDialogResult.Primary ? selected : -1;
         }
 
+        private Services.Download.DownloadEntry? _attached;
+        private Services.Download.DownloadEntry? _renderedInstalled;
+
+        /// Opened again while this app is downloading: show the live progress and keep the action off.
+        private void AttachInFlightDownload()
+        {
+            if (_app == null) return;
+            var entry = Services.Download.DownloadRegistry.Get(_app.Id);
+            if (entry == null) return;
+            UpdateButton.IsEnabled = false;
+            InstallButton.IsEnabled = false;
+            DownloadButton.IsEnabled = false;
+            DownloadPanel.Visibility = Visibility.Visible;
+            // A new attempt (e.g. Retry from the Downloads list) replaces the stale error/cancel banner.
+            if (MessageBar.IsOpen && MessageBar.Severity is InfoBarSeverity.Error or InfoBarSeverity.Informational) MessageBar.IsOpen = false;
+            ApplyDownloadProgress(entry);
+            if (ReferenceEquals(_attached, entry)) return;
+            DetachInFlightDownload();
+            _attached = entry;
+            entry.Changed += OnAttachedChanged;
+            entry.Ended += OnAttachedEnded;
+        }
+
+        private void DetachInFlightDownload()
+        {
+            if (_attached == null) return;
+            _attached.Changed -= OnAttachedChanged;
+            _attached.Ended -= OnAttachedEnded;
+            _attached = null;
+        }
+
+        private void OnAttachedChanged()
+        {
+            var entry = _attached;
+            if (entry != null) DispatcherQueue.TryEnqueue(() => ApplyDownloadProgress(entry));
+        }
+
+        private void OnAttachedEnded()
+        {
+            DispatcherQueue.TryEnqueue(() => { DetachInFlightDownload(); if (_app != null) Render(); });
+        }
+
+        private void ApplyDownloadProgress(Services.Download.DownloadEntry entry)
+        {
+            var (received, total) = entry.Snapshot;
+            if (total is > 0)
+            {
+                DownloadBar.Value = Math.Min(100, (double)received / total.Value * 100);
+                DownloadText.Text = $"{received / 1048576.0:F1} MB of {total.Value / 1048576.0:F1} MB";
+            }
+            else DownloadText.Text = $"{received / 1048576.0:F1} MB";
+        }
+
+        private void OnRegistryListChanged() => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_app != null && Services.Download.DownloadRegistry.Get(_app.Id) != null && !ReferenceEquals(_attached, Services.Download.DownloadRegistry.Get(_app.Id)))
+                AttachInFlightDownload();
+            // The independent install check confirmed the new version: show it (and the Update state) now.
+            if (_app != null)
+            {
+                var done = Services.Download.DownloadRegistry.FinishedEntries().FirstOrDefault(x => x.AppId == _app.Id && x.State == Services.Download.DownloadState.Installed);
+                if (done != null && !ReferenceEquals(_renderedInstalled, done)) { _renderedInstalled = done; Render(); }
+            }
+        });
+
+        /// A check that finished elsewhere (background pass, tray "Check for updates", bulk update) changed
+        /// the stored app: show its new latest version, last-check time and Update state here too.
+        private void OnAppsUpdatedElsewhere(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_app == null) return;
+            var fresh = App.TrackedApps.FirstOrDefault(a => a.Id == _app.Id);
+            if (fresh == null) return;
+            _app = fresh;
+            Render();
+        });
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            Services.Updates.BackgroundUpdateService.Instance.AppsUpdated -= OnAppsUpdatedElsewhere;
+            Services.Download.DownloadRegistry.ListChanged -= OnRegistryListChanged;
+            DetachInFlightDownload();
+            base.OnNavigatedFrom(e);
+        }
+
         private bool IsEmbedded => Frame.Name == "DetailFrame";
 
         /// Single-pane: go back to the list. Split view: show the empty pane.
@@ -263,6 +352,11 @@ namespace ObtainiumPC.Pages
 
         private async void Update_Click(object sender, RoutedEventArgs e)
         {
+            if (_app != null && Services.Download.DownloadRegistry.Get(_app.Id) != null)
+            {
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("This app is already downloading."));
+                return;
+            }
             if (_app == null) return;
             // lib/providers/apps_provider_install.dart:802 showAppDowngradeError
             // (default true): block an update that would downgrade. Android
@@ -319,12 +413,20 @@ namespace ObtainiumPC.Pages
             var picked = await PickAssetAsync(assets, index);
             if (picked < 0) return;
             var asset = assets[picked];
+            var entry = Services.Download.DownloadRegistry.TryBegin(_app.Id, asset.Key, _app.FinalName);
+            if (entry == null)
+            {
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("This app is already downloading."));
+                return;
+            }
             UpdateButton.IsEnabled = false;
             InstallButton.IsEnabled = false;
             DownloadPanel.Visibility = Visibility.Visible;
+            var outcome = Services.Download.DownloadState.Failed;
+            string? outcomeMessage = null;
             try
             {
-                var progress = new Progress<(long Received, long? Total)>(p =>
+                var ui = new Progress<(long Received, long? Total)>(p =>
                 {
                     if (p.Total is > 0)
                     {
@@ -336,31 +438,13 @@ namespace ObtainiumPC.Pages
                         DownloadText.Text = $"{p.Received / 1048576.0:F1} MB";
                     }
                 });
-                var downloadUrl = asset.Value;
-                if (SourceCatalog.TryResolve(_app.Url, App.Settings, out var dlSource) && dlSource != null)
-                    downloadUrl = await dlSource.AssetUrlPrefetchModifierAsync(downloadUrl, _app.Url, _app.AdditionalSettings);
-                // The GitHub PAT is only attached to GitHub asset requests.
-                var gitHubPat = downloadUrl.Contains("github.com") || downloadUrl.Contains("githubusercontent.com")
-                    ? App.Settings.GitHubPersonalAccessToken : null;
-                var extraHeaders = dlSource?.GetDownloadRequestHeaders(downloadUrl, _app.Url, _app.AdditionalSettings);
-                var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
-                // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
-                Func<string, System.Threading.Tasks.Task> checksumCheck = async part =>
-                    checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, _app.AssetUrls.Concat(_app.OtherAssetUrls));
-                var path = await new DownloadService().DownloadAsync(
-                    downloadUrl, asset.Key, progress, gitHubPat, extraHeaders, verifyBeforePromote: checksumCheck);
-                Services.Logging.AppLogger.Info($"Download {asset.Key} for {_app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
-                _app.RecordAssetSize(new System.IO.FileInfo(path).Length, asset.Value);
-                await App.SaveAppsAsync();
-                // Installability is per-asset, not only per-source: an APK fetched
-                // from a general source (e.g. a track-only GitHub app) is still an
-                // Android package - saved for manual transfer, never launched as
-                // an installer on Windows.
-                var installable = Services.Download.BatchDownloadPlanner.ShouldLaunchInstaller(
-                    dlSource?.SupportsInstall, asset.Key);
+                var fetched = await Services.Download.DownloadCoordinator.FetchAsync(_app, asset, entry, ui);
+                var path = fetched.Path;
+                var installable = fetched.Installable;
+                outcome = installable ? Services.Download.DownloadState.InstallerOpened : Services.Download.DownloadState.Saved;
                 if (installable)
                 {
-                    DownloadService.OpenInstaller(path);
+                    Services.Download.DownloadCoordinator.LaunchInstaller(_app, entry, path);
                     Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0} and opened the installer."), asset.Key));
                     if (CanDetectInstalled())
                     {
@@ -383,12 +467,20 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 }
                 PostDownloadPanel.Visibility = Visibility.Visible;
             }
+            catch (OperationCanceledException) when (entry.CancelRequested)
+            {
+                outcome = Services.Download.DownloadState.Cancelled;
+                outcomeMessage = "Cancelled - partial file removed";
+                Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("Download cancelled. The partial file was removed."));
+            }
             catch (Exception ex)
             {
-                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T));
+                outcomeMessage = Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T);
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + outcomeMessage);
             }
             finally
             {
+                Services.Download.DownloadRegistry.End(entry, outcome, outcomeMessage);
                 DownloadPanel.Visibility = Visibility.Collapsed;
                 // Recompute instead of blindly re-enabling: if detection already
                 // reconciled installed == latest, the action stays disabled.

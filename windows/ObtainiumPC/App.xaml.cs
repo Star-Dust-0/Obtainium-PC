@@ -64,6 +64,7 @@ namespace ObtainiumPC
             EnqueueDeepLink(args.Arguments);
             _window = new MainWindow();
             MainWindowInstance = _window;
+            Services.Notifications.Notifier.Initialize(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
             _window.Activate();
         }
 

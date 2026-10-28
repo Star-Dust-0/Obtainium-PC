@@ -33,7 +33,28 @@ jobs:
         shell: pwsh
         run: |
           $big = Join-Path $env:RUNNER_TEMP 'slowtool.exe'
-          Copy-Item "$env:WINDIR\System32\whoami.exe" $big
+          # Harmless installer fixture: on run it registers a fake "SlowTool" uninstall entry under HKCU
+          # (isolated ephemeral runner) with the release version, so the app's production discovery can confirm it.
+          $cs = Join-Path $env:RUNNER_TEMP 'fixture.cs'
+          @'
+          using System; using System.IO; using System.Collections; using Microsoft.Win32; using System.Web.Script.Serialization;
+          class P { static void Main() {
+            // Like a real installer, register the version the app was told is the latest release.
+            string v = "unknown";
+            try {
+              var path = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "ObtainiumPC", "apps.json");
+              foreach (var o in (object[])new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path))) {
+                var d = (System.Collections.Generic.Dictionary<string, object>)o;
+                if (d.ContainsKey("url") && ((string)d["url"]).Contains("slowtool") && d.ContainsKey("latestVersion") && d["latestVersion"] != null) v = (string)d["latestVersion"];
+              }
+            } catch (Exception ex) { v = "err-" + ex.GetType().Name; }
+            using (var k = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture")) {
+              k.SetValue("DisplayName", "SlowTool"); k.SetValue("DisplayVersion", v); k.SetValue("Publisher", "local"); }
+            System.Threading.Thread.Sleep(3000);
+          } }
+          '@ | Set-Content $cs
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /r:System.Web.Extensions.dll /out:$big $cs
+          if (-not (Test-Path $big)) { throw 'fixture compile failed' }
           $fs = [System.IO.File]::OpenWrite($big); $fs.Seek(0, 'End') | Out-Null
           $buf = New-Object byte[] 1048576
           foreach ($i in 1..60) { $fs.Write($buf, 0, $buf.Length) }
@@ -81,8 +102,8 @@ jobs:
           http.server.ThreadingHTTPServer(('127.0.0.1', 8099), H).serve_forever()
           '@ | Set-Content $py
           Start-Process python -ArgumentList $py, $big -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
-          Start-Sleep 3
-          $t = Measure-Command { (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length' | Out-String }
+          $ok=$false; foreach ($i in 1..30) { Start-Sleep 1; try { Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing | Out-Null; $ok=$true; break } catch {} }
+          if (-not $ok) { throw 'slow server not reachable after 30s' }
           "server reachable"
           $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
           New-Item -ItemType Directory -Force $dir | Out-Null
@@ -92,7 +113,7 @@ jobs:
               author = 'local'; name = 'SlowTool'; overrideSource = 'Direct File Link'
               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
               additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
-              installedVersion = '1'
+              installedVersion = '0'
             }
           )
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
@@ -154,8 +175,8 @@ jobs:
           }
           # Processes started in an earlier step do not survive into this one: start the slow server here.
           Start-Process python -ArgumentList (Join-Path $env:RUNNER_TEMP 'slow.py'), (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow.log') -WindowStyle Hidden
-          Start-Sleep 3
-          (Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing).Headers.'Content-Length'
+          $ok=$false; foreach ($i in 1..30) { Start-Sleep 1; try { Invoke-WebRequest http://127.0.0.1:8099/slowtool.exe -Method Head -UseBasicParsing | Out-Null; $ok=$true; break } catch {} }
+          if (-not $ok) { throw 'slow server not reachable after 30s' }
           $exe = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe'
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
@@ -269,84 +290,346 @@ jobs:
               }
             }
             Start-Sleep 1
+            Shot 'sd-picker-selected'
             ClickNamed 'Download'
+            Start-Sleep 2
+            Shot 'sd-after-download-click'
+            Start-Sleep 5; Shot 'sd-5s-after-click'
+            [System.Windows.Forms.SendKeys]::SendWait('{PGDN}'); Start-Sleep 1; Shot 'sd-scrolled-down'; [System.Windows.Forms.SendKeys]::SendWait('{PGUP}'); Start-Sleep 1
+            if ((PartInfo) -eq 'no slowtool files' -or (PartInfo) -like '*.part=0') { ClickNamed 'Logs'; Start-Sleep 2; Shot 'sd-logs-page'; ClickNamed 'Apps'; Start-Sleep 1; ClickPartial 'SlowTool' $win | Out-Null; Start-Sleep 2 }
+            $pt = (TextsLike '*'); "post-click texts: $($pt.Substring(0, [Math]::Min(500, $pt.Length)))"
           }
 
           $root = [System.Windows.Automation.AutomationElement]::RootElement
-          "== SCENARIO A: start a download, leave the page, come back =="
-          Shot 'a0-apps-initial'
+          function ClickByName($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            if ($el -eq $null) { return $false }
+            $r = $el.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 300
+            [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            return $true
+          }
+          function TextsLike($pattern) {
+            $hits = @()
+            $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) { $n = $el.Current.Name; if ($n -and $n -like $pattern) { $hits += $n } }
+            return ($hits -join ' | ')
+          }
+          "== D1: start a download, leave the page; the global strip must stay visible =="
+          Shot 'd0-apps-initial'
           ClickPartial 'SlowTool' $win | Out-Null
-          Start-Sleep 3; AssertAlive 'detail'; Shot 'a1-detail'
+          Start-Sleep 3; AssertAlive 'detail'
           StartDownload
-          Start-Sleep 4
-          Shot 'a2-detail-downloading'
-          "t+4s: $(PartInfo)"
-          UiaProgressSeen 'a2 on detail'
+          Start-Sleep 3
           ClickNamed 'Settings'
           Start-Sleep 3
-          Shot 'a3-settings-while-downloading'
-          "t+7s on Settings: $(PartInfo)"
-          UiaProgressSeen 'a3 on Settings'
-          ClickNamed 'Update Health'
-          Start-Sleep 2
-          Shot 'a4-health-while-downloading'
-          ClickNamed 'Apps'
-          Start-Sleep 3
-          Shot 'a5-apps-back'
-          "back on Apps: $(PartInfo)"
-          UiaProgressSeen 'a5 Apps list'
+          Shot 'd1-strip-on-settings'
+          "strip texts on Settings: $(TextsLike 'Downloading*') ; $(TextsLike '*MB*')"
+          "part: $(PartInfo)"
+          ClickNamed 'Apps'; Start-Sleep 2
           ClickPartial 'SlowTool' $win | Out-Null
           Start-Sleep 3
-          Shot 'a6-detail-revisited'
-          UiaProgressSeen 'a6 detail revisited'
-          $up = FindNamed 'Update' $win; $ins = FindNamed 'Install' $win
-          if ($up) { "a6 Update button enabled = $($up.Current.IsEnabled)" }
-          if ($ins) { "a6 Install button enabled = $($ins.Current.IsEnabled)" }
-          "== SCENARIO C: press Update again for the same in-flight download (fixture only) =="
-          "before 2nd start: $(PartInfo)"
-          try {
-            StartDownload
-            Start-Sleep 4
-            Shot 'c1-second-start'
-            "after 2nd start +4s: $(PartInfo)"
-            UiaProgressSeen 'c1 after second start'
-            $infos = @()
-            $allc = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-            foreach ($el in $allc) { $n = $el.Current.Name; if ($n -and ($n -like '*process cannot access*' -or $n -like '*Download*failed*' -or $n -like '*being used*' -or $n -like '*Failed*')) { $infos += $n } }
-            "error-like UIA text after 2nd start: $($infos -join ' | ')"
-          } catch { "second start attempt threw in harness: $($_.Exception.Message)" }
-          foreach ($i in 1..30) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          Shot 'd2-detail-revisited'
+          $up = FindNamed 'Update' $win
+          if ($up) { "revisited: Update enabled = $($up.Current.IsEnabled)" }
+          "== D2: open the Downloads list =="
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd3-flyout-downloading'
+          "flyout texts: $(TextsLike '*MB*')"
+          # close the flyout
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          "== D3: Cancel from the strip; partial file must go, app stays alive =="
+          "before cancel: $(PartInfo)"
+          "clicked Cancel: $(ClickByName 'Cancel' $win)"
+          Start-Sleep 4
+          Shot 'd4-after-cancel'
+          "after cancel: $(PartInfo)"
+          "texts after cancel: $(TextsLike '*ancel*')"
+          AssertAlive 'after-cancel'
+          "== D4: start the same app again after cancel (state released), let it finish =="
+          StartDownload
           Start-Sleep 3
-          "after completion: $(PartInfo)"
-          $fin = Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($fin) {
-            $h1 = (Get-FileHash $fin.FullName -Algorithm SHA256).Hash
-            $h2 = (Get-FileHash (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -Algorithm SHA256).Hash
-            "final file $($fin.Name) size=$($fin.Length) sha256-match-source=$($h1 -eq $h2)"
-          } else { "final file missing" }
-          AssertAlive 'after-complete'; Shot 'a7-after-complete'
-          UiaProgressSeen 'a7 after complete'
-          "installer launched (whoami processes ever started is unobservable); app alive"
+          Shot 'd5-restarted'
+          $keep = $script:shotWin; $script:shotWin = $null; Shot 'd17-taskbar-progress-fullscreen'; $script:shotWin = $keep
+          "== D5: close the window while downloading: warning must appear and keep downloading =="
+          "clicked Close: $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          Shot 'd6-close-warning'
+          $dlgTexts = TextsLike '*download*'
+          "warning texts: $dlgTexts"
+          AssertAlive 'warning-open'
+          $p1 = PartInfo
+          "clicked Keep downloading: $(ClickByName 'Keep downloading' $root)"
+          Start-Sleep 3
+          "part after keep: $p1 -> $(PartInfo)"
+          AssertAlive 'after-keep'
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          Start-Sleep 3
+          Shot 'd7-after-complete'
+          "after complete: $(PartInfo)"
+          "strip after complete: $(TextsLike '*nstaller*')"
+          Start-Sleep 45
+          Shot 'd8-install-check-result'
+          "strip 45s later: $(TextsLike '*nstall*') ; $(TextsLike '*version*')"
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd9-flyout-states'
+          "flyout texts: $(TextsLike '*nstall*') ; $(TextsLike 'Cancelled*') ; $(TextsLike 'Retry')"
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          "== D6 setup: confirmed install moved the app to the new version; restart from an outdated seed =="
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; Start-Sleep 3
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          "== D6: start again, close, confirm: partial file must be removed and app exit =="
+          StartDownload
+          Start-Sleep 4
+          "before close: $(PartInfo)"
+          "clicked Close: $(ClickByName 'Close' $win)"
+          Start-Sleep 2
+          "clicked Cancel downloads and close: $(ClickByName 'Cancel downloads and close' $root)"
+          Start-Sleep 8
+          $p.Refresh()
+          "app exited after confirmed close: $($p.HasExited)"
+          "after confirmed close: $(PartInfo)"
+          "== D7: tray opt-in. Close must hide the window, keep the process and the download running =="
+          # The confirmed install above moved the app to the new version; put the seed back to "outdated" and
+          # remove the fixture's fake uninstall entry so the tray scenarios start from a clean state.
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          $sf = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json'
+          $sj = Get-Content $sf -Raw | ConvertFrom-Json
+          $sj | Add-Member -NotePropertyName TrayIcon -NotePropertyValue $true -Force
+          ($sj | ConvertTo-Json) | Set-Content $sf
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $p.Refresh(); "tray run alive: $(-not $p.HasExited)"
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          StartDownload
+          Start-Sleep 4
+          "part before close: $(PartInfo)"
+          "clicked Close (tray on): $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          $p.Refresh(); "process alive after Close with tray: $(-not $p.HasExited)"
+          $w2 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          "window still visible to UIA: $($w2 -ne $null)"
+          "part after close: $(PartInfo)"
+          $script:shotWin = $null
+          Shot 'd10-tray-after-close-fullscreen'
+          "clicked Show Hidden Icons: $(ClickByName 'Show Hidden Icons' $root)"
+          Start-Sleep 2
+          Shot 'd11-tray-overflow'
+          $tn = @(); foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like '*Obtainium*') { $tn += "$($el.Current.ControlType.ProgrammaticName):$($el.Current.Name)" } }
+          "tray/overflow elements named Obtainium: $($tn -join ' | ')"
+          Start-Sleep 5
+          "part 5s later: $(PartInfo)"
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          "download finished while window hidden: $(PartInfo)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          "== D8: server drops mid-download -> Failed row -> Retry from the flyout; Alt+F4 with tray on =="
+          Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep 2
+          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          "dir [D8 before launch, after clear]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          ClickPartial 'SlowTool' $win | Out-Null
+          Start-Sleep 3
+          StartDownload
+          Start-Sleep 4
+          "dir [D8 download running, before server kill]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          $own = @(Get-NetTCPConnection -LocalPort 8099 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+          "server pids on 8099: $($own -join ',')"
+          foreach ($o in $own) { Stop-Process -Id $o -Force -ErrorAction SilentlyContinue }
+          Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          $failedSeen = ''
+          foreach ($i in 1..60) { Start-Sleep 3; $failedSeen = TextsLike '*ailed*'; if ($failedSeen) { "failure shown after ~$($i*3)s: $failedSeen"; break } }
+          "dir [D8 after failure]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          "part after server drop: $(PartInfo)"
+          Shot 'd12-failed-strip'
+          "clicked Downloads: $(ClickByName 'Downloads' $win)"
+          Start-Sleep 2
+          Shot 'd13-failed-flyout'
+          "failed flyout texts: $(TextsLike '*ailed*') ; $(TextsLike '*onnection*') ; $(TextsLike 'Retry')"
+          Start-Process python -ArgumentList (Join-Path $env:RUNNER_TEMP 'slow.py'), (Join-Path $env:RUNNER_TEMP 'slowtool.exe') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'slow2.log') -WindowStyle Hidden
+          Start-Sleep 3
+          "clicked Retry: $(ClickByName 'Retry' $root)"
+          Start-Sleep 4
+          Shot 'd14-after-retry'
+          "after retry: $(TextsLike 'Downloading*') ; $(PartInfo)"
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          "retry finished: $(PartInfo)"
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          try { $win.SetFocus() } catch { 'SetFocus failed' }; Start-Sleep 1
+          [System.Windows.Forms.SendKeys]::SendWait('%{F4}'); Start-Sleep 3
+          $p.Refresh(); "alive after Alt+F4 with tray on: $(-not $p.HasExited)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3
+          Remove-Item 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SlowToolFixture' -ErrorAction SilentlyContinue
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $aj = Get-Content $af -Raw | ConvertFrom-Json
+          foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
+          ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
+          Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue
+          "== D9: tray menu: right-click the tray icon, list items, Open restores, Exit exits =="
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 25
+          $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          $script:shotWin = $win
+          "clicked Close (hide to tray): $(ClickByName 'Close' $win)"
+          Start-Sleep 3
+          $script:shotWin = $null
+          function OnTaskbar($el) {
+            # The running app's own taskbar button has the same name as its tray icon; a right-click there opens a jump list.
+            try {
+              $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+              $cur = $el; $top = $el
+              while ($cur -ne $null) { $top = $cur; $cur = $walker.GetParent($cur); if ($cur -ne $null -and $cur.Equals($root)) { break } }
+              return ($top.Current.ClassName -eq 'Shell_TrayWnd')
+            } catch { return $false }
+          }
+          function TrayButton() {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Obtainium-PC')
+            $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0 -and -not (OnTaskbar $el)) { return $el } }
+            ClickByName 'Show Hidden Icons' $root | Out-Null; Start-Sleep 2
+            $els = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)
+            foreach ($el in $els) { if (-not $el.Current.IsOffscreen -and $el.Current.BoundingRectangle.Width -gt 0 -and -not (OnTaskbar $el)) { return $el } }
+            return $null
+          }
+          function RightClick($el) {
+            $r = $el.Current.BoundingRectangle
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+            Start-Sleep -Milliseconds 400
+            [M]::mouse_event(0x08,0,0,0,0); [M]::mouse_event(0x10,0,0,0,0)
+          }
+          $tb = TrayButton
+          "tray button found: $($tb -ne $null)"
+          if ($tb) { RightClick $tb; Start-Sleep 2 }
+          Shot 'd15-tray-menu'
+          $items = @(); foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem) { $items += $el.Current.Name } }
+          "tray menu items: $($items -join ' | ')"
+          function ClickAt($x, $y) { [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($x, $y); Start-Sleep -Milliseconds 400; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }
+          function MenuClick($prefix, $x, $y) {
+            # WinUI flyout items are visible to UIA; the classic Win32 fallback menu is not (then click by position).
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              $n = $el.Current.Name
+              if ($n -and $n.StartsWith($prefix) -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 400; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                return "UIA MenuItem '$n' at $([int]$r.X),$([int]$r.Y) $([int]$r.Width)x$([int]$r.Height)"
+              }
+            }
+            ClickAt $x $y; return "by position (no UIA MenuItem named '$prefix')"
+          }
+          "screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width)x$([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height)"
+          "clicked menu item Open Obtainium-PC: $(MenuClick 'Open Obtainium-PC' 850 572)"
+          Start-Sleep 3
+          $w3 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          "window visible after tray Open: $($w3 -ne $null)"
+          $script:shotWin = $w3; Shot 'd16-after-tray-open'
+          # --- tray actions: Cancel all downloads, Downloads, Check for updates ---
+          $win = $w3; $script:shotWin = $w3
+          ClickPartial 'SlowTool' $win | Out-Null; Start-Sleep 3
+          StartDownload; Start-Sleep 5
+          "tray-actions: before Cancel all: $(PartInfo)"
+          "clicked Close (hide, download running): $(ClickByName 'Close' $win)"; Start-Sleep 3; $script:shotWin = $null
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          Shot 'd18-tray-menu-with-download'
+          "clicked menu item Cancel all downloads: $(MenuClick 'Cancel all downloads' 850 615)"; Start-Sleep 5
+          "tray-actions: after Cancel all (window still hidden): $(PartInfo) ; process alive: $(-not $p.HasExited)"
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          "clicked menu item Downloads: $(MenuClick 'Downloads' 850 593)"; Start-Sleep 4
+          $w4 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+          "window visible after tray Downloads: $($w4 -ne $null)"
+          $script:shotWin = $w4; Shot 'd19-tray-downloads-flyout'
+          "flyout texts after tray Downloads: $(TextsLike 'Cancelled*') ; $(TextsLike '*partial*')"
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
+          $win = $w4
+          $before = TextsLike 'Last update check*'
+          $luBefore = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
+          "clicked Close (hide again): $(ClickByName 'Close' $w4)"; Start-Sleep 3; $script:shotWin = $null
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          "clicked menu item Check for updates: $(MenuClick 'Check for updates' 850 638)"; Start-Sleep 10
+          $tb = TrayButton; if ($tb) { RightClick $tb; Start-Sleep 2 }
+          "menu: $(MenuClick 'Open Obtainium-PC' 850 572)"; Start-Sleep 3
+          $w5 = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond); $script:shotWin = $w5
+          $win = $w5
+          $after = TextsLike 'Last update check*'
+          $luAfter = ((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json) | Where-Object { $_.id -eq 'seed-slow' }).lastUpdateCheck
+          "tray Check for updates: UI text changed=$($before -ne $after) (before: $before ; after: $after) ; apps.json lastUpdateCheck before=$luBefore after=$luAfter changed=$($luBefore -ne $luAfter)"
+          "update check text before: $before ; after: $after"
+          Shot 'd20-after-tray-check'
+          # --- D10: tray menu over the app window (neutral background), material, Esc and click-away ---
+          $pers = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+          "runner transparency setting before: $((Get-ItemProperty $pers -ErrorAction SilentlyContinue).EnableTransparency)"
+          New-Item $pers -Force | Out-Null; Set-ItemProperty $pers -Name EnableTransparency -Value 1 -Type DWord   # isolated runner only
+          Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c);'
+          foreach ($pn in 'WindowsTerminal','conhost','pwsh','powershell') { Get-Process $pn -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [W.U]::ShowWindow($_.MainWindowHandle, 6) | Out-Null } }
+          Start-Sleep 2
+          function WaitMenuOpened($before) {
+            foreach ($i in 1..80) {
+              $n = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Opened')).Count
+              if ($n -gt $before) { return $true }
+              Start-Sleep -Milliseconds 50
+            }
+            return $false
+          }
+          function OpenedCount() { return ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Opened')).Count }
+          $lg0 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          $c0 = ([regex]::Matches($lg0, 'Tray menu Closed')).Count
+          # Same state as the passing tray steps: window hidden to the tray, so the overflow tray icon is the only match.
+          "clicked Close (hide to tray) for D10: $(ClickByName 'Close' $w5)"; Start-Sleep 3
+          $tb = TrayButton; $oc = OpenedCount; "D10 tray button: $(if ($tb) { $tb.Current.BoundingRectangle.ToString() + ' class=' + $tb.Current.ClassName } else { 'null' })"; if ($tb) { RightClick $tb; "menu opened after click: $(WaitMenuOpened $oc)" }
+          $script:shotWin = $null; Shot 'd21-tray-menu-over-app'
+          Start-Sleep -Milliseconds 800; Shot 'd21b-800ms-later'
+          [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 2
+          $lg = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          "tray menu Esc: Closed log count before=$c0 after=$(([regex]::Matches($lg, 'Tray menu Closed')).Count)"
+          Shot 'd22-after-esc'
+          $opened = $false; for ($try = 1; $try -le 3 -and -not $opened; $try++) { ClickAt 300 300; Start-Sleep 2; $tb = TrayButton; $oc = OpenedCount; if ($tb) { "click-away precondition attempt ${try}: button $($tb.Current.BoundingRectangle) class=$($tb.Current.ClassName)"; RightClick $tb; $opened = [bool](WaitMenuOpened $oc); "click-away precondition attempt ${try}: menu opened = $opened" } else { "click-away precondition attempt ${try}: tray button not found" } }
+          if ($opened) { $cIdle0 = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Closed')).Count; Start-Sleep 10; $cIdle1 = ([regex]::Matches((Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw), 'Tray menu Closed')).Count; "IDLE-OPEN 10s with no input: Closed count before=$cIdle0 after=$cIdle1 -> still open = $($cIdle0 -eq $cIdle1)"; Shot 'd22c-idle-10s' }
+          Shot 'd22b-before-clickaway'
+          if ($opened) { ClickAt 300 300; Start-Sleep 3 } else { "click-away SKIPPED: menu never opened, no assertion made" }
+          $lg2 = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl') -Raw
+          "tray menu click-away (count after Esc was above): Closed log count=$(([regex]::Matches($lg2, 'Tray menu Closed')).Count) ; process alive: $(-not $p.HasExited)"
+          Shot 'd23-after-clickaway'
+          $script:shotWin = $w5
+          $w3 = $w5
+          "clicked Close again: $(ClickByName 'Close' $w3)"
+          Start-Sleep 3; $script:shotWin = $null
+          $tb = TrayButton
+          if ($tb) { RightClick $tb; Start-Sleep 2 }
+          "clicked menu item Exit: $(MenuClick 'Exit' 813 668)"
+          Start-Sleep 6
+          "ObtainiumPC processes after tray Exit: $(@(Get-Process ObtainiumPC -ErrorAction SilentlyContinue).Count)"
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 
-          "== SCENARIO B: close the window while a download runs =="
-          try {
-            ClickPartial 'SlowTool' $win | Out-Null
-            Start-Sleep 3
-            Remove-Item (Join-Path $dlDir '*slowtool.exe') -ErrorAction SilentlyContinue
-            StartDownload
-            Start-Sleep 5
-            "before close: $(PartInfo)"
-            Shot 'b1-before-close'
-            $null = $p.CloseMainWindow()
-            Start-Sleep 6
-            $p.Refresh()
-            "app exited after close: $($p.HasExited)"
-            Start-Sleep 5
-            "after close +11s: $(PartInfo)"
-            $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
-            "ObtainiumPC processes remaining: $($procs.Count)"
-          } catch { "SCENARIO B harness threw: $($_.Exception.Message)" }
-          Get-Content (Join-Path $env:RUNNER_TEMP 'slow.log') -ErrorAction SilentlyContinue | Select-Object -Last 15
       - name: Preserve app logs
         if: always()
         shell: pwsh
@@ -355,6 +638,11 @@ jobs:
           # entry) and the script-visible process state travel with the shots.
           $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
           if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+          $af = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          if (Test-Path $af) { Copy-Item $af shots\apps-final.json }
+          Get-ChildItem -Recurse (Join-Path $env:LOCALAPPDATA 'ObtainiumPC') -ErrorAction SilentlyContinue | Select-Object FullName,Length | Out-String -Width 300 | Out-File shots\appdata-listing.txt
+          $sl = Join-Path $env:RUNNER_TEMP 'slow.log'; if (Test-Path $sl) { Copy-Item $sl shots\slow-server.log }
+          Get-ChildItem (Join-Path $env:LOCALAPPDATA 'ObtainiumPC') -Filter *.jsonl* -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName ("shots\applog-" + $_.Name) }
           $procs = @(Get-Process ObtainiumPC -ErrorAction SilentlyContinue)
           "app processes at capture: $($procs.Count)" | Out-File shots\app-process-state.txt
           # Native-crash evidence (WinUI/CLR faults do not reach logs.jsonl).

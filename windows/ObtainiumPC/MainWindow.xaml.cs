@@ -29,6 +29,7 @@ namespace ObtainiumPC
             // with the search box flexing; clamp instead of clipping them.
             SetMinimumTrackSize();
             Activated += MainWindow_Activated;
+            InitDownloadCenter();
         }
 
         private void MinimizeCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -45,7 +46,7 @@ namespace ObtainiumPC
             }
         }
 
-        private void CloseCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Close();
+        private void CloseCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RequestClose();
 
         private void UpdateMaximizeGlyph()
         {
@@ -115,6 +116,7 @@ namespace ObtainiumPC
                     _ => ElementTheme.Default,
                 };
             Services.Updates.BackgroundUpdateService.Instance.Start();
+            ApplyTraySetting();
             // obtainium:// protocol registration follows the setting (HKCU,
             // no admin, reversible from Settings).
             Services.DeepLinkService.ApplyRegistrationSetting();
