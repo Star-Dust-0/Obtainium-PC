@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/graphics/icon-512x512.png" alt="Obtainium-PC icon" width="96" height="96">
+<img src="assets/graphics/icon-512x512.png" alt="Obtainium-PC icon" width="220" height="220">
 
 # Obtainium-PC
 
@@ -8,15 +8,15 @@
 
 Track apps by their release pages, get told when a new version is out, and download it, all from one native Windows app.
 
-[![Release](https://img.shields.io/badge/release-0.1%20prerelease-orange)](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1)
+[![Release](https://img.shields.io/badge/release-0.1%20prerelease-orange)](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%201809%2B%20x64-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-[**Download**](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-of-this-prerelease)
+[**Download**](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-of-this-prerelease)
 
 <br>
 
-<img src="windows/docs/screenshots/01b-apps-split-detail.png" alt="Apps list with the app detail pane" width="820">
+<img src="windows/docs/screenshots/user-apps.jpg" alt="Apps list with the app detail pane" width="820">
 
 </div>
 
@@ -54,7 +54,11 @@ GitHub, GitLab, Forgejo (including Codeberg), SourceForge, SourceHut, itch.io, J
 
 ## Screenshots
 
-The screenshots come from the automated UI test run of this build, with test data.
+<img src="windows/docs/screenshots/user-apps.jpg" alt="Apps page" width="820">
+
+<img src="windows/docs/screenshots/user-add-app.jpg" alt="Add App page" width="820">
+
+The screenshots below come from the automated UI test run of this build, with test data.
 
 <details open>
 <summary><b>Add App</b></summary>
@@ -82,7 +86,7 @@ The screenshots come from the automated UI test run of this build, with test dat
 
 ## Install
 
-Download from the [Obtainium-PC 0.1 prerelease](https://github.com/MohamedElnaggar00/Obtainium-PC/releases/tag/v0.1):
+Download from the [Obtainium-PC 0.1 prerelease](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1):
 
 | File | Use it when |
 |---|---|
