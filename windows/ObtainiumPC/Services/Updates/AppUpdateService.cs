@@ -236,5 +236,5 @@ public sealed class AppUpdateService
 
     public bool IsAppUpdateable(TrackedApp app) =>
         !IsLegacyUnsupported(app) &&
-        VersionService.IsAppUpdateable(app.InstalledVersion, app.LatestVersion, _settings.HideDowngrades);
+        SelfUpdate.IsUpdateable(app, _settings.HideDowngrades);
 }

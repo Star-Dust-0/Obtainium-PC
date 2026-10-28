@@ -78,7 +78,7 @@ namespace ObtainiumPC.Pages
                 // installed version shows alone.
                 var installed = App.InstalledVersion ?? Services.Localization.Loc.T("not installed");
                 var latest = App.LatestVersion;
-                var versionText = App.InstalledVersion != null && latest != null && App.InstalledVersion != latest
+                var versionText = App.InstalledVersion != null && latest != null && !Services.Updates.SelfUpdate.VersionsMatch(App)
                     ? $"{installed} -> {latest}"
                     : installed;
                 return $"{App.FinalAuthor}  -  {versionText}";

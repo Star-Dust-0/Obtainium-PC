@@ -68,3 +68,75 @@ public class SelfUpdateTests
         Assert.Equal(new[] { "a", "b", SelfUpdate.OwnId }, ordered.Select(x => x.Id));
     }
 }
+
+public class SelfUpdateVersionEquivalenceTests
+{
+    [Theory]
+    [InlineData("0.1.0", "v0.1", true)]   // the reported case: running 0.1.0, tag v0.1
+    [InlineData("0.1.0", "v0.1.0", true)]
+    [InlineData("0.1.0", "0.1", true)]
+    [InlineData("0.1.0", "v0.1.1", false)]
+    [InlineData("0.1.0", "v0.2", false)]
+    [InlineData("0.1.0", "v1", false)]
+    [InlineData("0.1.0", "v0.1-beta", false)]
+    [InlineData("0.1.0", "v0.10", false)]
+    [InlineData("0.1.0", "", false)]
+    public void SameRelease_matches_only_the_same_numeric_release(string installed, string latest, bool expected)
+        => Assert.Equal(expected, SelfUpdate.SameRelease(installed, latest));
+
+    private static TrackedApp App(string url, string installed, string latest) =>
+        new() { Id = "x", Url = url, Name = "x", InstalledVersion = installed, LatestVersion = latest };
+
+    [Fact]
+    public void Own_app_is_not_offered_itself_for_0_1_0_vs_v0_1()
+        => Assert.False(SelfUpdate.IsUpdateable(App(SelfUpdate.OwnUrl, "0.1.0", "v0.1"), false));
+
+    [Fact]
+    public void Own_app_still_sees_a_real_newer_release()
+        => Assert.True(SelfUpdate.IsUpdateable(App(SelfUpdate.OwnUrl, "0.1.0", "v0.1.1"), false));
+
+    [Fact]
+    public void Other_apps_keep_the_exact_string_comparison()
+        => Assert.True(SelfUpdate.IsUpdateable(App("https://github.com/someone/else", "0.1.0", "v0.1"), false));
+}
+
+public class SelfUpdateDerivedDecisionTests
+{
+    private static TrackedApp A(string url, string? installed, string? latest) =>
+        new() { Id = "x", Url = url, Name = "x", InstalledVersion = installed, LatestVersion = latest };
+
+    [Fact]
+    public void Own_app_detail_action_is_off_for_same_release_spelling()
+        => Assert.False(SelfUpdate.DetailAction(A(SelfUpdate.OwnUrl, "0.1.0", "v0.1")).Enabled);
+
+    [Fact]
+    public void Own_app_detail_action_is_on_for_a_real_newer_release()
+        => Assert.True(SelfUpdate.DetailAction(A(SelfUpdate.OwnUrl, "0.1.0", "v0.1.1")).Enabled);
+
+    [Fact]
+    public void Other_apps_detail_action_stays_exact()
+        => Assert.True(SelfUpdate.DetailAction(A("https://github.com/a/b", "0.1.0", "v0.1")).Enabled);
+
+    [Fact]
+    public void First_install_is_unchanged_for_the_own_app()
+    {
+        var (enabled, first) = SelfUpdate.DetailAction(A(SelfUpdate.OwnUrl, null, "v0.1"));
+        Assert.True(enabled); Assert.True(first);
+    }
+
+    [Fact]
+    public void VersionsMatch_follows_the_same_rule_as_the_list()
+    {
+        Assert.True(SelfUpdate.VersionsMatch(A(SelfUpdate.OwnUrl, "0.1.0", "v0.1")));
+        Assert.False(SelfUpdate.VersionsMatch(A("https://github.com/a/b", "0.1.0", "v0.1")));
+        Assert.False(SelfUpdate.VersionsMatch(A(SelfUpdate.OwnUrl, "0.1.0", "v0.2")));
+    }
+
+    [Fact]
+    public void Stored_versions_are_not_rewritten()
+    {
+        var app = A(SelfUpdate.OwnUrl, "0.1.0", "v0.1");
+        _ = SelfUpdate.IsUpdateable(app, false); _ = SelfUpdate.DetailAction(app); _ = SelfUpdate.VersionsMatch(app);
+        Assert.Equal("0.1.0", app.InstalledVersion); Assert.Equal("v0.1", app.LatestVersion);
+    }
+}

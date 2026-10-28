@@ -186,8 +186,7 @@ namespace ObtainiumPC.Pages
             // UIA name "Update", pixels "Install" - persisting even across
             // visibility toggles and remove/reinsert). Baked-in labels cannot
             // go stale; both buttons share Update_Click.
-            var (actionEnabled, firstInstall) = Services.Versioning.VersionService.DetailAction(
-                _app.InstalledVersion, _app.LatestVersion);
+            var (actionEnabled, firstInstall) = Services.Updates.SelfUpdate.DetailAction(_app);
             // Track-only apps never install from here: the flow is a manual
             // download, so a third pre-templated button says Download instead
             // of Install/Update (an enabled "Install" promise is misleading -
@@ -484,8 +483,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 DownloadPanel.Visibility = Visibility.Collapsed;
                 // Recompute instead of blindly re-enabling: if detection already
                 // reconciled installed == latest, the action stays disabled.
-                var postEnabled = Services.Versioning.VersionService
-                    .DetailAction(_app.InstalledVersion, _app.LatestVersion).Enabled;
+                var postEnabled = Services.Updates.SelfUpdate.DetailAction(_app).Enabled;
                 UpdateButton.IsEnabled = postEnabled;
                 InstallButton.IsEnabled = postEnabled;
             }
@@ -502,7 +500,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             if (_app == null) return;
             // Same hasAction gate as upstream: marking an app whose recorded
             // install already matches the latest version is a no-op.
-            if (_app.InstalledVersion == _app.LatestVersion) return;
+            if (Services.Updates.SelfUpdate.VersionsMatch(_app)) return;
             _app.InstalledVersion = _app.LatestVersion;
             _app.InstalledVersionSource = "manual";
             _app.OsMatchedName = null;
