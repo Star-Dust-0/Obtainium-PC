@@ -210,7 +210,7 @@ jobs:
           function ClickPartial($prefix, $scope) {
             # The bottom download strip repeats the app name ("shuck ..."): never click its elements. The list is
             # virtualized, so scroll the wheel a few times when the row is not realized yet.
-            foreach ($pass in 0..8) {
+            foreach ($pass in 0..24) {
               $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
               foreach ($el in $all) {
                 $n = $el.Current.Name
@@ -226,10 +226,11 @@ jobs:
                   }
                 }
               }
-              if ($pass -lt 8) {
+              if ($pass -lt 24) {
                 $wr = $scope.Current.BoundingRectangle
                 [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
-                [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0)
+                # first look upward (the list may already be scrolled down), then downward
+                if ($pass -lt 10) { [M]::mouse_event(0x0800,0,0,[uint32]120,0) } else { [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0) }
                 Start-Sleep -Milliseconds 400
               }
             }
