@@ -524,6 +524,19 @@ jobs:
             if ($el -eq $null) { Shot "missing-$($name -replace '[^\w]','_')"; throw "element '$name' not found" }
             try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
               $r = $el.Current.BoundingRectangle
+              if ([double]::IsNaN($r.X) -or [double]::IsInfinity($r.X) -or $r.Width -le 0) {
+                # Diagnostic: the first UIA match has no usable bounds. List every match and use the first visible one.
+                $cc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+                $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cc)
+                $pick = $null
+                foreach ($m in $all) {
+                  $mr = $m.Current.BoundingRectangle
+                  "ClickNamedIn '$name' match: rect=$mr class=$($m.Current.ClassName) type=$($m.Current.ControlType.ProgrammaticName) autoId=$($m.Current.AutomationId) offscreen=$($m.Current.IsOffscreen)"
+                  if ($pick -eq $null -and -not $m.Current.IsOffscreen -and -not [double]::IsInfinity($mr.X) -and $mr.Width -gt 0) { $pick = $m }
+                }
+                if ($pick -eq $null) { Shot "unclickable-$($name -replace '[^\w]','_')"; throw "element '$name' has no usable bounds ($($all.Count) matches)" }
+                try { $pick.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); return } catch { $r = $pick.Current.BoundingRectangle }
+              }
               [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
               Start-Sleep -Milliseconds 300
               [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
