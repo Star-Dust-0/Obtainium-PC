@@ -67,6 +67,9 @@ internal static class ExeIconResource
             // The decoder shows the first frame. Exe groups are often authored smallest-first, which made a 16px frame get
             // stretched to the 32-48 DIP list/detail slot (the soft, pixelated look). Largest frame first; width 0 means 256.
             entries = entries.OrderByDescending(e => e.hdr[0] == 0 ? 256 : e.hdr[0]).ThenByDescending(e => BitConverter.ToUInt16(e.hdr, 6)).ToList();
+            // Evidence (ui-smoke 31b, Notepad++): ordering alone did not change the pixels, the decoder still picked a ~32px
+            // frame for a 32 DIP slot (1:1, blocky). Hand it only the largest frame so it always scales down from it.
+            entries = entries.Take(1).ToList();
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             bw.Write((ushort)0); bw.Write((ushort)1); bw.Write((ushort)entries.Count);
