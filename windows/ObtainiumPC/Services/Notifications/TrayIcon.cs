@@ -95,8 +95,23 @@ public sealed class TrayIcon : IDisposable
         szInfo = "", szInfoTitle = "",
     };
 
+    /// True once Windows (Restart Manager of an installer, or a shutdown) asked this app to end.
+    /// The close-to-tray logic must then let the close through, or an installer cannot replace the app.
+    public static volatile bool SessionEnding;
+    const uint WM_QUERYENDSESSION = 0x0011, WM_ENDSESSION = 0x0016;
+
     IntPtr WndProc(IntPtr h, uint msg, IntPtr w, IntPtr l, UIntPtr id, UIntPtr data)
     {
+        if (msg == WM_QUERYENDSESSION) SessionEnding = true;
+        else if (msg == WM_ENDSESSION)
+        {
+            if (w != IntPtr.Zero)
+            {
+                try { var d = Data(); Shell_NotifyIconW(NIM_DELETE, ref d); } catch { }
+                Environment.Exit(0);
+            }
+            else SessionEnding = false;
+        }
         if (msg == WM_APP_TRAY)
         {
             var ev = (uint)(l.ToInt64() & 0xFFFF);
