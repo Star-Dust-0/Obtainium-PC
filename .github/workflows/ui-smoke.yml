@@ -230,17 +230,22 @@ jobs:
           }
           # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
           function FindNamedScrolling($name, $scope) {
+            # A virtualized/off-screen element can already be in the UIA tree with empty bounds (IsOffscreen): that is
+            # "found" for existence checks but not clickable, so keep scrolling until a visible one appears, and fall
+            # back to the off-screen one only if none ever does.
             $el = FindNamed $name $scope
-            if ($el -ne $null) { return $el }
+            if ($el -ne $null -and -not $el.Current.IsOffscreen) { return $el }
+            $first = $el
             $wr = $scope.Current.BoundingRectangle
             [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
             foreach ($k in 1..8) {
               [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0)
               Start-Sleep -Milliseconds 400
               $el = FindNamed $name $scope
-              if ($el -ne $null) { return $el }
+              if ($el -ne $null -and -not $el.Current.IsOffscreen) { return $el }
+              if ($first -eq $null) { $first = $el }
             }
-            return $null
+            return $first
           }
 
           function ClickPaneToggle($win) {
