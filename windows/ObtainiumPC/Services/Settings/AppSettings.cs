@@ -23,8 +23,9 @@ public sealed class AppSettings
     // open in Obtainium-PC (upstream declares the scheme in its manifest).
     public bool HandleObtainiumLinks { get; set; } = true;
     public bool NotifyUpdates { get; set; } = true;
-    /// Opt-in notification-area icon; closing the window then hides it and downloads continue. Default off.
-    public bool TrayIcon { get; set; }
+    /// Notification-area icon; closing the window then hides it and downloads continue.
+    /// Default on when the setting is absent; an explicitly saved value (on or off) is kept.
+    public bool TrayIcon { get; set; } = true;
     public string Theme { get; set; } = "system";
     // Upstream stores these as enum indices (settings_provider.dart):
     // sortColumn 0=added 1=nameAuthor 2=authorName 3=releaseDate; sortOrder 0=asc 1=desc.

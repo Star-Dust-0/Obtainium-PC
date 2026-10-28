@@ -118,7 +118,7 @@ namespace ObtainiumPC
 
         private Services.Notifications.TrayIcon? _tray;
 
-        /// Applies the opt-in tray setting (default off).
+        /// Applies the tray setting (default on when absent from settings.json).
         public void ApplyTraySetting()
         {
             if (App.Settings.TrayIcon)
