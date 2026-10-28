@@ -111,7 +111,7 @@ Windows 10 1809 or newer, 64-bit. Not code-signed, so Windows SmartScreen may wa
 
 ## Credit and license
 
-Obtainium-PC is a Windows port of [Obtainium](https://github.com/ImranR98/Obtainium) by ImranR98. All credit for the original idea, design and icon goes to the original author. This project keeps the original GPL-3.0 license (see [LICENSE.txt](LICENSE.txt)). The original Flutter/Android code stays in the repository for reference, and the original README is kept at [docs/README-upstream-android.md](docs/README-upstream-android.md).
+Obtainium-PC is a Windows port of [Obtainium](https://github.com/ImranR98/Obtainium) by ImranR98. All credit for the original idea, design and icon goes to the original author. This project keeps the original GPL-3.0 license (see [LICENSE.txt](LICENSE.txt)). The translation source files in `assets/translations` come from the original project.
 
 <div align="center">
 
