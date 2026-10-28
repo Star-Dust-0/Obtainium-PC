@@ -54,10 +54,8 @@ jobs:
           $npp = LatestInstaller 'notepad-plus-plus/notepad-plus-plus' 'Installer\.x64\.exe$'
           $sw = LatestInstaller 'henrypp/simplewall' 'setup\.exe$'
           $z7 = LatestInstaller 'ip7z/7zip' '^7z\d+-x64\.exe$'
-          $sx = LatestInstaller 'ShareX/ShareX' 'setup\.exe$'
           Start-Process $sw -ArgumentList '/S' -Wait
           Start-Process $z7 -ArgumentList '/S' -Wait
-          Start-Process $sx -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Process $bcu -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Process $npp -ArgumentList '/S' -Wait
           "== registry entries after install =="
@@ -84,7 +82,7 @@ jobs:
             }
             throw "'$name' not found"
           }
-          foreach ($u in 'BCUninstaller/Bulk-Crap-Uninstaller','notepad-plus-plus/notepad-plus-plus','henrypp/simplewall','ip7z/7zip','ShareX/ShareX') {
+          foreach ($u in 'BCUninstaller/Bulk-Crap-Uninstaller','notepad-plus-plus/notepad-plus-plus','henrypp/simplewall','ip7z/7zip') {
             Start-Process $exe -ArgumentList ('obtainium://add?url=' + [uri]::EscapeDataString("https://github.com/$u"))
             Start-Sleep 5
             ClickName 'Add'
