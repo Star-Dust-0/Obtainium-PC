@@ -16,7 +16,7 @@
 ; this script never carries a version bump of its own.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "1.0.0"
 #endif
 #ifndef BuildDir
   #define BuildDir "..\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64"
