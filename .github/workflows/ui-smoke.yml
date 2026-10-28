@@ -1462,6 +1462,9 @@ jobs:
           if ($obtRow -eq $null) { Shot 'light-row-missing'; throw 'Obtainium row not found for the light mark check' }
           $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
           $opened = $false
+          # Group collapse state carries over from the filter steps (their toggles are state-dependent): make sure the
+          # group holding the row is expanded before looking for it.
+          if ((FindNamed 'bat' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
           foreach ($try in 1..4) {
             $obtRow = FindNamed 'bat' $win3
             if ($obtRow -eq $null) { break }
