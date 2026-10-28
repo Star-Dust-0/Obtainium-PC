@@ -221,9 +221,10 @@ namespace ObtainiumPC.Pages
             MarkInstalledAction.Visibility = trackOnlyApp && firstInstall && actionEnabled ? Visibility.Visible : Visibility.Collapsed;
             MarkUpdatedAction.Visibility = trackOnlyApp && !firstInstall && actionEnabled ? Visibility.Visible : Visibility.Collapsed;
             MarkUpdatedDisabledAction.Visibility = trackOnlyApp && !firstInstall && !actionEnabled ? Visibility.Visible : Visibility.Collapsed;
-            // Windows has a per-app settings page only for packaged (MSIX) apps.
-            // Until package detection lands, this stays honestly unavailable.
-            OsSettingsButton.IsEnabled = false;
+            // Windows has no per-app page for Win32 installs (ms-settings:appsfeatures-app
+            // exists only for packaged apps), so the action opens the system "Installed
+            // apps" list. Enabled whenever an install of this app is recorded.
+            OsSettingsButton.IsEnabled = !string.IsNullOrEmpty(_app?.InstalledVersion);
         }
 
         private async Task<int> PickAssetAsync(IReadOnlyList<KeyValuePair<string, string>> assets, int preselect = 0)
@@ -582,9 +583,27 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             if (_app != null) Frame.Navigate(typeof(AppOptionsPage), _app.Id);
         }
 
-        private void OsSettings_Click(object sender, RoutedEventArgs e)
+        private async void OsSettings_Click(object sender, RoutedEventArgs e)
         {
-            // Reserved for packaged (MSIX) installs: ms-settings:appsfeatures-app?<PFN>.
+            if (_app == null) return;
+            var entry = !string.IsNullOrWhiteSpace(_app.OsMatchedName) ? _app.OsMatchedName! : _app.FinalName;
+            try
+            {
+                // Native route: Settings > Apps > Installed apps. The entry name is
+                // copied so it can be pasted into that page's search box.
+                var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                data.SetText(entry);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+                var ok = await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:appsfeatures"));
+                if (ok)
+                    Show(InfoBarSeverity.Informational, string.Format(Services.Localization.Loc.T("Opened Windows Installed apps. Search for \"{0}\" (name copied to the clipboard), then use its menu to modify or uninstall."), entry));
+                else
+                    Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("Windows Installed apps could not be opened."));
+            }
+            catch
+            {
+                Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("Windows Installed apps could not be opened."));
+            }
         }
 
         // lib/components/app_list_tile.dart showChangeLogDialog: a changelog that

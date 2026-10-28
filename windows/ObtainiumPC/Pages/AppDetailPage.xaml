@@ -64,7 +64,7 @@
                         <AppBarButton.Icon><FontIcon Glyph="&#xE70F;"/></AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton x:Name="OsSettingsButton" Label="App settings" Click="OsSettings_Click"
-                                  ToolTipService.ToolTip="Windows app settings (packaged installs only)">
+                                  ToolTipService.ToolTip="Open Windows Installed apps to manage this app">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton x:Name="ResetInstallButton" Label="Reset install status" Click="ResetInstall_Click"

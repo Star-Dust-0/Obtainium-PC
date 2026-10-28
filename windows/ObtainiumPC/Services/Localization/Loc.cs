@@ -353,7 +353,9 @@ public static class Loc
         ["Check for updates"] = "التحقق من التحديثات",
         ["Forget the recorded install so the app can be installed again"] = "نسيان التثبيت المسجّل ليتمكن التطبيق من إعادة التثبيت",
         ["Per-app options"] = "خيارات التطبيق",
-        ["Windows app settings (packaged installs only)"] = "إعدادات التطبيق في ويندوز (للتثبيتات الحزمية فقط)",
+        ["Open Windows Installed apps to manage this app"] = "فتح قائمة التطبيقات المثبّتة في ويندوز لإدارة هذا التطبيق",
+        ["Opened Windows Installed apps. Search for \"{0}\" (name copied to the clipboard), then use its menu to modify or uninstall."] = "تم فتح قائمة التطبيقات المثبّتة في ويندوز. ابحث عن \"{0}\" (تم نسخ الاسم إلى الحافظة) ثم استخدم قائمته للتعديل أو إلغاء التثبيت.",
+        ["Windows Installed apps could not be opened."] = "تعذّر فتح قائمة التطبيقات المثبّتة في ويندوز.",
 
         // Detail page and code strings
         ["Installed: "] = "المثبّت: ",
