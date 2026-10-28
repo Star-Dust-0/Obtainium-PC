@@ -14,16 +14,20 @@ namespace ObtainiumPC.Services.Updates;
 /// </summary>
 public static class SelfUpdate
 {
-    public const string OwnUrl = "https://github.com/MohamedElnaggar00/Obtainium-PC";
-    public const string OwnId = "mohamedelnaggar00.obtainium-pc";
+    public const string OwnUrl = "https://github.com/StarsDust01/Obtainium-PC";
+    public const string OwnId = "starsdust01.obtainium-pc";
+    // Records written by builds from before the repository moved to the new
+    // account; still recognised as the own app and moved to OwnUrl on start.
+    public const string LegacyOwnUrl = "https://github.com/MohamedElnaggar00/Obtainium-PC";
+    public const string LegacyOwnId = "mohamedelnaggar00.obtainium-pc";
     public const string OwnName = "Obtainium-PC";
-    public const string OwnAuthor = "MohamedElnaggar00";
+    public const string OwnAuthor = "StarsDust01";
     // The installer asset published by CI is ObtainiumPC-Setup-win-x64.exe
     // (windows/packaging/ObtainiumPC.iss OutputBaseFilename).
     public const string InstallerAssetFilter = "Setup";
 
     public static bool IsSelf(TrackedApp app) =>
-        app.Id == OwnId || SameUrl(app.Url, OwnUrl);
+        app.Id == OwnId || app.Id == LegacyOwnId || SameUrl(app.Url, OwnUrl) || SameUrl(app.Url, LegacyOwnUrl);
 
     private static bool SameUrl(string? a, string b) =>
         string.Equals((a ?? "").Trim().TrimEnd('/'), b, StringComparison.OrdinalIgnoreCase);
@@ -78,6 +82,7 @@ public static class SelfUpdate
         var changed = false;
         foreach (var app in apps.Where(IsSelf))
         {
+            if (SameUrl(app.Url, LegacyOwnUrl)) { app.Url = OwnUrl; app.Author = OwnAuthor; changed = true; }
             if (app.AdditionalSettings.ContainsKey("includePrereleases")) continue;
             app.SetSetting("includePrereleases", true);
             changed = true;

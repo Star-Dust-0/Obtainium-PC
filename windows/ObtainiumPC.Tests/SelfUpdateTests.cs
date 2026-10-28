@@ -22,6 +22,19 @@ public class SelfUpdateTests
     }
 
     [Fact]
+    public void Legacy_record_is_recognised_and_moved_to_new_repository()
+    {
+        var legacy = new TrackedApp { Id = SelfUpdate.LegacyOwnId, Url = SelfUpdate.LegacyOwnUrl, Author = "MohamedElnaggar00" };
+        var apps = new List<TrackedApp> { legacy };
+        Assert.True(SelfUpdate.IsSelf(legacy));
+        Assert.Null(SelfUpdate.EnsureTracked(apps, "0.1.0"));
+        Assert.True(SelfUpdate.MigrateOwnRecord(apps));
+        Assert.Equal(SelfUpdate.OwnUrl, legacy.Url);
+        Assert.Equal(SelfUpdate.OwnAuthor, legacy.Author);
+        Assert.False(SelfUpdate.MigrateOwnRecord(apps));
+    }
+
+    [Fact]
     public void Registration_is_idempotent_and_matches_existing_by_url_or_id()
     {
         var byUrl = new List<TrackedApp> { new() { Id = "x", Url = SelfUpdate.OwnUrl + "/" } };
