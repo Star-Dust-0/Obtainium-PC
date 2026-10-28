@@ -1,0 +1,74 @@
+name: Release Windows (Obtainium-PC)
+on:
+  push:
+    branches: [ 'release/**' ]
+    paths: [ '.github/workflows/release-windows.yml' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (for example v1.0)'
+        required: true
+        default: 'v1.0'
+      title:
+        description: 'Release title'
+        required: true
+        default: 'v1.0 - Early Access'
+      publish:
+        description: 'Publish the release (false = build and verify assets only)'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ inputs.tag || 'v1.0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build (self-contained, .NET runtime bundled)
+        run: |
+          msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+          msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
+      - name: Package installer and portable zip
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content windows/ObtainiumPC/ObtainiumPC.csproj)).Project.PropertyGroup.Version | Select-Object -First 1
+          "csproj version: $v"
+          choco install innosetup --no-progress -y | Out-Null
+          $build = "$PWD\windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          iscc /DMyAppVersion=$v "/DBuildDir=$build" "/O$PWD\dist" "/FObtainium-PC-$($env:TAG)-win-x64-Setup" windows\packaging\ObtainiumPC.iss
+          Compress-Archive -Path "$build\*" -DestinationPath "dist\Obtainium-PC-$($env:TAG)-win-x64-portable.zip" -CompressionLevel Optimal
+          Get-ChildItem dist | Select-Object Name, Length | Format-Table | Out-String | Write-Host
+          (Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName).Hash.ToLower())  $($_.Name)" }) | Set-Content dist\SHA256SUMS.txt
+          Get-Content dist\SHA256SUMS.txt
+      - name: Verify installer installs and app launches
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\*Setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC'
+          $fv = (Get-Item (Join-Path $dir 'ObtainiumPC.exe')).VersionInfo.FileVersion
+          "installed exe file version: $fv"
+          if ($fv -notlike '1.0.0*') { throw "unexpected version $fv" }
+          $pr = Start-Process (Join-Path $dir 'ObtainiumPC.exe') -PassThru
+          Start-Sleep 12; $pr.Refresh()
+          if ($pr.HasExited) { throw "app exited at launch ($($pr.ExitCode))" }
+          'app launched and is running'
+          Stop-Process -Id $pr.Id -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist
+      - name: Publish release (only on manual dispatch with publish=true)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create $env:TAG dist\Obtainium-PC-$($env:TAG)-win-x64-Setup.exe dist\Obtainium-PC-$($env:TAG)-win-x64-portable.zip dist\SHA256SUMS.txt --title "${{ inputs.title }}" --notes-file RELEASE_NOTES.md --latest --target ${{ github.sha }}
