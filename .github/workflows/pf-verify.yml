@@ -8,6 +8,10 @@ permissions:
   contents: read
 jobs:
   pf:
+    strategy:
+      fail-fast: false
+      matrix:
+        old: [ published-v1.0, prefix-3e5c937 ]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,20 +29,34 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           iscc /DMyAppVersion=1.0.1 "/DBuildDir=$build" "/O$PWD\dist" "/FSetup-new" windows\packaging\ObtainiumPC.iss
           Get-ChildItem dist | Format-Table Name, Length | Out-String
-      - name: Old per-user v1.0, seed data
+      - name: Old per-user build running in the tray, with seeded data
         shell: pwsh
         run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
           New-Item -ItemType Directory -Force shots, old | Out-Null
-          Invoke-WebRequest 'https://github.com/StarsDust01/Obtainium-PC/releases/download/v1.0/Obtainium-PC-v1.0-win-x64-Setup.exe' -OutFile old\Setup-v1.0.exe
-          Start-Process old\Setup-v1.0.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          if ('${{ matrix.old }}' -eq 'published-v1.0') {
+            Invoke-WebRequest 'https://github.com/StarsDust01/Obtainium-PC/releases/download/v1.0/Obtainium-PC-v1.0-win-x64-Setup.exe' -OutFile old\Setup-old.exe
+          } else {
+            git fetch --quiet origin 3e5c937390d1aba9cbab8d86d9bc275451e1876f
+            git worktree add oldsrc 3e5c937390d1aba9cbab8d86d9bc275451e1876f
+            msbuild oldsrc/windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+            msbuild oldsrc/windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
+            $ob = "$PWD\oldsrc\windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64"
+            iscc /DMyAppVersion=1.0.0 "/DBuildDir=$ob" "/O$PWD\old" "/FSetup-old" oldsrc\windows\packaging\ObtainiumPC.iss
+          }
+          Start-Process old\Setup-old.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           $pu = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC\ObtainiumPC.exe'
-          "per-user v1.0 installed: $(Test-Path $pu)"
-          $hk = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
-          "HKCU entry: $($hk.DisplayVersion) at $($hk.InstallLocation)"
+          "old per-user installed: $(Test-Path $pu)  version $((Get-Item $pu).VersionInfo.ProductVersion)"
           $data = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'; New-Item -ItemType Directory -Force $data | Out-Null
-          Set-Content (Join-Path $data 'settings.json') '{"FirstRunHandled":true,"UpdateIntervalMinutes":123,"Theme":2}'
+          Set-Content (Join-Path $data 'settings.json') '{"FirstRunHandled":true,"UpdateIntervalMinutes":123,"Theme":2,"TrayIcon":true}'
           Set-Content (Join-Path $data 'apps.json') '[{"id":"seed-1","url":"https://github.com/BCUninstaller/Bulk-Crap-Uninstaller","author":"BCUninstaller","name":"Bulk-Crap-Uninstaller","installedVersion":"6.3","categories":[],"additionalSettings":"{}","apkUrls":"[]","otherAssetUrls":"[]","preferredApkIndex":0,"pinned":false,"disabled":false}]'
-          $p = Start-Process $pu -PassThru; Start-Sleep 10; "old app running: $(-not $p.HasExited)"
+          $p = Start-Process $pu -PassThru; Start-Sleep 15
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)))
+          if ($win) { $win.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
+          Start-Sleep 5; $p.Refresh()
+          "old app hidden in the tray, process alive: $(-not $p.HasExited)"
+          if ($p.HasExited) { throw 'old app did not stay in the tray, scenario not reproduced' }
       - name: Run the new installer through the real wizard
         shell: pwsh
         run: |
@@ -64,6 +82,8 @@ jobs:
           foreach ($i in 1..80) {
             Start-Sleep 2
             $sw = SetupWin; if ($sw -eq $null) { if ($done) { break } else { continue } }
+            $cb = FindNamed 'Create a desktop shortcut' $sw
+            if ($cb -ne $null -and -not $script:ticked) { Shot 'pf-02-additional-tasks-default'; $tp = $cb.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); "desktop shortcut default state: $($tp.Current.ToggleState)"; $tp.Toggle(); Start-Sleep 1; Shot 'pf-03-additional-tasks-ticked'; $script:ticked = $true }
             foreach ($bn in 'Finish','Install','Next >','Next','OK','Yes') {
               $b = FindNamed $bn $sw
               if ($b -ne $null) {
@@ -90,11 +110,14 @@ jobs:
           $hk = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
           "HKCU entries left: $(@($hk).Count)"
           "per-user folder left: $(Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC'))"
+          "desktop shortcut: $(Test-Path "$env:PUBLIC\Desktop\Obtainium-PC.lnk")"
           "start menu shortcuts: " + ((Get-ChildItem "$env:ProgramData\Microsoft\Windows\Start Menu\Programs","$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Obtainium*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) -join '; ')
           $data = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
           "settings kept: $(Get-Content (Join-Path $data 'settings.json') -Raw)"
           "apps kept: $((Get-Content (Join-Path $data 'apps.json') -Raw).Substring(0,80))"
-          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | ForEach-Object { "running process path: $($_.Path)" }
+          Start-Sleep 8
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | ForEach-Object { "running process after wizard Finish (id $($_.Id)) path: $($_.Path)" }
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
           $p = Start-Process $pf -PassThru; Start-Sleep 20; $p.Refresh(); "new app running: $(-not $p.HasExited)"
           Shot 'pf-10-app-from-program-files'
           $root = [System.Windows.Automation.AutomationElement]::RootElement
@@ -115,5 +138,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pf-verify
+          name: pf-verify-${{ matrix.old }}
           path: shots

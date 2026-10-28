@@ -38,7 +38,10 @@ OutputDir=..\..\installer-out
 OutputBaseFilename=ObtainiumPC-Setup-win-x64
 Compression=lzma2/ultra64
 SolidCompression=yes
-CloseApplications=yes
+; Running copies (including one hidden in the tray, or an older build that
+; ignores close requests) are ended by the [Code] section below instead of the
+; Restart Manager, which cannot close a tray app reliably.
+CloseApplications=no
 UninstallDisplayName=Obtainium-PC
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -49,12 +52,16 @@ UninstallDisplayIcon={app}\ObtainiumPC.exe
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+
 [Icons]
 Name: "{group}\Obtainium-PC"; Filename: "{app}\ObtainiumPC.exe"
+Name: "{autodesktop}\Obtainium-PC"; Filename: "{app}\ObtainiumPC.exe"; Tasks: desktopicon
 
 [Run]
 ; Relaunch after an interactive install/update (the app hands its own newer
-; installer to this wizard, which closes the running app first).
+; installer to this wizard, which ends the running app first).
 Filename: "{app}\ObtainiumPC.exe"; Description: "Launch Obtainium-PC"; Flags: nowait postinstall skipifsilent
 
 [Code]
@@ -63,7 +70,7 @@ Filename: "{app}\ObtainiumPC.exe"; Description: "Launch Obtainium-PC"; Flags: no
 // User data in %LOCALAPPDATA%\ObtainiumPC is not part of that install and stays.
 procedure RemovePerUserInstall();
 var
-  Key, Cmd, Exe, Params: String;
+  Key, Cmd, Exe: String;
   Code: Integer;
 begin
   Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B05727EB-4A60-4AF2-952E-200A57D2DECD}_is1';
@@ -74,6 +81,27 @@ begin
     if FileExists(Exe) then
       Exec(Exe, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code);
   end;
+end;
+
+procedure EndRunningApp();
+var
+  Code, I: Integer;
+begin
+  // A close request is not enough for a tray app (or an older build that ignores
+  // it): end it by name, then wait until the files are free.
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM ObtainiumPC.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  for I := 1 to 20 do
+  begin
+    Sleep(500);
+    Exec(ExpandConstant('{sys}\cmd.exe'), '/C tasklist /FI "IMAGENAME eq ObtainiumPC.exe" | find /I "ObtainiumPC.exe" >nul', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    if Code <> 0 then Break;
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  EndRunningApp();
+  Result := '';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
