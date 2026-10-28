@@ -1,5 +1,6 @@
 using ObtainiumPC.Models;
 using ObtainiumPC.Services.Updates;
+using ObtainiumPC.Services.Download;
 using Xunit;
 
 namespace ObtainiumPC.Tests;

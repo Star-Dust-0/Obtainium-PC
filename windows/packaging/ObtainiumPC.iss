@@ -53,7 +53,7 @@ UninstallDisplayIcon={app}\ObtainiumPC.exe
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Icons]
 Name: "{group}\Obtainium-PC"; Filename: "{app}\ObtainiumPC.exe"
