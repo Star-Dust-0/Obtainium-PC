@@ -8,11 +8,11 @@
 
 Track apps by their release pages, get told when a new version is out, and download it, all from one native Windows app.
 
-[![Release](https://img.shields.io/badge/release-0.1%20prerelease-orange)](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1)
+[![Release](https://img.shields.io/badge/release-latest-orange)](https://github.com/StarsDust01/Obtainium-PC/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%201809%2B%20x64-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-[**Download**](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-of-this-prerelease)
+[**Download**](https://github.com/StarsDust01/Obtainium-PC/releases/latest) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-of-this-prerelease)
 
 <br>
 
@@ -86,7 +86,7 @@ The screenshots below come from the automated UI test run of this build, with te
 
 ## Install
 
-Download from the [Obtainium-PC 0.1 prerelease](https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.1):
+Download from the [Obtainium-PC 0.1 prerelease](https://github.com/StarsDust01/Obtainium-PC/releases/latest):
 
 | File | Use it when |
 |---|---|

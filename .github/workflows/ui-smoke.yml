@@ -322,11 +322,11 @@ jobs:
           ClickPartial 'Notepad' $win | Out-Null
           Start-Sleep 3; AssertAlive 'detail'; Shot '09-app-detail'
 
-          # The OS app-settings gear must be DISABLED for this unpackaged app.
+          # The App settings button opens Windows Installed apps; enabled when an install is recorded (seeded Notepad++ has one).
           $gear = FindNamed 'App settings' $win
           if ($gear -eq $null) { throw 'gear button not found on detail page' }
           "gear IsEnabled = $($gear.Current.IsEnabled)"
-          if ($gear.Current.IsEnabled) { throw 'OS app settings gear must be disabled for unpackaged apps' }
+          if (-not $gear.Current.IsEnabled) { throw 'App settings button must be enabled when an install is recorded' }
 
           # Download safe completion: Update downloads the asset; poll for the file.
           # The detail primary action reads 'Update' when a newer version is
