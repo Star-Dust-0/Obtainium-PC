@@ -1,0 +1,366 @@
+name: Self-update from the PUBLISHED v1.0 (branch only)
+
+# Controlled proof of the self-update machinery WITHOUT publishing anything:
+# builds the app + real Inno installer twice (1.0.0 and 1.0.1, same AppId),
+# installs 1.0.0, serves a local HTTPS fixture that impersonates the GitHub
+# releases API + asset download (through the app's own GitHub request prefix
+# setting), then drives the real UI: own row -> update available -> Update ->
+# asset picker -> download -> the app launches the interactive 1.0.1 installer
+# -> wizard completes -> relaunched app, registry 1.0.1, user data retained.
+# The public GitHub endpoint is NOT exercised (the repo has no releases).
+
+on:
+  push:
+    branches: [ 'feat/program-files' ]
+    paths: [ '.github/workflows/selfupdate-published.yml' ]
+  workflow_dispatch:
+    inputs:
+      ref:
+        default: 'feat/program-files'
+permissions:
+  contents: read
+jobs:
+  selfupdate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || 'feat/program-files' }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+      - name: Restore
+        run: msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+      - name: Build 1.0.0 and 1.0.1 apps
+        shell: pwsh
+        run: |
+          $out = 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64'
+          msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:Version=1.0.0 /v:minimal
+          if ($LASTEXITCODE -ne 0) { throw 'build 1.0.0 failed' }
+          Copy-Item $out old-build -Recurse
+          msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:Version=1.0.1 /v:minimal
+          if ($LASTEXITCODE -ne 0) { throw 'build 1.0.1 failed' }
+          Copy-Item $out new-build -Recurse
+          "old exe version: " + (Get-Item old-build\ObtainiumPC.exe).VersionInfo.ProductVersion
+          "new exe version: " + (Get-Item new-build\ObtainiumPC.exe).VersionInfo.ProductVersion
+      - name: Build both installers
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          New-Item -ItemType Directory -Force inst-old, inst-new | Out-Null
+          Invoke-WebRequest 'https://github.com/StarsDust01/Obtainium-PC/releases/download/v1.0/Obtainium-PC-v1.0-win-x64-Setup.exe' -OutFile inst-old\ObtainiumPC-Setup-win-x64.exe
+          iscc /DMyAppVersion=1.0.1 "/DBuildDir=$PWD\new-build" windows\packaging\ObtainiumPC.iss
+          Move-Item installer-out\ObtainiumPC-Setup-win-x64.exe inst-new\
+          Get-ChildItem inst-old, inst-new | Select-Object FullName, Length
+      - name: Install 1.0.0, seed data, start HTTPS release fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & "$PWD\inst-old\ObtainiumPC-Setup-win-x64.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          "registry after install: DisplayVersion=$($reg.DisplayVersion)"
+          if ($reg.DisplayVersion -ne '1.0.0') { throw 'old install not 1.0.0' }
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $apps = @(@{
+            id = 'seed-keep'; url = 'https://github.com/smoke/retention-seed'
+            author = 'smoke'; name = 'Retention seed'
+            apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+            additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $true
+          })
+          ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
+          $settings = @{ CheckOnStart = $true; NotifyUpdates = $false; Language = 'en'; GitHubReqPrefix = 'localhost:8443'; UpdateHealthFailedChecksCount = 1 }
+          ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+          # Local HTTPS endpoint with a throwaway cert trusted only on this runner.
+          $ssl = "$env:RUNNER_TEMP\ssl"; New-Item -ItemType Directory -Force $ssl | Out-Null
+          $openssl = 'C:\Program Files\Git\usr\bin\openssl.exe'
+          & $openssl req -x509 -newkey rsa:2048 -nodes -keyout "$ssl\key.pem" -out "$ssl\cert.pem" -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' 2>&1 | Out-Null
+          Import-Certificate -FilePath "$ssl\cert.pem" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+          $installer = (Resolve-Path inst-new\ObtainiumPC-Setup-win-x64.exe).Path
+          @"
+          import http.server, ssl, json, os, sys, re
+          INSTALLER = r'$installer'
+          LOG = open(r'$PWD\fixture-requests.log', 'a', buffering=1)
+          RELEASE = [{
+            'id': 1, 'tag_name': 'v1.0.1', 'name': 'Obtainium-PC 1.0.1 (local fixture)', 'draft': False, 'prerelease': False,
+            'published_at': '2026-10-25T12:00:00Z', 'created_at': '2026-10-25T12:00:00Z',
+            'html_url': 'https://github.com/StarsDust01/Obtainium-PC/releases/tag/v1.0.1',
+            'body': 'Local fixture release for the self-update proof.',
+            'assets': [{'name': 'ObtainiumPC-Setup-win-x64.exe', 'size': os.path.getsize(INSTALLER),
+                        'browser_download_url': 'https://127.0.0.1:8443/dl/ObtainiumPC-Setup-win-x64.exe',
+                        'url': 'https://127.0.0.1:8443/dl/ObtainiumPC-Setup-win-x64.exe'}]}]
+          class H(http.server.BaseHTTPRequestHandler):
+              def log_message(self, *a): pass
+              def do_GET(self):
+                  LOG.write('GET ' + self.path + '\n')
+                  if '/dl/' in self.path:
+                      self.send_response(200); self.send_header('Content-Type', 'application/octet-stream')
+                      self.send_header('Content-Length', str(os.path.getsize(INSTALLER))); self.end_headers()
+                      with open(INSTALLER, 'rb') as f:
+                          while True:
+                              b = f.read(1 << 16)
+                              if not b: break
+                              self.wfile.write(b)
+                      return
+                  if 'releases' in self.path:
+                      body = json.dumps(RELEASE if 'latest' not in self.path else RELEASE[0]).encode()
+                  else:
+                      body = json.dumps({'full_name': 'StarsDust01/Obtainium-PC', 'archived': False}).encode()
+                  self.send_response(200); self.send_header('Content-Type', 'application/json')
+                  self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+          ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(r'$ssl\cert.pem', r'$ssl\key.pem')
+          srv = http.server.ThreadingHTTPServer(('127.0.0.1', 8443), H)
+          srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+          srv.serve_forever()
+          "@ | Set-Content "$ssl\server.py" -Encoding utf8
+          Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden -RedirectStandardOutput "$ssl\srv.out" -RedirectStandardError "$ssl\srv.err"
+          Start-Sleep 3
+          $r = Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/StarsDust01/Obtainium-PC/releases'
+          "fixture self-check: $($r.StatusCode) $($r.Content.Substring(0,80))"
+      - name: Drive the update through the real UI
+        shell: pwsh
+        run: |
+          $ssl = "$env:RUNNER_TEMP\ssl"
+          Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden -RedirectStandardOutput "$ssl\srv.out" -RedirectStandardError "$ssl\srv.err"
+          Start-Sleep 3
+          "fixture alive in drive step: " + (Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/x/y/releases').StatusCode
+          $ErrorActionPreference = 'Stop'
+          $script:rootFor = $null
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Drawing, System.Windows.Forms, UIAutomationClient, UIAutomationTypes
+          $dwmSrc = 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
+          Add-Type -TypeDefinition $dwmSrc
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
+          $script:shotWin = $null
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $x=$b.X; $y=$b.Y; $w=$b.Width; $h=$b.Height
+            if ($script:shotWin -ne $null) {
+              try {
+                $hwnd = [IntPtr]$script:shotWin.Current.NativeWindowHandle
+                $fr = New-Object DwmFrame+RECT
+                if ($hwnd -ne [IntPtr]::Zero -and
+                    [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+                  $fw = $fr.Right - $fr.Left; $fh = $fr.Bottom - $fr.Top
+                  if ($fw -gt 50 -and $fh -gt 50) { $x=$fr.Left; $y=$fr.Top; $w=$fw; $h=$fh }
+                } else {
+                  $r=$script:shotWin.Current.BoundingRectangle
+                  if ($r.Width -gt 50 -and $r.Height -gt 50) { $x=[int]$r.X; $y=[int]$r.Y; $w=[int]$r.Width; $h=[int]$r.Height }
+                }
+              } catch {}
+            }
+            $bmp=New-Object System.Drawing.Bitmap $w,$h
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x,$y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $w,$h))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+          }
+          function PollNamed($name, $scope, $seconds) {
+            foreach ($i in 1..$seconds) {
+              Start-Sleep 1
+              if ((FindNamed $name $scope) -ne $null) { return $true }
+            }
+            return $false
+          }
+          function ClickPaneToggle($win) {
+            $wrect = $win.Current.BoundingRectangle
+            $cands = @()
+            foreach ($bn in 'Open Navigation','Close Navigation') {
+              $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $bn)
+              $cands += @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond))
+            }
+            foreach ($c in $cands) {
+              $r = $c.Current.BoundingRectangle
+              $cx = $r.X + $r.Width/2; $cy = $r.Y + $r.Height/2
+              $insideX = ($cx -gt ($wrect.X + 8)) -and ($cx -lt ($wrect.X + $wrect.Width - 8))
+              $belowTitle = $cy -gt ($wrect.Y + 40)
+              $saneSize = ($r.Width -ge 20 -and $r.Width -le 80 -and $r.Height -ge 20 -and $r.Height -le 80)
+              if (-not ($insideX -and $belowTitle -and $saneSize)) { continue }
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]$cx, [int]$cy)
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              Start-Sleep 2
+              return $true
+            }
+            return $false
+          }
+          function DumpNames($scope, $tag) {
+            try {
+              $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              $names = @()
+              foreach ($el in $all) { $n = $el.Current.Name; if ($n) { $names += $n }; if ($names.Count -ge 40) { break } }
+              "UIA names at ${tag}: $($names -join ' | ')"
+            } catch { "UIA name dump failed at ${tag}: $($_.Exception.Message)" }
+          }
+          function ClickNamedIn($name, $scope) {
+            $el = $null
+            foreach ($attempt in 1..6) {
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -ne $null) { break }
+              Start-Sleep 1
+            }
+            if ($el -eq $null) { Shot "missing-$($name -replace '[^\w]','_')"; throw "element '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+              $r = $el.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            }
+          }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC\ObtainiumPC.exe'
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 14
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          function GetWin($proc) {
+            $wc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $proc.Id)
+            return $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wc)
+          }
+          function ClickRow($prefix, $scope) {
+            $wr = $scope.Current.BoundingRectangle
+            $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+              $n = $el.Current.Name; $r = $el.Current.BoundingRectangle
+              if ($n -and $n.StartsWith($prefix) -and $r.Width -gt 10 -and $r.Height -gt 10 -and $r.Y -gt ($wr.Y + 70)) {
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                return $true
+              }
+            }
+            return $false
+          }
+          $win = GetWin $p
+          if ($win -eq $null) { throw 'main window not found' }
+          $script:shotWin = $win
+          'running version 1.0.0 app, pid ' + $p.Id
+          Shot 'su-01-launch-1.0.0'
+          ClickNamedIn 'Apps' $win
+          Start-Sleep 12
+          Shot 'su-02-apps-own-row-after-check'
+          DumpNames $win 'apps-after-check'
+          # Own row must say an update is available (fixture serves v1.0.1).
+          $found = $false
+          foreach ($i in 1..30) {
+            $names = @(); foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { $n = $el.Current.Name; if ($n) { $names += $n } }
+            if (($names | Where-Object { $_ -like '*v1.0.1*' }).Count -gt 0) { $found = $true; break }
+            Start-Sleep 2
+          }
+          if (-not $found) { Shot 'su-no-update-detected'; throw 'own row never showed v1.0.1' }
+          'own row shows latest v1.0.1 (update detected through the app update check)'
+          Shot 'su-03-update-available'
+          if (-not (ClickRow 'Obtainium-PC' $win)) { Shot 'su-own-row-missing'; throw 'own app row not found' }
+          Start-Sleep 3; Shot 'su-04-own-detail'
+          if ((FindNamed 'Update' $win) -ne $null) { ClickNamedIn 'Update' $win } else { Shot 'su-no-update-button'; throw 'no Update action on own detail' }
+          Start-Sleep 3
+          $dlg = FindNamed 'Choose a file' $root
+          if ($dlg -eq $null) { Shot 'su-no-picker'; throw 'asset picker did not appear' }
+          $picked = $false
+          foreach ($el in $dlg.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.Name -like '*Setup*' -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::RadioButton) {
+              $r = $el.Current.BoundingRectangle
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+              "picked asset: $($el.Current.Name)"; $picked = $true; break
+            }
+          }
+          if (-not $picked) { Shot 'su-asset-not-found'; throw 'Setup asset not offered in picker' }
+          Shot 'su-05-asset-picker'
+          Start-Sleep 1
+          ClickNamedIn 'Download' $dlg
+          $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
+          $file = $null
+          foreach ($i in 1..40) {
+            Start-Sleep 3
+            $file = Get-ChildItem $dlDir -Filter 'ObtainiumPC-Setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($file -and $file.Length -gt 1000000) { break }
+          }
+          if (-not $file) { throw 'installer was not downloaded' }
+          "downloaded by the app: $($file.FullName) ($($file.Length) bytes)"
+          # The app handed the file to the installer itself (interactive wizard).
+          $script:shotWin = $null
+          $setupWin = $null
+          foreach ($i in 1..20) {
+            Start-Sleep 2
+            foreach ($w in $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.Name -like 'Setup - Obtainium-PC*' -or $w.Current.Name -eq 'Select Setup Language') { $setupWin = $w; break } }
+            if ($setupWin) { break }
+          }
+          if ($setupWin -eq $null) { Shot 'su-installer-never-launched'; throw 'app did not launch the installer' }
+          'interactive installer window confirmed: ' + $setupWin.Current.Name
+          Shot 'su-06-installer-launched'
+          # Drive the real wizard to completion.
+          $wizardDone = $false
+          foreach ($i in 1..60) {
+            Start-Sleep 2
+            $still = Get-Process | Where-Object { $_.ProcessName -like 'ObtainiumPC-Setup*' -or $_.ProcessName -like '*tmp*' -and $_.MainWindowTitle -like '*Obtainium-PC*' }
+            $clicked = $false
+            foreach ($bn in 'OK','Next >','Next','Install','Finish','Yes') {
+              $sw = $null
+              foreach ($w in $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) { if ($w.Current.Name -like 'Setup - Obtainium-PC*' -or $w.Current.Name -eq 'Select Setup Language') { $sw = $w; break } }
+              if ($sw -eq $null) { continue }
+              $b = FindNamed $bn $sw
+              if ($b -ne $null) {
+                try { $b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $clicked = $true; "wizard: invoked '$bn'" }
+                catch {
+                  $r = $b.Current.BoundingRectangle
+                  [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                  Start-Sleep -Milliseconds 300
+                  [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0); $clicked = $true; "wizard: mouse-clicked '$bn'"
+                }
+                if ($bn -eq 'Finish') { $wizardDone = $true }
+                break
+              }
+            }
+            if ($clicked -and $bn -eq 'Install') { Start-Sleep 5; Shot 'su-07-wizard-installing' }
+            if ($wizardDone) { break }
+          }
+          Start-Sleep 10
+          Get-Process | Where-Object { $_.ProcessName -like 'ObtainiumPC*' } | Select-Object ProcessName, Id, Path | Format-Table | Out-String
+          if (-not $wizardDone) { Shot 'su-wizard-incomplete'; throw 'wizard did not reach Finish through UIA' }
+          'wizard completed through the real UI'
+      - name: Verify updated state
+        if: always()
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
+          $reg = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          "registry DisplayVersion after update: $($reg.DisplayVersion)"
+          $exe = Join-Path $env:ProgramFiles 'Obtainium-PC\ObtainiumPC.exe'
+          "HKCU entry left: $(@(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }).Count); per-user folder left: $(Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC'))"
+          "installed exe ProductVersion: " + (Get-Item $exe).VersionInfo.ProductVersion
+          $procs = @(Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue)
+          "ObtainiumPC processes running after update: $($procs.Count) $($procs | ForEach-Object { $_.Path })"
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          "apps.json retained seed: " + ((Get-Content (Join-Path $dir 'apps.json') -Raw) -match 'Retention seed')
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save('shots\su-08-final-screen.png')
+          if ($reg.DisplayVersion -ne '1.0.1') { throw 'registry not 1.0.1 after update' }
+          if ((Get-Item $exe).VersionInfo.ProductVersion -notlike '1.0.1*') { throw 'exe not 1.0.1 after update' }
+          Copy-Item (Join-Path $dir 'logs.jsonl') shots\app-logs.jsonl -ErrorAction SilentlyContinue
+          Copy-Item "$PWD\fixture-requests.log" shots\ -ErrorAction SilentlyContinue
+      - name: Collect diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          Get-ChildItem $dir -ErrorAction SilentlyContinue | Out-String | Set-Content shots\datadir-listing.txt
+          Copy-Item (Join-Path $dir 'logs.jsonl') shots\app-logs.jsonl -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $dir 'settings.json') shots\settings-after.json -ErrorAction SilentlyContinue
+          Copy-Item "$env:RUNNER_TEMP\ssl\srv.err" shots\ -ErrorAction SilentlyContinue
+          Copy-Item "$PWD\fixture-requests.log" shots\ -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfupdate-shots
+          path: |
+            shots/
+            fixture-requests.log
