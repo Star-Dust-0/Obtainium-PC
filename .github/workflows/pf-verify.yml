@@ -87,7 +87,7 @@ jobs:
               $ct = $el.Current.ControlType.ProgrammaticName
               if ($ct -match 'CheckBox|ListItem|List$') { "PAGE-ELEMENT: $ct [$($el.Current.Name)]"; if ($el.Current.Name -like '*desktop shortcut*' -and $ct -match 'CheckBox|ListItem') { $cb = $el } }
             }
-            if ($cb -ne $null -and -not $script:ticked) { Shot 'pf-02-additional-tasks-default'; $tp = $cb.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); "desktop shortcut default state: $($tp.Current.ToggleState)"; try { $tp.Toggle() } catch { $r=$cb.Current.BoundingRectangle; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X+12),[int]($r.Y+$r.Height/2)); Start-Sleep -Milliseconds 300; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }; Start-Sleep 1; Shot 'pf-03-additional-tasks-ticked'; $script:ticked = $true }
+            if ($cb -ne $null -and -not $script:ticked) { Shot 'pf-02-additional-tasks-default'; $script:ticked = $true }
             foreach ($bn in 'Finish','Install','Next >','Next','OK','Yes') {
               $b = FindNamed $bn $sw
               if ($b -ne $null) {
