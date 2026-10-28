@@ -48,7 +48,7 @@ jobs:
           $pu = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC\ObtainiumPC.exe'
           "old per-user installed: $(Test-Path $pu)  version $((Get-Item $pu).VersionInfo.ProductVersion)"
           $data = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'; New-Item -ItemType Directory -Force $data | Out-Null
-          Set-Content (Join-Path $data 'settings.json') '{"FirstRunHandled":true,"UpdateIntervalMinutes":123,"Theme":2,"TrayIcon":true}'
+          Set-Content (Join-Path $data 'settings.json') '{"FirstRunHandled":true,"UpdateIntervalMinutes":123,"Theme":"dark","TrayIcon":true}'
           Set-Content (Join-Path $data 'apps.json') '[{"id":"seed-1","url":"https://github.com/BCUninstaller/Bulk-Crap-Uninstaller","author":"BCUninstaller","name":"Bulk-Crap-Uninstaller","installedVersion":"6.3","categories":[],"additionalSettings":"{}","apkUrls":"[]","otherAssetUrls":"[]","preferredApkIndex":0,"pinned":false,"disabled":false}]'
           $p = Start-Process $pu -PassThru; Start-Sleep 15
           $root = [System.Windows.Automation.AutomationElement]::RootElement
@@ -82,8 +82,12 @@ jobs:
           foreach ($i in 1..80) {
             Start-Sleep 2
             $sw = SetupWin; if ($sw -eq $null) { if ($done) { break } else { continue } }
-            $cb = FindNamed 'Create a desktop shortcut' $sw
-            if ($cb -ne $null -and -not $script:ticked) { Shot 'pf-02-additional-tasks-default'; $tp = $cb.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); "desktop shortcut default state: $($tp.Current.ToggleState)"; $tp.Toggle(); Start-Sleep 1; Shot 'pf-03-additional-tasks-ticked'; $script:ticked = $true }
+            $cb = $null
+            foreach ($el in $sw.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              $ct = $el.Current.ControlType.ProgrammaticName
+              if ($ct -match 'CheckBox|ListItem|List$') { "PAGE-ELEMENT: $ct [$($el.Current.Name)]"; if ($el.Current.Name -like '*desktop shortcut*' -and $ct -match 'CheckBox|ListItem') { $cb = $el } }
+            }
+            if ($cb -ne $null -and -not $script:ticked) { Shot 'pf-02-additional-tasks-default'; $tp = $cb.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); "desktop shortcut default state: $($tp.Current.ToggleState)"; try { $tp.Toggle() } catch { $r=$cb.Current.BoundingRectangle; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X+12),[int]($r.Y+$r.Height/2)); Start-Sleep -Milliseconds 300; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }; Start-Sleep 1; Shot 'pf-03-additional-tasks-ticked'; $script:ticked = $true }
             foreach ($bn in 'Finish','Install','Next >','Next','OK','Yes') {
               $b = FindNamed $bn $sw
               if ($b -ne $null) {
