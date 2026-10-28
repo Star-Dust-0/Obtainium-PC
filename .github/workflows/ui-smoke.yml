@@ -238,7 +238,11 @@ jobs:
           }
           function FindNamed($name, $scope) {
             $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
-            return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+            # The bottom download strip repeats the app name of the last download: never let it satisfy a list lookup.
+            foreach ($m in $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)) {
+              if ($m.Current.AutomationId -notlike 'DownloadStrip*') { return $m }
+            }
+            return $null
           }
           # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
           function FindNamedScrolling($name, $scope) {
