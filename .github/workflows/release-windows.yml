@@ -50,6 +50,7 @@ jobs:
       - name: Verify installer installs and app launches
         shell: pwsh
         run: |
+          $v = ([xml](Get-Content windows/ObtainiumPC/ObtainiumPC.csproj)).Project.PropertyGroup.Version | Select-Object -First 1
           $setup = Get-ChildItem dist\*Setup.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           $dir = Join-Path $env:ProgramFiles 'Obtainium-PC'
