@@ -22,7 +22,11 @@ public static class InstalledAppsService
 {
     private static readonly Regex NonAlnum = new("[^a-z0-9]+", RegexOptions.Compiled);
 
-    private static string Normalize(string name) => NonAlnum.Replace(name.ToLowerInvariant(), "");
+    // "+" is spelled out so "notepad-plus-plus" (repository name) and
+    // "Notepad++" (registry DisplayName) normalize to the same key.
+    private static string Normalize(string name) => NonAlnum.Replace(name.ToLowerInvariant().Replace("+", "plus"), "");
+
+    private static readonly Regex TrailingDigits = new("[0-9]+$", RegexOptions.Compiled);
 
     public static string NormalizeName(string name) => Normalize(name);
 
@@ -139,6 +143,17 @@ public static class InstalledAppsService
                 || (!string.IsNullOrWhiteSpace(a.DisplayIcon) && Normalize(Path.GetFileNameWithoutExtension(a.DisplayIcon.Split(',')[0].Trim('"'))) == needle)).ToList();
             var idMatch = Disambiguate(byIdentity);
             if (idMatch != null) return new MatchResult(idMatch, MatchConfidence.Strong);
+        }
+
+        // Owner tier: some programs are named after their GitHub owner, not the
+        // repository (BCUninstaller/Bulk-Crap-Uninstaller installs as
+        // "BCUninstaller 6.3.0.0"). Matches only when the DisplayName with its
+        // trailing version digits removed equals the tracked author exactly,
+        // and only when that is unique. No hard-coded app names.
+        if (publisher != null && publisher.Length >= 6)
+        {
+            var byOwner = installed.Where(a => TrailingDigits.Replace(Normalize(a.DisplayName), "") == publisher).ToList();
+            if (byOwner.Count == 1) return new MatchResult(byOwner[0], MatchConfidence.Strong);
         }
 
         if (needle.Length < 4) return null; // too short to contain-match safely

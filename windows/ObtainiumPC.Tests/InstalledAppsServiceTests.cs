@@ -97,4 +97,34 @@ public class InstalledAppsServiceTests
         var installed = new[] { Entry("Microsoft Visual C++ 2015-2022 Redistributable (x64)") };
         Assert.Null(InstalledAppsService.FindMatch("visualc", null, installed));
     }
+
+    [Fact]
+    public void Repository_name_with_plus_signs_matches_registry_name()
+    {
+        // Real runner evidence: tracked "notepad-plus-plus" vs registry "Notepad++ (64-bit x64)".
+        var installed = new[] { Entry("Notepad++ (64-bit x64)", "Notepad++ Team", "8.9.8.1"), Entry("Other App") };
+        var match = InstalledAppsService.FindMatch("notepad-plus-plus", "notepad-plus-plus", installed);
+        Assert.NotNull(match);
+        Assert.Equal("8.9.8.1", match!.Info.DisplayVersion);
+    }
+
+    [Fact]
+    public void Program_named_after_owner_matches_when_unique()
+    {
+        // Real runner evidence: tracked "Bulk-Crap-Uninstaller" by owner "BCUninstaller" vs "BCUninstaller 6.3.0.0".
+        var installed = new[] { Entry("BCUninstaller 6.3.0.0", "Marcin Szeniak", "6.3.0.0"), Entry("Other App") };
+        var match = InstalledAppsService.FindMatch("Bulk-Crap-Uninstaller", "BCUninstaller", installed);
+        Assert.NotNull(match);
+        Assert.Equal("6.3.0.0", match!.Info.DisplayVersion);
+    }
+
+    [Fact]
+    public void Owner_tier_is_ambiguity_safe_and_exact_stem_only()
+    {
+        var two = new[] { Entry("BCUninstaller 6.3.0.0"), Entry("BCUninstaller 5.0") };
+        Assert.Null(InstalledAppsService.FindMatch("Bulk-Crap-Uninstaller", "BCUninstaller", two));
+        var unrelated = new[] { Entry("BCUninstaller Extras Pack 1") };
+        Assert.Null(InstalledAppsService.FindMatch("Bulk-Crap-Uninstaller", "BCUninstaller", unrelated));
+        Assert.Null(InstalledAppsService.FindMatch("Some-Tool", "Acme", new[] { Entry("Acme 2.0") }));
+    }
 }
