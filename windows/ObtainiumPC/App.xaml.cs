@@ -57,6 +57,7 @@ namespace ObtainiumPC
             }
             Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().Activated += (_, a) =>
             {
+                (MainWindowInstance as MainWindow)?.RestoreFromSecondLaunch();
                 if (a.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Launch
                     && a.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch)
                     EnqueueDeepLink(launch.Arguments);

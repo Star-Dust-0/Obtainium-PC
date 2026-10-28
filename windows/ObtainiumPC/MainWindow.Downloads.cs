@@ -139,6 +139,10 @@ namespace ObtainiumPC
 
         private bool TrayActive => App.Settings.TrayIcon && _tray?.IsVisible == true;
 
+        /// A second launch (Start menu, shortcut) is redirected to this instance; bring the window back
+        /// even when it is hidden in the tray.
+        public void RestoreFromSecondLaunch() => DispatcherQueue.TryEnqueue(ShowFromTray);
+
         private void ShowFromTray()
         {
             AppWindow.Show();
