@@ -16,7 +16,7 @@
     <LangVersion>latest</LangVersion>
     <WindowsSdkPackageVersion>10.0.19041.41</WindowsSdkPackageVersion>
     <AssemblyName>ObtainiumPC</AssemblyName>
-    <Version>1.0.1</Version>
+    <Version>1.0.0</Version>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

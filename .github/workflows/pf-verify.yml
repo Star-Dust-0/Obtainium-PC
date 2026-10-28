@@ -27,7 +27,7 @@ jobs:
           choco install innosetup --no-progress -y | Out-Null
           $build = "$PWD\windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64"
           New-Item -ItemType Directory -Force dist | Out-Null
-          iscc /DMyAppVersion=1.0.1 "/DBuildDir=$build" "/O$PWD\dist" "/FSetup-new" windows\packaging\ObtainiumPC.iss
+          iscc /DMyAppVersion=1.0.0 "/DBuildDir=$build" "/O$PWD\dist" "/FSetup-new" windows\packaging\ObtainiumPC.iss
           Get-ChildItem dist | Format-Table Name, Length | Out-String
       - name: Old per-user build running in the tray, with seeded data
         shell: pwsh
