@@ -75,8 +75,10 @@ public static class DownloadCoordinator
                 if (lastResult == InstallCheckResult.Confirmed)
                 {
                     app.InstalledVersionSource = "os";
-                    var corrected = Versioning.VersionService.ReconcileTrackedVersion(app.InstalledVersion, detected!, expected ?? detected!, true, false);
-                    app.InstalledVersion = corrected ?? detected;
+                    // Confirmed means the detected version equals the release modulo cosmetics ("1.0.1" vs "v1.0.1"). Store the
+                    // release's own string so installed == latest exactly (the update button compares strings); writing the raw
+                    // detected value here could overwrite a reconciled "v1.0.1" with "1.0.1" and re-enable Update (ui-smoke 40614475940).
+                    app.InstalledVersion = !string.IsNullOrEmpty(expected) ? expected : detected;
                     await App.SaveAppsAsync();
                     Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
                     entry.SetState(DownloadState.Installed, "version " + detected + " confirmed");
