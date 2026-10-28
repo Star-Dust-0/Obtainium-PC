@@ -16,7 +16,7 @@ Track apps by their release pages, get told when a new version is out, and downl
 
 <br>
 
-<img src="windows/docs/screenshots/01b-apps-split-detail.png" alt="Apps list with the app detail pane" width="820">
+<img src="windows/docs/screenshots/user-apps.jpg" alt="Apps list with the app detail pane" width="820">
 
 </div>
 
@@ -54,7 +54,11 @@ GitHub, GitLab, Forgejo (including Codeberg), SourceForge, SourceHut, itch.io, J
 
 ## Screenshots
 
-The screenshots come from the automated UI test run of this build, with test data.
+<img src="windows/docs/screenshots/user-apps.jpg" alt="Apps page" width="820">
+
+<img src="windows/docs/screenshots/user-add-app.jpg" alt="Add App page" width="820">
+
+The screenshots below come from the automated UI test run of this build, with test data.
 
 <details open>
 <summary><b>Add App</b></summary>
