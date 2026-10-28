@@ -1449,7 +1449,7 @@ jobs:
           ClickNamedIn 'Apps' $win3
           Start-Sleep 2
           # Navigating back recreates the page with groups collapsed: expand GitHub if its rows are not shown.
-          if ((FindNamed 'bat' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
+          $bt = FindNamed 'bat' $win3; if ($bt -eq $null -or $bt.Current.IsOffscreen -or $bt.Current.BoundingRectangle.Width -le 0) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
 
           # Light-theme twin check: the disabled Mark updated twin must render
           # with the disabled brush under Light as well (28h covered Dark).
@@ -1464,7 +1464,7 @@ jobs:
           $opened = $false
           # Group collapse state carries over from the filter steps (their toggles are state-dependent): make sure the
           # group holding the row is expanded before looking for it.
-          if ((FindNamed 'bat' $win3) -eq $null) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
+          $bt = FindNamed 'bat' $win3; if ($bt -eq $null -or $bt.Current.IsOffscreen -or $bt.Current.BoundingRectangle.Width -le 0) { ToggleGroupIfPresent 'GitHub' $win3; Start-Sleep 2 }
           foreach ($try in 1..4) {
             $obtRow = FindNamed 'bat' $win3
             if ($obtRow -eq $null) { break }
