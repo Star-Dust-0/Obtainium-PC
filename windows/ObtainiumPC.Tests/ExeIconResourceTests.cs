@@ -8,7 +8,7 @@ namespace ObtainiumPC.Tests;
 public class ExeIconResourceTests
 {
     [Fact]
-    public void Extracted_ico_keeps_only_the_largest_frame()
+    public void Extracted_ico_keeps_a_single_frame()
     {
         if (!OperatingSystem.IsWindows()) return;
         var sys = Environment.GetFolderPath(Environment.SpecialFolder.System);
@@ -21,7 +21,7 @@ public class ExeIconResourceTests
             if (ico == null) continue;
             int count = BitConverter.ToUInt16(ico, 4);
             var widths = Enumerable.Range(0, count).Select(i => ico[6 + i * 16] == 0 ? 256 : (int)ico[6 + i * 16]).ToList();
-            Assert.Single(widths); // only the largest frame is handed to the decoder
+            Assert.Single(widths); // one frame is handed to the decoder
             checkedAny = true;
         }
         Assert.True(checkedAny, "no system exe with an icon resource was found to check");

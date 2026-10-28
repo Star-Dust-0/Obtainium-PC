@@ -36,6 +36,27 @@ internal static class ExeIconResource
         return buf;
     }
 
+    /// Index of the frame to use: the smallest one that is at least 64 px wide (sharp from 100% to 200%
+    /// display scale without a huge downscale), else the largest; the deeper colour depth wins ties.
+    public static int PickFrame(IReadOnlyList<(int Width, int BitCount)> frames)
+    {
+        var best = -1;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            if (best < 0) { best = i; continue; }
+            var (w, bits) = frames[i];
+            var (bw, bbits) = frames[best];
+            bool cand = w >= 64, curr = bw >= 64;
+            bool better =
+                cand && !curr ? true :
+                !cand && curr ? false :
+                cand ? (w < bw || (w == bw && bits > bbits))
+                     : (w > bw || (w == bw && bits > bbits));
+            if (better) best = i;
+        }
+        return best < 0 ? 0 : best;
+    }
+
     public static byte[]? TryBuildIco(string path)
     {
         var h = IntPtr.Zero;
@@ -64,12 +85,10 @@ internal static class ExeIconResource
                 entries.Add((hdr, img));
             }
             if (entries.Count == 0) return null;
-            // The decoder shows the first frame. Exe groups are often authored smallest-first, which made a 16px frame get
-            // stretched to the 32-48 DIP list/detail slot (the soft, pixelated look). Largest frame first; width 0 means 256.
-            entries = entries.OrderByDescending(e => e.hdr[0] == 0 ? 256 : e.hdr[0]).ThenByDescending(e => BitConverter.ToUInt16(e.hdr, 6)).ToList();
-            // Evidence (ui-smoke 31b, Notepad++): ordering alone did not change the pixels, the decoder still picked a ~32px
-            // frame for a 32 DIP slot (1:1, blocky). Hand it only the largest frame so it always scales down from it.
-            entries = entries.Take(1).ToList();
+            // The decoder picked a small frame (blocky icon, run 40606693662: reordering alone left pixels identical) and an
+            // 8x downscale from 256 is aliased too. Hand it one frame: the smallest >= 64 px (sharp 100% to 200%), else the largest.
+            var pick = PickFrame(entries.Select(e => ((int)(e.hdr[0] == 0 ? 256 : e.hdr[0]), (int)BitConverter.ToUInt16(e.hdr, 6))).ToList());
+            entries = new List<(byte[] hdr, byte[] img)> { entries[pick] };
             using var ms = new MemoryStream();
             using var bw = new BinaryWriter(ms);
             bw.Write((ushort)0); bw.Write((ushort)1); bw.Write((ushort)entries.Count);
