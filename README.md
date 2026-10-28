@@ -90,8 +90,8 @@ Download from the [Obtainium-PC v1.0 - Early Access](https://github.com/StarsDus
 
 | File | Use it when |
 |---|---|
-| `Obtainium-PC-v1.0-win-x64-Setup.exe` | You want a per-user installer. No admin needed, .NET runtime included. |
-| `Obtainium-PC-v1.0-win-x64-portable.zip` | You want to unzip anywhere and run `ObtainiumPC.exe`. .NET runtime included. |
+| `Obtainium-PC-v1.0-win-x64-Setup.exe` | You want the normal installer. It installs to `C:\Program Files\Obtainium-PC` and asks for administrator permission. |
+| `Obtainium-PC-v1.0-win-x64-portable.zip` | You want to unzip anywhere and run `ObtainiumPC.exe`. |
 
 Windows 10 1809 or newer, 64-bit. Not code-signed, so Windows SmartScreen may warn on first run.
 

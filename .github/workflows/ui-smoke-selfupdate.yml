@@ -60,7 +60,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & "$PWD\inst-old\ObtainiumPC-Setup-win-x64.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
-          $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          $reg = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
           "registry after install: DisplayVersion=$($reg.DisplayVersion)"
           if ($reg.DisplayVersion -ne '0.1.0') { throw 'old install not 0.1.0' }
           $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
@@ -214,7 +214,7 @@ jobs:
               [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
             }
           }
-          $exe = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC\ObtainiumPC.exe'
+          $exe = Join-Path $env:ProgramFiles 'Obtainium-PC\ObtainiumPC.exe'
           $p = Start-Process $exe -PassThru
           Start-Sleep 14
           $root = [System.Windows.Automation.AutomationElement]::RootElement
@@ -330,9 +330,9 @@ jobs:
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
-          $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
+          $reg = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' }
           "registry DisplayVersion after update: $($reg.DisplayVersion)"
-          $exe = Join-Path $env:LOCALAPPDATA 'Programs\ObtainiumPC\ObtainiumPC.exe'
+          $exe = Join-Path $env:ProgramFiles 'Obtainium-PC\ObtainiumPC.exe'
           "installed exe ProductVersion: " + (Get-Item $exe).VersionInfo.ProductVersion
           $procs = @(Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue)
           "ObtainiumPC processes running after update: $($procs.Count) $($procs | ForEach-Object { $_.Path })"
