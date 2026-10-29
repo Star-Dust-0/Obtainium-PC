@@ -87,7 +87,7 @@ jobs:
           RELEASE = [{
             'id': 1, 'tag_name': 'v0.2.0', 'name': 'Obtainium-PC 0.2.0 (local fixture)', 'draft': False, 'prerelease': False,
             'published_at': '2026-10-25T12:00:00Z', 'created_at': '2026-10-25T12:00:00Z',
-            'html_url': 'https://github.com/StarsDust01/Obtainium-PC/releases/tag/v0.2.0',
+            'html_url': 'https://github.com/Star-Dust-0/Obtainium-PC/releases/tag/v0.2.0',
             'body': 'Local fixture release for the self-update proof.',
             'assets': [{'name': 'ObtainiumPC-Setup-win-x64.exe', 'size': os.path.getsize(INSTALLER),
                         'browser_download_url': 'https://127.0.0.1:8443/dl/ObtainiumPC-Setup-win-x64.exe',
@@ -108,7 +108,7 @@ jobs:
                   if 'releases' in self.path:
                       body = json.dumps(RELEASE if 'latest' not in self.path else RELEASE[0]).encode()
                   else:
-                      body = json.dumps({'full_name': 'StarsDust01/Obtainium-PC', 'archived': False}).encode()
+                      body = json.dumps({'full_name': 'Star-Dust-0/Obtainium-PC', 'archived': False}).encode()
                   self.send_response(200); self.send_header('Content-Type', 'application/json')
                   self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
           ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(r'$ssl\cert.pem', r'$ssl\key.pem')
@@ -118,7 +118,7 @@ jobs:
           "@ | Set-Content "$ssl\server.py" -Encoding utf8
           Start-Process python -ArgumentList "$ssl\server.py" -WindowStyle Hidden -RedirectStandardOutput "$ssl\srv.out" -RedirectStandardError "$ssl\srv.err"
           Start-Sleep 3
-          $r = Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/StarsDust01/Obtainium-PC/releases'
+          $r = Invoke-WebRequest -UseBasicParsing 'https://localhost:8443/https://api.github.com/repos/Star-Dust-0/Obtainium-PC/releases'
           "fixture self-check: $($r.StatusCode) $($r.Content.Substring(0,80))"
       - name: Drive the update through the real UI
         shell: pwsh

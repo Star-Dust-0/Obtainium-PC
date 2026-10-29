@@ -108,7 +108,7 @@
                 <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <TextBlock Text="Obtainium-PC - a native Windows port of Obtainium by ImranR98, licensed GPL-3.0. Brought to you by Instinct." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <HyperlinkButton Content="Upstream Obtainium (ImranR98)" NavigateUri="https://github.com/ImranR98/Obtainium"/>
-                <HyperlinkButton Content="Obtainium-PC source (this fork)" NavigateUri="https://github.com/StarsDust01/Obtainium-PC"/>
+                <HyperlinkButton Content="Obtainium-PC source (this fork)" NavigateUri="https://github.com/Star-Dust-0/Obtainium-PC"/>
                 <HyperlinkButton Content="GPL-3.0 license" NavigateUri="https://github.com/ImranR98/Obtainium/blob/main/LICENSE.md"/>
                     </StackPanel>
                 </Border>

@@ -20,7 +20,7 @@ public class AssetFilterTests
     [Fact]
     public void Self_update_release_assets_select_the_x64_installer()
     {
-        // Synthetic release metadata for StarsDust01/Obtainium-PC (the
+        // Synthetic release metadata for Star-Dust-0/Obtainium-PC (the
         // packaging convention in windows/packaging + build-windows.yml): the
         // in-app self-update path - an ordinary tracked app pointing at the
         // fork's repo - must pick the x64 Inno installer. The portable zip

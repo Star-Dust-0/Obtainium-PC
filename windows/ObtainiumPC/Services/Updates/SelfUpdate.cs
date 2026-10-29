@@ -14,14 +14,14 @@ namespace ObtainiumPC.Services.Updates;
 /// </summary>
 public static class SelfUpdate
 {
-    public const string OwnUrl = "https://github.com/StarsDust01/Obtainium-PC";
+    public const string OwnUrl = "https://github.com/Star-Dust-0/Obtainium-PC";
     public const string OwnId = "starsdust01.obtainium-pc";
     // Records written by builds from before the repository moved to the new
     // account; still recognised as the own app and moved to OwnUrl on start.
     public const string LegacyOwnUrl = "https://github.com/MohamedElnaggar00/Obtainium-PC";
     public const string LegacyOwnId = "mohamedelnaggar00.obtainium-pc";
     public const string OwnName = "Obtainium-PC";
-    public const string OwnAuthor = "StarsDust01";
+    public const string OwnAuthor = "Star-Dust-0";
     // The installer asset published by CI is ObtainiumPC-Setup-win-x64.exe
     // (windows/packaging/ObtainiumPC.iss OutputBaseFilename).
     public const string InstallerAssetFilter = "Setup";
