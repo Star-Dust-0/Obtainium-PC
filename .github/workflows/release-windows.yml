@@ -12,7 +12,7 @@ on:
       title:
         description: 'Release title'
         required: true
-        default: 'v1.0 - Early Access'
+        default: 'v1.0'
       publish:
         description: 'Publish the release (false = build and verify assets only)'
         type: boolean

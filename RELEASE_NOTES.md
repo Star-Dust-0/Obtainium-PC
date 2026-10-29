@@ -1,4 +1,4 @@
-# Obtainium-PC v1.0 - Early Access
+# Obtainium-PC v1.0
 
 Obtainium-PC is a native Windows (WinUI 3) app that tracks apps by their release pages, tells you when a new version is out, and downloads it. It is based on the idea and design of Obtainium by ImranR98.
 
@@ -16,5 +16,5 @@ Obtainium-PC is a native Windows (WinUI 3) app that tracks apps by their release
 
 Requires Windows 10 1809 or newer, 64-bit.
 
-## Early Access
-Obtainium-PC is new. Please report problems at https://github.com/StarsDust01/Obtainium-PC/issues.
+## Feedback
+Obtainium-PC is new. Please report problems at https://github.com/Star-Dust-0/Obtainium-PC/issues.

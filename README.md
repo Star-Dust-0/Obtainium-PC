@@ -8,11 +8,11 @@
 
 Track apps by their release pages, get told when a new version is out, and download it, all from one native Windows app.
 
-[![Release](https://img.shields.io/badge/release-latest-orange)](https://github.com/StarsDust01/Obtainium-PC/releases/latest)
+[![Release](https://img.shields.io/badge/release-latest-orange)](https://github.com/Star-Dust-0/Obtainium-PC/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%201809%2B%20x64-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-[**Download**](https://github.com/StarsDust01/Obtainium-PC/releases/latest) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-early-access)
+[**Download**](https://github.com/Star-Dust-0/Obtainium-PC/releases/latest) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-early-access)
 
 <br>
 
@@ -22,7 +22,7 @@ Track apps by their release pages, get told when a new version is out, and downl
 
 ## Introducing Obtainium-PC
 
-This is the first introductory release of Obtainium-PC for Windows, released as Early Access. It introduces the app and its features, rather than an update or a set of fixes to an earlier public version.
+This is the first introductory release of Obtainium-PC for Windows. It introduces the app and its features, rather than an update or a set of fixes to an earlier public version.
 
 Obtainium-PC is a native Windows (WinUI 3) port of [Obtainium](https://github.com/ImranR98/Obtainium) by ImranR98.
 
@@ -86,7 +86,7 @@ The screenshots below come from the automated UI test run of this build, with te
 
 ## Install
 
-Download from the [Obtainium-PC v1.0 - Early Access](https://github.com/StarsDust01/Obtainium-PC/releases/latest):
+Download from the [Obtainium-PC v1.0](https://github.com/Star-Dust-0/Obtainium-PC/releases/latest):
 
 | File | Use it when |
 |---|---|
@@ -95,7 +95,7 @@ Download from the [Obtainium-PC v1.0 - Early Access](https://github.com/StarsDus
 
 Windows 10 1809 or newer, 64-bit. Not code-signed, so Windows SmartScreen may warn on first run.
 
-## Known limits (Early Access)
+## Known limits
 
 <details open>
 <summary><b>Read before you rely on it</b></summary>
