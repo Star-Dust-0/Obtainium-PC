@@ -12,7 +12,7 @@ Track apps by their release pages, get told when a new version is out, and downl
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%201809%2B%20x64-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-[**Download**](https://github.com/Star-Dust-0/Obtainium-PC/releases/latest) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits-early-access)
+[**Download**](https://github.com/Star-Dust-0/Obtainium-PC/releases/latest) · [Features](#features) · [Screenshots](#screenshots) · [Known limits](#known-limits)
 
 <br>
 
