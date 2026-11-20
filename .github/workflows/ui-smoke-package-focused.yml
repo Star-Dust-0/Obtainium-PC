@@ -388,11 +388,14 @@ jobs:
             $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
             Start-Sleep 2
           }
-          $la = 'C:\srv\log\appA-2.0.0.txt'; $lb = 'C:\srv\log\appB-2.0.0.txt'
+          # The app saves downloads under a hash-prefixed name, and the fixture installer logs by its own file name.
+          function InstLog($n) { $f = Get-ChildItem 'C:\srv\log' -Filter "*$n-2.0.0.txt" -ErrorAction SilentlyContinue | Select-Object -First 1; if ($f) { $f.FullName } else { 'C:\srv\log\none-' + $n + '.txt' } }
           foreach ($i in 1..60) {
             Start-Sleep 3
+            $la = InstLog 'appA'; $lb = InstLog 'appB'
             if ((Test-Path $la) -and (Test-Path $lb) -and ((Get-Content $la) -match '^end') -and ((Get-Content $lb) -match '^end')) { break }
           }
+          $la = InstLog 'appA'; $lb = InstLog 'appB'
           Shot 's1-bulk-after'
           if (-not ((Test-Path $la) -and (Test-Path $lb))) { LogTail; throw 'not both fixture installers were launched' }
           function Ticks($f, $k) { [int64](((Get-Content $f) | Where-Object { $_ -like "$k *" } | Select-Object -First 1) -split ' ')[1] }
