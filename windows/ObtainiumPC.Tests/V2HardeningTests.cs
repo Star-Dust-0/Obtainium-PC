@@ -89,7 +89,7 @@ public class V2HardeningTests : IDisposable
     {
         var re = UserRegex.Create("(a+)+$");
         Assert.Equal(UserRegex.MatchTimeout, re.MatchTimeout);
-        Assert.Throws<ArgumentException>(() => UserRegex.Create("("));
+        Assert.ThrowsAny<ArgumentException>(() => UserRegex.Create("("));
     }
 }
 
