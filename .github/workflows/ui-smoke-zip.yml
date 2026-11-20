@@ -1,0 +1,236 @@
+name: UI smoke - portable ZIP (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build'
+        required: false
+        default: 'v2-work'
+
+permissions:
+  contents: read
+
+jobs:
+  zip:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+      - name: Restore
+        run: msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+      - name: Build
+        run: msbuild windows/ObtainiumPC.sln /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:SelfContained=true
+      - name: Seed a tracked portable app (sharkdp/fd, zip-only Windows builds)
+        shell: pwsh
+        env:
+          SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $apps = @(@{
+            id = 'seed-fd'; url = 'https://github.com/sharkdp/fd'
+            author = 'sharkdp'; name = 'fd'
+            apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+            additionalSettings = '{}'; categories = @(); pinned = $false; disabled = $false
+            installedVersion = '1.0'
+          })
+          ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = $env:SMOKE_GH_TOKEN }
+          ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+      - name: Real ZIP install, then upgrade in place
+        shell: pwsh
+        env:
+          SMOKE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $b.X,$b.Y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $b.Width,$b.Height))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          $exe = (Resolve-Path 'windows\ObtainiumPC\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\ObtainiumPC.exe').Path
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          function ClickPartial($prefix, $scope) {
+            # The bottom download strip repeats the app name ("shuck ..."): never click its elements. The list is
+            # virtualized, so scroll the wheel a few times when the row is not realized yet.
+            foreach ($pass in 0..24) {
+              $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              foreach ($el in $all) {
+                $n = $el.Current.Name
+                if ($n -and $n.StartsWith($prefix)) {
+                  if ($el.Current.AutomationId -like 'DownloadStrip*') { continue }
+                  $r = $el.Current.BoundingRectangle
+                  if ($el.Current.IsOffscreen) { continue }
+                  if ($r.Width -gt 10 -and $r.Height -gt 10) {
+                    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                    Start-Sleep -Milliseconds 300
+                    [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                    return $el
+                  }
+                }
+              }
+              if ($pass -lt 24) {
+                $wr = $scope.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
+                # first look upward (the list may already be scrolled down), then downward
+                if ($pass -lt 10) { [M]::mouse_event(0x0800,0,0,[uint32]120,0) } else { [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0) }
+                Start-Sleep -Milliseconds 400
+              }
+            }
+            Shot "missing-$($prefix -replace '[^\w]','_')"
+            throw "element starting with '$prefix' not found"
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            # The bottom download strip repeats the app name of the last download: never let it satisfy a list lookup.
+            foreach ($m in $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)) {
+              if ($m.Current.AutomationId -notlike 'DownloadStrip*') { return $m }
+            }
+            return $null
+          }
+          # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
+          function ClickNamedIn($name, $scope) {
+            # Retry: UIA lookups can race a page re-layout (one transient miss
+            # after the health page refresh cost a full run).
+            $el = $null
+            foreach ($attempt in 1..6) {
+              $navIds = @{ 'Apps'='Nav_apps'; 'التطبيقات'='Nav_apps'; 'Add App'='Nav_addapp'; 'Update Health'='Nav_updatehealth'; 'Import / Export'='Nav_importexport'; 'Logs'='Nav_logs'; 'Settings'='Nav_settings' }
+              if ($navIds.ContainsKey($name)) {
+                # Stable AutomationId (language independent, cannot collide with a page title).
+                $ci = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $navIds[$name])
+                $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $ci)
+                if ($el -ne $null) { break }
+              }
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -ne $null) { break }
+              Start-Sleep 1
+            }
+            if ($el -eq $null) { Shot "missing-$($name -replace '[^\w]','_')"; throw "element '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+              $r = $el.Current.BoundingRectangle
+              if ([double]::IsNaN($r.X) -or [double]::IsInfinity($r.X) -or $r.Width -le 0) {
+                # Diagnostic: the first UIA match has no usable bounds. List every match and use the first visible one.
+                $cc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+                $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cc)
+                $pick = $null
+                foreach ($m in $all) {
+                  $mr = $m.Current.BoundingRectangle
+                  "ClickNamedIn '$name' match: rect=$mr class=$($m.Current.ClassName) type=$($m.Current.ControlType.ProgrammaticName) autoId=$($m.Current.AutomationId) offscreen=$($m.Current.IsOffscreen)"
+                  if ($pick -eq $null -and -not $m.Current.IsOffscreen -and -not [double]::IsInfinity($mr.X) -and $mr.Width -gt 0) { $pick = $m }
+                }
+                if ($pick -eq $null) { Shot "unclickable-$($name -replace '[^\w]','_')"; throw "element '$name' has no usable bounds ($($all.Count) matches)" }
+                try { $pick.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); return } catch { $r = $pick.Current.BoundingRectangle }
+              }
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            }
+          }
+          function AssertAlive($tag) { $p.Refresh(); if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" } }
+          function PickAndDownload($zipName) {
+            ClickNamedIn 'Update' $win
+            Start-Sleep 3
+            $dlg = FindNamed 'Choose a file' $root
+            if ($dlg -eq $null) { Shot 'zip-no-picker'; throw 'asset picker did not appear' }
+            $picked = $false
+            foreach ($el in $dlg.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -like "*$zipName*" -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::RadioButton) {
+                $r = $el.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                Start-Sleep -Milliseconds 300
+                [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                $picked = $true; break
+              }
+            }
+            if (-not $picked) { Shot 'zip-asset-missing'; throw "zip asset $zipName not offered in the picker" }
+            Shot 'z1-picker'
+            Start-Sleep 1
+            ClickNamedIn 'Download' $root
+            $ext = $null
+            foreach ($i in 1..40) {
+              Start-Sleep 3
+              $ext = FindNamed 'Extracted' $root
+              if ($ext -ne $null) { break }
+            }
+            if ($ext -eq $null) { Shot 'zip-no-extracted-dialog'; throw 'no Extracted dialog after the zip download' }
+            Shot 'z2-extracted-dialog'
+            ClickNamedIn 'OK' $root
+            Start-Sleep 2
+          }
+          function StartApp {
+            $script:p = Start-Process $exe -PassThru
+            Start-Sleep 12
+            $script:p.Refresh()
+            if ($script:p.HasExited) { Shot 'exited'; throw "app exited at launch" }
+            $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:p.Id)
+            $script:win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+            if ($script:win -eq $null) { throw 'main window not found' }
+            Start-Sleep 30
+          }
+          $zipName = 'x86_64-pc-windows-msvc.zip'
+          $folder = 'C:\Obtainium\fd'
+
+          # ---- 1. fresh install through the UI ----
+          StartApp
+          Shot 'z0-apps-list'
+          ClickPartial 'fd' $win | Out-Null
+          Start-Sleep 3; AssertAlive 'detail'; Shot 'z0b-detail'
+          PickAndDownload $zipName
+          "folder after install:"; Get-ChildItem $folder -Recurse | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 250
+          $fdExe = Get-ChildItem $folder -Recurse -Filter fd.exe | Select-Object -First 1
+          if (-not $fdExe) { Shot 'zip-no-exe'; throw "fd.exe not found under $folder" }
+          $v1 = & $fdExe.FullName --version
+          "fd --version after install: $v1"
+          if ("$v1" -notlike 'fd *') { throw "extracted fd.exe did not run (got: $v1)" }
+          $stable = $fdExe.DirectoryName
+          # user file + a corrupted app file, to be handled by the upgrade
+          Set-Content (Join-Path $stable 'user-note.txt') 'keep me'
+          [System.IO.File]::WriteAllBytes($fdExe.FullName, [byte[]](1,2,3,4))
+          Start-Sleep 1
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 3
+
+          # ---- 2. upgrade in place: record an older installed version, run the same flow again ----
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $j = Get-Content $store -Raw | ConvertFrom-Json
+          foreach ($a in $j) { if ($a.id -eq 'seed-fd') { $a.installedVersion = '1.0' } }
+          ConvertTo-Json -InputObject @($j) -Depth 10 | Set-Content $store
+          StartApp
+          ClickPartial 'fd' $win | Out-Null
+          Start-Sleep 3; AssertAlive 'detail2'
+          PickAndDownload $zipName
+          "folder after upgrade:"; Get-ChildItem $folder -Recurse -Force | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 250
+          Shot 'z3-after-upgrade'
+          $fdExe2 = Get-ChildItem $folder -Recurse -Filter fd.exe | Select-Object -First 1
+          $v2 = & $fdExe2.FullName --version
+          "fd --version after upgrade: $v2"
+          if ("$v2" -notlike 'fd *') { throw "the upgrade did not replace the corrupted fd.exe (got: $v2)" }
+          if ($fdExe2.DirectoryName -ne $stable) { throw "upgrade moved the app from $stable to $($fdExe2.DirectoryName)" }
+          $note = Join-Path $stable 'user-note.txt'
+          if (-not (Test-Path $note) -or (Get-Content $note -Raw).Trim() -ne 'keep me') { throw 'the user file was lost by the upgrade' }
+          $dirs = @(Get-ChildItem 'C:\Obtainium' -Directory)
+          "app folders under C:\Obtainium: $($dirs.Name -join ', ')"
+          if ($dirs.Count -ne 1) { throw "expected exactly one app folder under C:\Obtainium, found $($dirs.Count)" }
+          'ZIP install and in-place upgrade scenario passed'
+      - name: Preserve app logs
+        if: always()
+        shell: pwsh
+        run: |
+          $logs = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $logs) { Copy-Item $logs shots\app-logs.jsonl }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-zip-shots
+          path: shots/
