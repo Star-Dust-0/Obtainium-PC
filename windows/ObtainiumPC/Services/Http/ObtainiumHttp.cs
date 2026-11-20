@@ -66,7 +66,7 @@ public static class ObtainiumHttp
             if (pinned != null)
                 // Trust ONLY the bundled roots for this host. X509Chain still
                 // enforces expiry/signatures; hostname was checked above.
-                return ValidateWithRoots(cert, PinFiles[pinned]);
+                return ValidateWithRoots(cert, PinFiles[pinned], chain);
         }
         if (errors == SslPolicyErrors.None) return true;
         // lib/services/http_service.dart _ruStoreWorkaroundSecurityContext:
@@ -74,11 +74,15 @@ public static class ObtainiumHttp
         // does not trust; accept it when the chain builds against the bundled
         // Mintsifry root (system-valid chains already returned above).
         if (root == "rustore.ru")
-            return ValidateWithRoots(cert, new[] { "russian-mintsifry-root.crt" });
+            return ValidateWithRoots(cert, new[] { "russian-mintsifry-root.crt" }, chain);
         return false;
     }
 
-    private static bool ValidateWithRoots(X509Certificate2 cert, string[] files)
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, X509Certificate2> RootCache = new();
+
+    private static X509Certificate2 LoadRoot(string path) => RootCache.GetOrAdd(path, p => new X509Certificate2(p));
+
+    private static bool ValidateWithRoots(X509Certificate2 cert, string[] files, X509Chain? presented = null)
     {
         try
         {
@@ -91,10 +95,15 @@ public static class ObtainiumHttp
             foreach (var f in files)
             {
                 var p = Path.Combine(CertDir, f);
-                if (File.Exists(p)) { custom.ChainPolicy.CustomTrustStore.Add(new X509Certificate2(p)); roots++; }
+                if (File.Exists(p)) { custom.ChainPolicy.CustomTrustStore.Add(LoadRoot(p)); roots++; }
             }
             // Pinning fails closed: no bundled roots means no trust.
             if (roots == 0) return false;
+            // Intermediates the server sent: without them the chain may not build on a machine that
+            // has not cached the intermediate, which made pinned connections fail at random.
+            if (presented != null)
+                foreach (var el in presented.ChainElements)
+                    if (!el.Certificate.Equals(cert)) custom.ChainPolicy.ExtraStore.Add(el.Certificate);
             return custom.Build(cert);
         }
         catch { return false; }

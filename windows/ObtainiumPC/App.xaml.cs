@@ -257,7 +257,7 @@ namespace ObtainiumPC
                         var el = System.Text.Json.JsonSerializer.SerializeToElement(Settings);
                         settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
                     }
-                    var json = Services.Store.AppStore.Export(SnapshotApps(), settings, level, "0.1.0");
+                    var json = Services.Store.AppStore.Export(SnapshotApps(), settings, level, Services.Updates.SelfUpdate.RunningVersion());
                     Services.Store.AppStore.WriteFileAtomic(Settings.AutoExportPath!, json);
                 }
                 catch (Exception ex)

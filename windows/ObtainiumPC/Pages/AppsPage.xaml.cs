@@ -606,7 +606,7 @@ namespace ObtainiumPC.Pages
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
             var file = await picker.PickSaveFileAsync();
             if (file == null) return;
-            var json = Services.Store.AppStore.Export(sel, null, 0, "0.1.0");
+            var json = Services.Store.AppStore.Export(sel, null, 0, Services.Updates.SelfUpdate.RunningVersion());
             await Windows.Storage.FileIO.WriteTextAsync(file, json);
         }
 

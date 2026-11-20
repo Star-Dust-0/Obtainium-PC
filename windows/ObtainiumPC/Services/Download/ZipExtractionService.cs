@@ -87,17 +87,21 @@ public static class ZipExtractionService
         return root == null ? "" : root + "/";
     }
 
-    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null)
-        => Task.Run(() => Extract(zipPath, rootOverride, ct, ownerId), ct);
+    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? version = null)
+        => Task.Run(() => Extract(zipPath, rootOverride, ct, ownerId, version), ct);
 
     public const string OwnerMarkerFile = ".obtainium-owner";
 
     /// The folder for this zip under root. An existing folder of the same name belongs to this app
     /// only when its owner marker matches (a re-extract of the same version); a folder from another
     /// app, or one we did not create, is never reused: " (2)", " (3)" ... is appended.
-    internal static string ChooseTarget(string root, string zipPath, string? ownerId)
+    internal static string ChooseTarget(string root, string zipPath, string? ownerId, string? version = null)
     {
         var baseName = FolderNameFor(zipPath);
+        // A zip name without any digit ("tool.zip") does not identify a version: add the release
+        // version so every version still gets its own folder.
+        if (!string.IsNullOrWhiteSpace(version) && !baseName.Any(char.IsDigit))
+            baseName = FolderNameFor(baseName + " " + version.Trim() + ".zip");
         for (var i = 1; i < 1000; i++)
         {
             var candidate = Path.Combine(root, i == 1 ? baseName : baseName + " (" + i + ")");
@@ -111,7 +115,7 @@ public static class ZipExtractionService
         throw new IOException("Could not find a free folder name for " + baseName + ".");
     }
 
-    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null)
+    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? version = null)
     {
         var root = rootOverride ?? DefaultRoot();
         var usedFallback = false;
@@ -129,7 +133,7 @@ public static class ZipExtractionService
             usedFallback = true;
         }
 
-        var target = ChooseTarget(root, zipPath, ownerId);
+        var target = ChooseTarget(root, zipPath, ownerId, version);
         var staging = Path.Combine(root, ".staging-" + Guid.NewGuid().ToString("N"));
         try
         {

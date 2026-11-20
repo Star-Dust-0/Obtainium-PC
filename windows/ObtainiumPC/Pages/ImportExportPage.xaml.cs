@@ -93,7 +93,7 @@ namespace ObtainiumPC.Pages
             var toExport = App.Settings.ExportInstalledOnly
                 ? App.SnapshotApps().Where(a => a.InstalledVersion != null).ToList()
                 : App.SnapshotApps();
-            var json = Services.Store.AppStore.Export(toExport, settings, level, "0.1.0");
+            var json = Services.Store.AppStore.Export(toExport, settings, level, Services.Updates.SelfUpdate.RunningVersion());
             // The auto-export target and this manual target can be the same file. Then both
             // writers go through the same serialized, atomic path so neither can truncate or
             // interleave with the other; otherwise keep the picker-granted write.

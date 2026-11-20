@@ -184,3 +184,20 @@ public class V2ZipSafetyTests : IDisposable
         Assert.Equal(one.Folder, again.Folder);
     }
 }
+
+public class V2FolderNameTests
+{
+    [Fact]
+    public void Unversioned_zip_name_gets_the_release_version()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "obt-fn-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Assert.Equal(Path.Combine(root, "tool v1.2"), ZipExtractionService.ChooseTarget(root, "tool.zip", "a", "v1.2"));
+            Assert.Equal(Path.Combine(root, "tool-1.2"), ZipExtractionService.ChooseTarget(root, "tool-1.2.zip", "a", "v1.2"));
+            Assert.Equal(Path.Combine(root, "tool"), ZipExtractionService.ChooseTarget(root, "tool.zip", "a", null));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+}
