@@ -103,6 +103,10 @@ public sealed class TrackedApp
         set => OtherAssetUrlsJson = EncodePairs(value);
     }
 
+    /// Credentials stored encrypted for another Windows user: kept raw so a save never drops them.
+    [JsonIgnore]
+    public Dictionary<string, string> LockedSecrets { get; } = new();
+
     [JsonIgnore]
     public Dictionary<string, JsonElement> AdditionalSettings
     {

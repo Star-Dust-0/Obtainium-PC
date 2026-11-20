@@ -157,22 +157,37 @@ public sealed class AppSettings
 
     /// Tokens are encrypted with the Windows user's DPAPI key in settings.json only. In memory
     /// (and so in every export) they stay in clear: an export has to restore on another machine.
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal Dictionary<string, string> LockedSecrets { get; set; } = new();
+
     internal string ToDisk()
     {
         var copy = (AppSettings)MemberwiseClone();
-        copy.GitHubPersonalAccessToken = SecretProtector.Protect(GitHubPersonalAccessToken);
-        copy.GitLabPersonalAccessToken = SecretProtector.Protect(GitLabPersonalAccessToken);
-        copy.ForgejoPersonalAccessToken = SecretProtector.Protect(ForgejoPersonalAccessToken);
+        copy.GitHubPersonalAccessToken = ProtectOrKeep(GitHubPersonalAccessToken, nameof(GitHubPersonalAccessToken));
+        copy.GitLabPersonalAccessToken = ProtectOrKeep(GitLabPersonalAccessToken, nameof(GitLabPersonalAccessToken));
+        copy.ForgejoPersonalAccessToken = ProtectOrKeep(ForgejoPersonalAccessToken, nameof(ForgejoPersonalAccessToken));
         return JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
     }
+
+    // A token that is empty in memory because it could not be decrypted is written back as the
+    // original blob; a token the user typed since replaces it.
+    private string? ProtectOrKeep(string? value, string name) =>
+        string.IsNullOrEmpty(value) && LockedSecrets.TryGetValue(name, out var raw) ? raw : SecretProtector.Protect(value);
 
     internal static AppSettings FromDisk(string json)
     {
         var s = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-        s.GitHubPersonalAccessToken = SecretProtector.Unprotect(s.GitHubPersonalAccessToken);
-        s.GitLabPersonalAccessToken = SecretProtector.Unprotect(s.GitLabPersonalAccessToken);
-        s.ForgejoPersonalAccessToken = SecretProtector.Unprotect(s.ForgejoPersonalAccessToken);
+        s.GitHubPersonalAccessToken = s.Open(s.GitHubPersonalAccessToken, nameof(GitHubPersonalAccessToken));
+        s.GitLabPersonalAccessToken = s.Open(s.GitLabPersonalAccessToken, nameof(GitLabPersonalAccessToken));
+        s.ForgejoPersonalAccessToken = s.Open(s.ForgejoPersonalAccessToken, nameof(ForgejoPersonalAccessToken));
         return s;
+    }
+
+    private string? Open(string? stored, string name)
+    {
+        if (SecretProtector.TryUnprotect(stored, out var plain)) return plain;
+        LockedSecrets[name] = stored!;
+        return null;
     }
 
     // Saves come from the UI thread and from background checks; one tmp file must not be shared by two writers.
@@ -208,15 +223,21 @@ internal static class SecretProtector
         return Prefix + Convert.ToBase64String(bytes);
     }
 
-    public static string? Unprotect(string? stored)
+    public static string? Unprotect(string? stored) => TryUnprotect(stored, out var plain) ? plain : null;
+
+    /// False only for a protected value this user cannot decrypt; the caller keeps the raw
+    /// value so a later save writes it back unchanged instead of losing the credential.
+    public static bool TryUnprotect(string? stored, out string? plain)
     {
-        if (string.IsNullOrEmpty(stored) || !stored.StartsWith(Prefix, StringComparison.Ordinal)) return stored;
+        plain = stored;
+        if (string.IsNullOrEmpty(stored) || !stored.StartsWith(Prefix, StringComparison.Ordinal)) return true;
         try
         {
-            var plain = System.Security.Cryptography.ProtectedData.Unprotect(
+            var bytes = System.Security.Cryptography.ProtectedData.Unprotect(
                 Convert.FromBase64String(stored.Substring(Prefix.Length)), null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-            return System.Text.Encoding.UTF8.GetString(plain);
+            plain = System.Text.Encoding.UTF8.GetString(bytes);
+            return true;
         }
-        catch (Exception) { return null; }
+        catch (Exception) { plain = null; return false; }
     }
 }

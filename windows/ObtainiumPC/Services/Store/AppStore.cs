@@ -41,7 +41,9 @@ public sealed class AppStore
         {
             if (!File.Exists(FilePath)) return new List<TrackedApp>();
             var json = await File.ReadAllTextAsync(FilePath);
-            return JsonSerializer.Deserialize<List<TrackedApp>>(json) ?? new List<TrackedApp>();
+            var loaded = JsonSerializer.Deserialize<List<TrackedApp>>(json) ?? new List<TrackedApp>();
+            foreach (var a in loaded) OpenCredentials(a);
+            return loaded;
         }
         catch (Exception e)
         {
@@ -79,11 +81,50 @@ public sealed class AppStore
             // Atomic: write a sibling temp file, then replace. A crash or full disk
             // mid-write leaves the previous apps.json intact instead of a truncated one.
             var tmp = FilePath + ".tmp";
-            await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(snapshot, JsonOpts));
+            await File.WriteAllTextAsync(tmp, SerializeForDisk(snapshot));
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
         }
         finally { _saveGate.Release(); }
+    }
+
+    private static bool IsCredentialKey(string k) => k.EndsWith("-creds", StringComparison.Ordinal);
+
+    /// Per-app credentials ("...-creds" values) are encrypted with the Windows user's key on disk only.
+    /// In memory and in exports they stay clear. A value this user cannot decrypt is kept as its
+    /// original blob and written back unchanged.
+    internal static string SerializeForDisk(List<TrackedApp> apps)
+    {
+        var arr = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(apps, JsonOpts))!.AsArray();
+        for (int i = 0; i < apps.Count; i++)
+        {
+            var add = apps[i].AdditionalSettings;
+            if (!add.Keys.Any(IsCredentialKey) && apps[i].LockedSecrets.Count == 0) continue;
+            var o = new Dictionary<string, JsonElement>(add);
+            foreach (var k in add.Keys.Where(IsCredentialKey).ToList())
+                if (add[k].ValueKind == JsonValueKind.String)
+                    o[k] = JsonSerializer.SerializeToElement(Settings.SecretProtector.Protect(add[k].GetString()));
+            foreach (var kv in apps[i].LockedSecrets)
+                if (!o.TryGetValue(kv.Key, out var cur) || cur.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(cur.GetString()))
+                    o[kv.Key] = JsonSerializer.SerializeToElement(kv.Value);
+            arr[i]!["additionalSettings"] = JsonSerializer.Serialize(o);
+        }
+        return arr.ToJsonString(JsonOpts);
+    }
+
+    internal static void OpenCredentials(TrackedApp app)
+    {
+        var add = app.AdditionalSettings;
+        var changed = false;
+        foreach (var k in add.Keys.Where(IsCredentialKey).ToList())
+        {
+            if (add[k].ValueKind != JsonValueKind.String) continue;
+            var stored = add[k].GetString();
+            if (Settings.SecretProtector.TryUnprotect(stored, out var plain))
+            { if (!ReferenceEquals(plain, stored)) { add[k] = JsonSerializer.SerializeToElement(plain); changed = true; } }
+            else { app.LockedSecrets[k] = stored!; add.Remove(k); changed = true; }
+        }
+        if (changed) app.AdditionalSettings = add;
     }
 
     private readonly SemaphoreSlim _saveGate = new(1, 1);
