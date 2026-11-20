@@ -8,6 +8,7 @@ namespace ObtainiumPC.Tests;
 
 /// Tests for the 2.0 hardening: portable-zip selection rules, zip extraction limits and
 /// the user-regex timeout.
+[Collection("ZipFaultInjection")]
 public class V2HardeningTests : IDisposable
 {
     private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2-" + Guid.NewGuid().ToString("N"));
@@ -93,6 +94,7 @@ public class V2HardeningTests : IDisposable
     }
 }
 
+[Collection("ZipFaultInjection")]
 public class V2ZipSafetyTests : IDisposable
 {
     private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2b-" + Guid.NewGuid().ToString("N"));
@@ -185,6 +187,7 @@ public class V2ZipSafetyTests : IDisposable
     }
 }
 
+[Collection("ZipFaultInjection")]
 public class V2InPlaceUpdateTests : IDisposable
 {
     private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2c-" + Guid.NewGuid().ToString("N"));
@@ -388,6 +391,7 @@ public class V2TokenHostTests
 }
 
 /// End to end over a real local HTTP server: download a zip, classify it, extract it, then upgrade it.
+[Collection("ZipFaultInjection")]
 public class V2LoopbackE2ETests : IDisposable
 {
     private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2e2e-" + Guid.NewGuid().ToString("N"));

@@ -9,6 +9,7 @@ namespace ObtainiumPC.Tests;
 
 /// Portable apps: repos whose release is only a .zip are accepted, and the zip is extracted
 /// to "<root>\Obtainium\<zip name>\" instead of being launched.
+[Collection("ZipFaultInjection")]
 public class PortableZipTests : IDisposable
 {
     private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-zip-" + Guid.NewGuid().ToString("N"));
