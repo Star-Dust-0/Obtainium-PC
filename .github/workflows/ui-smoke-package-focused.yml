@@ -343,7 +343,7 @@ jobs:
           "link row: $($row.Current.Name)"
           try { $row.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { $r = $row.Current.BoundingRectangle; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2)); Start-Sleep -Milliseconds 300; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }
           Start-Sleep 1
-          Shot 's1-link-dialog'
+          ShotWin 's1-link-dialog'
           (FindNamed 'Link' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
           Start-Sleep 3
           $regV = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' } | Select-Object -First 1)
