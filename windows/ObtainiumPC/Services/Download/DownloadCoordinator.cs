@@ -113,6 +113,7 @@ public static class DownloadCoordinator
                 string? detected = null;
                 try
                 {
+                    Detection.InstalledAppsService.InvalidateCache();
                     var match = Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author);
                     if (match is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }) detected = match.Info.DisplayVersion;
                 }

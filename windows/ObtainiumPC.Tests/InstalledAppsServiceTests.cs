@@ -127,4 +127,26 @@ public class InstalledAppsServiceTests
         Assert.Null(InstalledAppsService.FindMatch("Bulk-Crap-Uninstaller", "BCUninstaller", unrelated));
         Assert.Null(InstalledAppsService.FindMatch("Some-Tool", "Acme", new[] { Entry("Acme 2.0") }));
     }
+
+    [Theory]
+    [InlineData("Security Update for Microsoft Word (KB5002345)", null, null, true)]
+    [InlineData("Update for Windows (KB5001234)", null, null, true)]
+    [InlineData("Hotfix for SQL Server", null, null, true)]
+    [InlineData("Some Patch", "Update", null, true)]
+    [InlineData("Some Patch", null, "Microsoft.Office", true)]
+    [InlineData("Notepad++ (64-bit x64)", null, null, false)]
+    [InlineData("Updater Tool", null, null, false)]
+    public void Windows_updates_are_not_programs(string name, string? release, string? parent, bool isUpdate)
+        => Assert.Equal(isUpdate, InstalledAppsService.IsUpdateEntry(name, release, parent));
+
+    [Fact]
+    public void The_same_program_in_two_registry_views_is_one_program_and_matches_exactly()
+    {
+        var a = Entry("Shuck", "Acme", "1.0.1");
+        var all = InstalledAppsService.Dedupe(new[] { a, Entry("Shuck", "Acme", "1.0.1"), Entry("Other", "X") });
+        Assert.Equal(2, all.Count);
+        Assert.NotNull(InstalledAppsService.FindMatch("Shuck", null, all));
+        // Two different versions of the same name stay separate (genuinely ambiguous).
+        Assert.Equal(2, InstalledAppsService.Dedupe(new[] { Entry("Shuck", "Acme", "1.0"), Entry("Shuck", "Acme", "2.0") }).Count);
+    }
 }

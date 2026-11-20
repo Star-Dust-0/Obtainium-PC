@@ -49,18 +49,52 @@ public static class InstalledAppsService
         ok &= ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
         ok &= ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
         ok &= ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        return new InstalledAppsProbe(results, ok);
+        return new InstalledAppsProbe(Dedupe(results), ok);
     }
 
     public static IReadOnlyList<InstalledAppInfo> ListInstalledApps()
     {
-        var results = new List<InstalledAppInfo>();
-        if (!OperatingSystem.IsWindows()) return results;
-        ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        return results;
+        if (!OperatingSystem.IsWindows()) return new List<InstalledAppInfo>();
+        lock (CacheGate)
+        {
+            // Every match used to re-read three registry hives; a burst of matches (list refresh,
+            // install watcher) now shares one read for a few seconds.
+            if (_cache != null && DateTimeOffset.Now - _cacheAt < CacheTtl) return _cache;
+            var results = new List<InstalledAppInfo>();
+            ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+            ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
+            ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+            _cache = Dedupe(results); _cacheAt = DateTimeOffset.Now;
+            return _cache;
+        }
     }
+
+    private static readonly Regex UpdateName = new(@"\bKB\d{6,8}\b|^(Security Update|Hotfix|Update) for ", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// Windows hotfixes and component updates live in the same Uninstall list as programs. They
+    /// are never a tracked app, and their many near-identical names make real matches ambiguous.
+    public static bool IsUpdateEntry(string displayName, string? releaseType, string? parentKeyName)
+        => !string.IsNullOrEmpty(parentKeyName)
+           || (releaseType != null && (releaseType.Contains("Update", StringComparison.OrdinalIgnoreCase) || releaseType.Contains("Hotfix", StringComparison.OrdinalIgnoreCase)))
+           || UpdateName.IsMatch(displayName);
+
+    /// The same program is often listed in both the 64-bit and WOW6432Node (or HKCU) views.
+    /// Identical name, version and publisher is one program, not an ambiguity.
+    public static List<InstalledAppInfo> Dedupe(IEnumerable<InstalledAppInfo> all)
+    {
+        var seen = new HashSet<string>();
+        var result = new List<InstalledAppInfo>();
+        foreach (var a in all)
+            if (seen.Add(Normalize(a.DisplayName) + "|" + (a.DisplayVersion ?? "") + "|" + Normalize(a.Publisher ?? ""))) result.Add(a);
+        return result;
+    }
+
+    private static readonly object CacheGate = new();
+    private static IReadOnlyList<InstalledAppInfo>? _cache;
+    private static DateTimeOffset _cacheAt;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(3);
+    /// Forget the cached list (after an install the next read must see the new registry state).
+    public static void InvalidateCache() { lock (CacheGate) _cache = null; }
 
     private static bool ReadHive(RegistryKey root, string path, List<InstalledAppInfo> results)
     {
@@ -78,6 +112,7 @@ public static class InstalledAppsService
                     if (string.IsNullOrWhiteSpace(displayName)) continue;
                     // System components and updates are not user apps.
                     if (sub!.GetValue("SystemComponent") is int sc && sc == 1) continue;
+                    if (IsUpdateEntry(displayName, sub.GetValue("ReleaseType") as string, sub.GetValue("ParentKeyName") as string)) continue;
                     results.Add(new InstalledAppInfo(
                         displayName,
                         sub.GetValue("DisplayVersion") as string,
