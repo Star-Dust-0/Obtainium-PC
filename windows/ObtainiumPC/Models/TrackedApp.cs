@@ -75,6 +75,11 @@ public sealed class TrackedApp
     /// <summary>Saved size only when it was recorded for exactly this release and file; otherwise null (unknown).</summary>
     public long? KnownSizeFor(string? assetUrl) =>
         AssetSizeBytes is > 0 && AssetSizeFor != null && AssetSizeFor == SizeIdentity(LatestVersion, assetUrl) ? AssetSizeBytes : null;
+    /// The file a plain download would fetch (the preferred asset, index clamped into range); null when there are no assets.
+    public string? PreferredAssetUrl() => AssetUrls.Count == 0 ? null
+        : AssetUrls[Math.Clamp(PreferredAssetIndex, 0, AssetUrls.Count - 1)].Value;
+    /// Size shown on the detail page: known only for exactly the preferred file of the current release.
+    public long? KnownPreferredSize() => PreferredAssetUrl() is { } u ? KnownSizeFor(u) : null;
     [JsonPropertyName("latestVersionChangedAt")] public long? LatestVersionChangedAtUs { get; set; }
     [JsonPropertyName("consecutiveFailedChecks")] public int ConsecutiveFailedChecks { get; set; }
     [JsonPropertyName("isArchived")] public bool? IsArchived { get; set; }

@@ -120,9 +120,8 @@ namespace ObtainiumPC.Pages
                 ? Visibility.Visible : Visibility.Collapsed;
             // Download size: shown only when known for the exact release and file that would be
             // downloaded (never a size saved for an older release or another file).
-            var sizeUrl = _app.AssetUrls.Count == 0 ? null
-                : _app.AssetUrls[Math.Clamp(_app.PreferredAssetIndex, 0, _app.AssetUrls.Count - 1)].Value;
-            var known = sizeUrl == null ? null : _app.KnownSizeFor(sizeUrl);
+            var sizeUrl = _app.PreferredAssetUrl();
+            var known = _app.KnownPreferredSize();
             SizeText.Text = known is { } sz ? Services.Localization.Loc.T("Download size: ") + FormatSize(sz) : "";
             SizeText.Visibility = known != null ? Visibility.Visible : Visibility.Collapsed;
             if (known == null && sizeUrl != null && App.Settings.CheckUpdateOnDetailPage && _sizeProbeKey != Models.TrackedApp.SizeIdentity(_app.LatestVersion, sizeUrl))
