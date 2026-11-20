@@ -87,16 +87,39 @@ public static class ZipExtractionService
         return root == null ? "" : root + "/";
     }
 
-    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default)
-        => Task.Run(() => Extract(zipPath, rootOverride, ct), ct);
+    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null)
+        => Task.Run(() => Extract(zipPath, rootOverride, ct, ownerId), ct);
 
-    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default)
+    public const string OwnerMarkerFile = ".obtainium-owner";
+
+    /// The folder for this zip under root. An existing folder of the same name belongs to this app
+    /// only when its owner marker matches (a re-extract of the same version); a folder from another
+    /// app, or one we did not create, is never reused: " (2)", " (3)" ... is appended.
+    internal static string ChooseTarget(string root, string zipPath, string? ownerId)
+    {
+        var baseName = FolderNameFor(zipPath);
+        for (var i = 1; i < 1000; i++)
+        {
+            var candidate = Path.Combine(root, i == 1 ? baseName : baseName + " (" + i + ")");
+            if (!Directory.Exists(candidate)) return candidate;
+            var marker = Path.Combine(candidate, OwnerMarkerFile);
+            if (ownerId != null && File.Exists(marker))
+            {
+                try { if (File.ReadAllText(marker).Trim() == ownerId) return candidate; } catch { }
+            }
+        }
+        throw new IOException("Could not find a free folder name for " + baseName + ".");
+    }
+
+    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null)
     {
         var root = rootOverride ?? DefaultRoot();
         var usedFallback = false;
         try
         {
+            var rootIsNew = !Directory.Exists(root);
             Directory.CreateDirectory(root);
+            if (rootIsNew && rootOverride == null) RestrictRoot(root);
         }
         catch (Exception ex) when (rootOverride == null
             && (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException))
@@ -106,7 +129,7 @@ public static class ZipExtractionService
             usedFallback = true;
         }
 
-        var target = Path.Combine(root, FolderNameFor(zipPath));
+        var target = ChooseTarget(root, zipPath, ownerId);
         var staging = Path.Combine(root, ".staging-" + Guid.NewGuid().ToString("N"));
         try
         {
@@ -161,8 +184,13 @@ public static class ZipExtractionService
                 written++;
             }
 
+            MarkFromInternet(staging);
             Directory.CreateDirectory(target);
             MergeInto(staging, target, ct);
+            if (ownerId != null)
+            {
+                try { File.WriteAllText(Path.Combine(target, OwnerMarkerFile), ownerId); } catch { }
+            }
             return new ExtractionResult(target, written, usedFallback);
         }
         finally
@@ -172,41 +200,155 @@ public static class ZipExtractionService
         }
     }
 
+    /// Test hook: throw after this many files were moved in, to exercise rollback.
+    internal static int? FailAfterMovesForTests;
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> TargetLocks =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// Moves the staged files into the target as one unit. Existing files that get replaced are first
+    /// moved to a backup folder; if anything fails part-way, the new files are removed and the backups
+    /// are put back, so the target is either fully the old version or fully the new one. Two extractions
+    /// into the same target are serialized by a per-target lock.
     private static void MergeInto(string staging, string target, CancellationToken ct)
     {
-        var stagingFull = Path.GetFullPath(staging);
-        // Pre-flight: if an existing file is locked (the app is running), fail before moving anything,
-        // so the folder is never left half old and half new.
-        foreach (var src in Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories))
+        var gate = TargetLocks.GetOrAdd(Path.GetFullPath(target), _ => new object());
+        lock (gate)
         {
-            var existing = Path.Combine(target, Path.GetRelativePath(stagingFull, src));
-            if (!File.Exists(existing)) continue;
-            try { using var fs = new FileStream(existing, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            var stagingFull = Path.GetFullPath(staging);
+            var files = Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories).ToList();
+            // Pre-flight: a locked existing file (the app is running) fails before anything moves.
+            foreach (var src in files)
             {
-                throw new IOException("Could not replace \"" + Path.GetRelativePath(stagingFull, src)
-                    + "\". If the app is running, close it and try again.", ex);
+                var rel = Path.GetRelativePath(stagingFull, src);
+                var existing = Path.Combine(target, rel);
+                if (!File.Exists(existing)) continue;
+                try { using var fs = new FileStream(existing, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new IOException("Could not replace \"" + rel + "\". If the app is running, close it and try again.", ex);
+                }
             }
-        }
-        foreach (var src in Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories))
-        {
-            ct.ThrowIfCancellationRequested();
-            var rel = Path.GetRelativePath(stagingFull, src);
-            var dest = Path.Combine(target, rel);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+
+            var backup = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(staging))!, ".backup-" + Guid.NewGuid().ToString("N"));
+            var movedIn = new List<string>();                         // destination paths now holding new files
+            var backedUp = new List<(string Original, string Saved)>(); // replaced originals
+            var createdDirs = new List<string>();
             try
             {
-                File.Move(src, dest, overwrite: true);
+                foreach (var src in files)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var rel = Path.GetRelativePath(stagingFull, src);
+                    var dest = Path.Combine(target, rel);
+                    var destDir = Path.GetDirectoryName(dest)!;
+                    for (var d = destDir; !Directory.Exists(d); d = Path.GetDirectoryName(d)!) createdDirs.Add(d);
+                    Directory.CreateDirectory(destDir);
+                    if (File.Exists(dest))
+                    {
+                        var saved = Path.Combine(backup, rel);
+                        Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+                        File.Move(dest, saved);
+                        backedUp.Add((dest, saved));
+                    }
+                    File.Move(src, dest);
+                    movedIn.Add(dest);
+                    if (FailAfterMovesForTests is { } n && movedIn.Count >= n)
+                        throw new IOException("Injected failure after " + movedIn.Count + " files.");
+                }
             }
-            catch (IOException ex)
+            catch (Exception ex)
             {
-                throw new IOException("Could not replace \"" + rel + "\". If the app is running, close it and try again.", ex);
+                // Roll back: remove what was moved in, then restore the originals.
+                foreach (var f in movedIn) { try { File.Delete(f); } catch { } }
+                foreach (var (original, saved) in backedUp) { try { File.Move(saved, original, overwrite: true); } catch { } }
+                foreach (var d in createdDirs) { try { if (Directory.Exists(d) && !Directory.EnumerateFileSystemEntries(d).Any()) Directory.Delete(d); } catch { } }
+                try { if (Directory.Exists(backup)) Directory.Delete(backup, true); } catch { }
+                if (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+                    throw ex is OperationCanceledException ? ex
+                        : new IOException("Could not update the extracted app; the previous version was left untouched. If the app is running, close it and try again. (" + ex.Message + ")", ex);
+                throw;
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                throw new IOException("Access denied while writing \"" + rel + "\". If the app is running, close it and try again.", ex);
-            }
+            try { if (Directory.Exists(backup)) Directory.Delete(backup, true); } catch { /* harmless leftover */ }
         }
+    }
+
+    /// What a zip holds, decided from its entry names alone (nothing is written).
+    public enum ArchiveKind { PortableApp, ContainsInstaller, NoProgram, Unreadable }
+
+    private static readonly System.Text.RegularExpressions.Regex InstallerNameRegex = new(
+        @"(^|[^a-z])(setup|install(er)?|uninst(all)?|unins\d*)([^a-z]|$)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// PortableApp: has a program (.exe) that is not just an installer, so the zip is the app.
+    /// ContainsInstaller: a .msi/.msix/.appx or only setup/installer executables: it is a wrapper
+    /// around an installer and must not be treated as an installed app.
+    /// NoProgram: no executable at all (data, docs, themes, sources).
+    public static ArchiveKind Classify(string zipPath)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            var names = archive.Entries.Where(e => e.Name.Length > 0).Select(e => e.FullName).ToList();
+            var packages = names.Any(n => n.EndsWith(".msi", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith(".msix", StringComparison.OrdinalIgnoreCase) || n.EndsWith(".msixbundle", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith(".appx", StringComparison.OrdinalIgnoreCase) || n.EndsWith(".appxbundle", StringComparison.OrdinalIgnoreCase));
+            var exes = names.Where(n => n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (exes.Count == 0) return packages ? ArchiveKind.ContainsInstaller : ArchiveKind.NoProgram;
+            var programs = exes.Where(n => !InstallerNameRegex.IsMatch(Path.GetFileNameWithoutExtension(n))).ToList();
+            if (programs.Count == 0) return ArchiveKind.ContainsInstaller;
+            // An installer next to program files is still a portable app only if there are real
+            // supporting files; a lone msi/exe pair is a wrapper.
+            if (packages && names.Count <= 3) return ArchiveKind.ContainsInstaller;
+            return ArchiveKind.PortableApp;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            return ArchiveKind.Unreadable;
+        }
+    }
+
+    private static readonly string[] MarkedExtensions =
+    {
+        ".exe", ".dll", ".msi", ".msix", ".appx", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".jse", ".wsf", ".lnk", ".scr", ".com", ".cpl", ".hta", ".jar",
+    };
+
+    /// Marks extracted executables as downloaded from the internet (Zone.Identifier, ZoneId 3),
+    /// exactly as a browser does, so Windows SmartScreen and Smart App Control keep protecting the user.
+    /// Best effort: non-NTFS volumes and non-Windows hosts simply skip it.
+    internal static void MarkFromInternet(string folder, string? sourceUrl = null)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var content = "[ZoneTransfer]\r\nZoneId=3\r\n" + (string.IsNullOrEmpty(sourceUrl) ? "" : "HostUrl=" + sourceUrl + "\r\n");
+        foreach (var f in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        {
+            if (!Array.Exists(MarkedExtensions, e => f.EndsWith(e, StringComparison.OrdinalIgnoreCase))) continue;
+            try { File.WriteAllText(f + ":Zone.Identifier", content); } catch { }
+        }
+    }
+
+    /// The Obtainium root holds programs that get run, so only the owner and administrators may write
+    /// there; other users can read and run. Applied only to a folder this code just created.
+    internal static void RestrictRoot(string root)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            var security = new System.Security.AccessControl.DirectorySecurity();
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            var inherit = System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit;
+            void Allow(System.Security.Principal.SecurityIdentifier sid, System.Security.AccessControl.FileSystemRights rights) =>
+                security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                    sid, rights, inherit, System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow));
+            Allow(new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.LocalSystemSid, null), System.Security.AccessControl.FileSystemRights.FullControl);
+            Allow(new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, null), System.Security.AccessControl.FileSystemRights.FullControl);
+            var me = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+            if (me != null) Allow(me, System.Security.AccessControl.FileSystemRights.FullControl);
+            Allow(new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinUsersSid, null),
+                System.Security.AccessControl.FileSystemRights.ReadAndExecute);
+            new DirectoryInfo(root).SetAccessControl(security);
+        }
+        catch { /* keep the inherited ACL rather than fail the extraction */ }
     }
 
     private static void EnsureFreeSpace(string root, long neededBytes)

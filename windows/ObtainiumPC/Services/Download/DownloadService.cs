@@ -12,10 +12,11 @@ namespace ObtainiumPC.Services.Download;
 public sealed class DownloadService
 {
     private static readonly HttpClient Http = CreateClient();
+    private static readonly HttpClient NoRedirectHttp = CreateClient(allowAutoRedirect: false);
 
-    private static HttpClient CreateClient()
+    private static HttpClient CreateClient(bool allowAutoRedirect = true)
     {
-        var client = ObtainiumHttp.CreateClient();
+        var client = ObtainiumHttp.CreateClient(allowAutoRedirect);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Obtainium-PC");
         return client;
     }
@@ -87,8 +88,7 @@ public sealed class DownloadService
         var dir = string.IsNullOrEmpty(subFolder) ? DownloadDir : Path.Combine(DownloadDir, Sanitize(subFolder));
         Directory.CreateDirectory(dir);
         var target = Path.Combine(dir, Sanitize(fileName));
-        var req = BuildRequest(url, personalAccessToken, extraHeaders);
-        using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var res = await SendFollowingRedirectsAsync(HttpMethod.Get, url, personalAccessToken, extraHeaders, ct);
         res.EnsureSuccessStatusCode();
         var total = res.Content.Headers.ContentLength;
         // Release-asset API metadata (JSON) is never an installer.
@@ -147,9 +147,7 @@ public sealed class DownloadService
         {
             try
             {
-                using var req = BuildRequest(url, personalAccessToken, extraHeaders);
-                req.Method = method;
-                using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var res = await SendFollowingRedirectsAsync(method, url, personalAccessToken, extraHeaders, ct);
                 if (!res.IsSuccessStatusCode) continue;
                 var len = res.Content.Headers.ContentLength;
                 if (len is > 0) return len;
@@ -158,6 +156,39 @@ public sealed class DownloadService
             catch { }
         }
         return null;
+    }
+
+    /// Sends the request and follows redirects by hand, so credentials never travel to a host the
+    /// user did not configure: the GitHub token is attached only while the current URL is a GitHub
+    /// host, source-supplied headers only while the host is still the original one, and an
+    /// https to http downgrade is refused.
+    internal static async Task<HttpResponseMessage> SendFollowingRedirectsAsync(
+        HttpMethod method, string url, string? personalAccessToken,
+        IReadOnlyDictionary<string, string>? extraHeaders, CancellationToken ct)
+    {
+        var originalHost = new Uri(url).Host;
+        var current = url;
+        for (var hop = 0; hop < 10; hop++)
+        {
+            var currentUri = new Uri(current);
+            var token = DownloadCoordinator.IsGitHubHost(current) ? personalAccessToken : null;
+            var headers = string.Equals(currentUri.Host, originalHost, StringComparison.OrdinalIgnoreCase) ? extraHeaders : null;
+            using var req = BuildRequest(current, token, headers);
+            req.Method = method;
+            var res = await NoRedirectHttp.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            var code = (int)res.StatusCode;
+            if (code is 301 or 302 or 303 or 307 or 308 && res.Headers.Location is { } loc)
+            {
+                var next = loc.IsAbsoluteUri ? loc : new Uri(currentUri, loc);
+                res.Dispose();
+                if (currentUri.Scheme == Uri.UriSchemeHttps && next.Scheme != Uri.UriSchemeHttps)
+                    throw new HttpRequestException("Refused a redirect from https to http.");
+                current = next.AbsoluteUri;
+                continue;
+            }
+            return res;
+        }
+        throw new HttpRequestException("Too many redirects.");
     }
 
     internal static HttpRequestMessage BuildRequest(string url, string? personalAccessToken, IReadOnlyDictionary<string, string>? extraHeaders)

@@ -49,14 +49,15 @@ public static class DownloadCoordinator
         await App.SaveAppsAsync();
         return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
             Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key)
-                && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key)));
+                && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key))
+                && ZipExtractionService.Classify(path) == ZipExtractionService.ArchiveKind.PortableApp);
     }
 
     /// Portable apps (.zip): extracts to "C:\Obtainium\<zip name>\" and records the release as installed.
     /// There is no installer to watch, so the app is marked installed directly (source "manual", like Mark as updated).
     public static async Task<ExtractionResult> ExtractAsync(TrackedApp app, DownloadEntry entry, string zipPath)
     {
-        var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token);
+        var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token, ownerId: app.Id);
         app.ExtractedPath = result.Folder;
         if (!string.IsNullOrEmpty(app.LatestVersion)) app.InstalledVersion = app.LatestVersion;
         app.InstalledVersionSource = "manual";
