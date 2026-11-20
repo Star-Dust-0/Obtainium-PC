@@ -387,3 +387,110 @@ public class V2TokenHostTests
         => Assert.Equal(expected, ObtainiumPC.Services.Download.DownloadService.IsGitHubHost(url));
 }
 
+/// End to end over a real local HTTP server: download a zip, classify it, extract it, then upgrade it.
+public class V2LoopbackE2ETests : IDisposable
+{
+    private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2e2e-" + Guid.NewGuid().ToString("N"));
+    private readonly System.Net.HttpListener _l = new();
+    private readonly int _port;
+    private readonly List<(string Host, string Path, string? Custom)> _seen = new();
+    private readonly Dictionary<string, byte[]> _files = new();
+    private readonly Task _loop;
+
+    public V2LoopbackE2ETests()
+    {
+        Directory.CreateDirectory(_tmp);
+        var s = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0); s.Start();
+        _port = ((System.Net.IPEndPoint)s.LocalEndpoint).Port; s.Stop();
+        _l.Prefixes.Add($"http://127.0.0.1:{_port}/");
+        _l.Prefixes.Add($"http://localhost:{_port}/");
+        _l.Start();
+        _loop = Task.Run(async () =>
+        {
+            while (_l.IsListening)
+            {
+                System.Net.HttpListenerContext c;
+                try { c = await _l.GetContextAsync(); } catch { return; }
+                var path = c.Request.Url!.AbsolutePath;
+                lock (_seen) _seen.Add((c.Request.Url.Host, path, c.Request.Headers["X-Custom"]));
+                if (path == "/redir")
+                {
+                    c.Response.StatusCode = 302;
+                    c.Response.RedirectLocation = $"http://localhost:{_port}/tool.zip";
+                }
+                else if (_files.TryGetValue(path, out var bytes))
+                {
+                    c.Response.ContentType = "application/zip";
+                    c.Response.OutputStream.Write(bytes);
+                }
+                else c.Response.StatusCode = 404;
+                c.Response.Close();
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        _l.Close();
+        try { Directory.Delete(_tmp, true); } catch { }
+    }
+
+    private byte[] ZipBytes(params (string Path, string Text)[] entries)
+    {
+        using var ms = new MemoryStream();
+        using (var z = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            foreach (var (p, t) in entries)
+            {
+                using var w = new StreamWriter(z.CreateEntry(p).Open());
+                w.Write(t);
+            }
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public async Task A_zip_downloaded_over_HTTP_is_extracted_and_then_replaced_in_place_by_the_next_version()
+    {
+        _files["/tool-1.zip"] = ZipBytes(("Tool/tool.exe", "v1"), ("Tool/config.ini", "default1"));
+        _files["/tool-2.zip"] = ZipBytes(("Tool/tool.exe", "v2"), ("Tool/new.dll", "v2"));
+        var root = Path.Combine(_tmp, "Obtainium");
+        var svc = new DownloadService(0);
+        var f1 = await svc.DownloadAsync($"http://127.0.0.1:{_port}/tool-1.zip", "tool-1.zip", subFolder: "e2e-" + Guid.NewGuid().ToString("N"));
+        Assert.Equal(ZipExtractionService.ArchiveKind.PortableApp, ZipExtractionService.Classify(f1));
+        var r1 = ZipExtractionService.Extract(f1, root, ownerId: "app1", folderName: "Tool");
+        File.WriteAllText(Path.Combine(r1.Folder, "config.ini"), "user edit");
+        File.WriteAllText(Path.Combine(r1.Folder, "save.dat"), "user data");
+        var f2 = await svc.DownloadAsync($"http://127.0.0.1:{_port}/tool-2.zip", "tool-2.zip", subFolder: "e2e-" + Guid.NewGuid().ToString("N"));
+        var r2 = ZipExtractionService.Extract(f2, root, ownerId: "app1", folderName: "Tool");
+        Assert.Equal(r1.Folder, r2.Folder);
+        Assert.Equal("v2", File.ReadAllText(Path.Combine(r2.Folder, "tool.exe")));
+        Assert.Equal("user edit", File.ReadAllText(Path.Combine(r2.Folder, "config.ini")));
+        Assert.Equal("user data", File.ReadAllText(Path.Combine(r2.Folder, "save.dat")));
+        Assert.True(File.Exists(Path.Combine(r2.Folder, "new.dll")));
+        Assert.Single(Directory.GetDirectories(root));
+    }
+
+    [Fact]
+    public async Task Source_headers_are_dropped_when_a_redirect_leaves_the_original_host()
+    {
+        _files["/tool.zip"] = ZipBytes(("tool.exe", "x"));
+        var headers = new Dictionary<string, string> { ["X-Custom"] = "secret" };
+        using var res = await DownloadService.SendFollowingRedirectsAsync(HttpMethod.Get, $"http://127.0.0.1:{_port}/redir", null, headers, default);
+        Assert.Equal(System.Net.HttpStatusCode.OK, res.StatusCode);
+        lock (_seen)
+        {
+            Assert.Equal("secret", _seen.First(s => s.Path == "/redir").Custom);
+            Assert.Null(_seen.First(s => s.Path == "/tool.zip").Custom);
+            Assert.Equal("localhost", _seen.First(s => s.Path == "/tool.zip").Host);
+        }
+    }
+
+    [Fact]
+    public async Task A_not_found_download_fails_without_leaving_a_partial_file()
+    {
+        var sub = "e2e-" + Guid.NewGuid().ToString("N");
+        await Assert.ThrowsAnyAsync<Exception>(() => new DownloadService(0).DownloadAsync($"http://127.0.0.1:{_port}/missing.zip", "missing.zip", subFolder: sub));
+        var dir = Path.Combine(DownloadService.DownloadDir, sub);
+        Assert.Empty(Directory.Exists(dir) ? Directory.GetFiles(dir) : Array.Empty<string>());
+    }
+}
+
