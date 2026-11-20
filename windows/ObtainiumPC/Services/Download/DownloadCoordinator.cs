@@ -57,7 +57,7 @@ public static class DownloadCoordinator
     /// There is no installer to watch, so the app is marked installed directly (source "manual", like Mark as updated).
     public static async Task<ExtractionResult> ExtractAsync(TrackedApp app, DownloadEntry entry, string zipPath)
     {
-        var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token, ownerId: app.Id, version: app.LatestVersion);
+        var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token, ownerId: app.Id, folderName: app.FinalName);
         app.ExtractedPath = result.Folder;
         if (!string.IsNullOrEmpty(app.LatestVersion)) app.InstalledVersion = app.LatestVersion;
         app.InstalledVersionSource = "manual";

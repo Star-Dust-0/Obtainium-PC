@@ -5,7 +5,7 @@ namespace ObtainiumPC.Services.Download;
 /// <param name="Folder">The folder the app was extracted to.</param>
 /// <param name="FileCount">Number of files written.</param>
 /// <param name="UsedFallbackRoot">True when the default root could not be created and the per-user fallback was used.</param>
-public sealed record ExtractionResult(string Folder, int FileCount, bool UsedFallbackRoot);
+public sealed record ExtractionResult(string Folder, int FileCount, bool UsedFallbackRoot, IReadOnlyList<string>? KeptUserFiles = null);
 
 /// <summary>
 /// Extracts a downloaded .zip (a portable app) to "&lt;system drive&gt;\Obtainium\&lt;zip name&gt;\".
@@ -87,25 +87,24 @@ public static class ZipExtractionService
         return root == null ? "" : root + "/";
     }
 
-    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? version = null)
-        => Task.Run(() => Extract(zipPath, rootOverride, ct, ownerId, version), ct);
+    public static Task<ExtractionResult> ExtractAsync(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? folderName = null)
+        => Task.Run(() => Extract(zipPath, rootOverride, ct, ownerId, folderName), ct);
 
     public const string OwnerMarkerFile = ".obtainium-owner";
 
-    /// The folder for this zip under root. An existing folder of the same name belongs to this app
-    /// only when its owner marker matches (a re-extract of the same version); a folder from another
-    /// app, or one we did not create, is never reused: " (2)", " (3)" ... is appended.
-    internal static string ChooseTarget(string root, string zipPath, string? ownerId, string? version = null)
+    public const string ManifestFile = ".obtainium-manifest.json";
+
+    /// One stable folder per app under the root (new versions replace the old in place). A folder of
+    /// the same name is reused only when its owner marker matches this app; a folder from another app,
+    /// or one Obtainium-PC did not create, is never reused: " (2)", " (3)" ... is appended.
+    internal static string ChooseTarget(string root, string zipPath, string? ownerId, string? folderName = null)
     {
-        var baseName = FolderNameFor(zipPath);
-        // A zip name without any digit ("tool.zip") does not identify a version: add the release
-        // version so every version still gets its own folder.
-        if (!string.IsNullOrWhiteSpace(version) && !baseName.Any(char.IsDigit))
-            baseName = FolderNameFor(baseName + " " + version.Trim() + ".zip");
+        var baseName = !string.IsNullOrWhiteSpace(folderName) ? FolderNameFor(folderName + ".zip") : FolderNameFor(zipPath);
         for (var i = 1; i < 1000; i++)
         {
             var candidate = Path.Combine(root, i == 1 ? baseName : baseName + " (" + i + ")");
             if (!Directory.Exists(candidate)) return candidate;
+            if (ownerId == null) return candidate; // no owner known (direct use): reuse by name
             var marker = Path.Combine(candidate, OwnerMarkerFile);
             if (ownerId != null && File.Exists(marker))
             {
@@ -115,7 +114,43 @@ public static class ZipExtractionService
         throw new IOException("Could not find a free folder name for " + baseName + ".");
     }
 
-    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? version = null)
+    private static string Sha256Of(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fs));
+    }
+
+    /// Relative path (forward slashes) -> SHA-256 of what Obtainium-PC installed last time.
+    private static Dictionary<string, string> ReadManifest(string target)
+    {
+        try
+        {
+            var path = Path.Combine(target, ManifestFile);
+            if (!File.Exists(path)) return new();
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (doc.RootElement.TryGetProperty("files", out var files))
+                foreach (var p in files.EnumerateObject()) map[p.Name] = p.Value.GetString() ?? "";
+            return map;
+        }
+        catch { return new(); }
+    }
+
+    private static void WriteManifest(string target, string? ownerId, Dictionary<string, string> files)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(new { owner = ownerId, files });
+        File.WriteAllText(Path.Combine(target, ManifestFile), json);
+    }
+
+    /// Settings-like files a user may have edited. If one was changed after install it is kept and the
+    /// new shipped copy is written next to it as "<name>.new"; programs and libraries are always replaced.
+    private static readonly string[] UserEditableExtensions =
+        { ".ini", ".cfg", ".conf", ".config", ".json", ".xml", ".yaml", ".yml", ".toml", ".txt", ".db", ".sqlite", ".dat", ".lua", ".cfg" };
+
+    internal static bool IsUserEditable(string rel) =>
+        Array.Exists(UserEditableExtensions, e => rel.EndsWith(e, StringComparison.OrdinalIgnoreCase));
+
+    public static ExtractionResult Extract(string zipPath, string? rootOverride = null, CancellationToken ct = default, string? ownerId = null, string? folderName = null)
     {
         var root = rootOverride ?? DefaultRoot();
         var usedFallback = false;
@@ -133,7 +168,7 @@ public static class ZipExtractionService
                 + "Create that folder yourself or run Obtainium-PC once as administrator, then try again.", ex);
         }
 
-        var target = ChooseTarget(root, zipPath, ownerId, version);
+        var target = ChooseTarget(root, zipPath, ownerId, folderName);
         var staging = Path.Combine(root, ".staging-" + Guid.NewGuid().ToString("N"));
         try
         {
@@ -189,17 +224,17 @@ public static class ZipExtractionService
             }
 
             MarkFromInternet(staging);
+            var stagingRoot = Path.GetFullPath(staging);
+            var newManifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in Directory.EnumerateFiles(stagingRoot, "*", SearchOption.AllDirectories))
+                newManifest[Path.GetRelativePath(stagingRoot, f).Replace('\\', '/')] = Sha256Of(f);
             var targetIsNew = !Directory.Exists(target);
             Directory.CreateDirectory(target);
             // Whatever the parent's inherited permissions are, a folder created here for one app is
             // writable only by this user and administrators (others can read and run).
             if (targetIsNew && rootOverride == null) RestrictRoot(target);
-            MergeInto(staging, target, ct);
-            if (ownerId != null)
-            {
-                try { File.WriteAllText(Path.Combine(target, OwnerMarkerFile), ownerId); } catch { }
-            }
-            return new ExtractionResult(target, written, usedFallback);
+            var kept = MergeInto(staging, target, ct, ownerId, newManifest);
+            return new ExtractionResult(target, written, usedFallback, kept);
         }
         finally
         {
@@ -214,51 +249,86 @@ public static class ZipExtractionService
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> TargetLocks =
         new(StringComparer.OrdinalIgnoreCase);
 
-    /// Moves the staged files into the target as one unit. Existing files that get replaced are first
-    /// moved to a backup folder; if anything fails part-way, the new files are removed and the backups
-    /// are put back, so the target is either fully the old version or fully the new one. Two extractions
-    /// into the same target are serialized by a per-target lock.
-    private static void MergeInto(string staging, string target, CancellationToken ct)
+    /// Replaces the app's files in place as one unit. Files replaced or removed are first moved to a
+    /// backup folder; if anything fails part-way, the new files are removed and the backups are put
+    /// back, so the folder is either the old version or the new one, never a mix. Files the previous
+    /// install shipped but the new version does not are removed (no stale binaries) unless the user
+    /// changed them. Files Obtainium-PC never installed (user data) are never touched. A settings-like
+    /// file the user edited is kept and the new copy goes next to it as ".new". Two extractions into the
+    /// same target are serialized by a per-target lock. Returns the relative paths of kept user files.
+    private static List<string> MergeInto(string staging, string target, CancellationToken ct,
+        string? ownerId, Dictionary<string, string> newManifest)
     {
         var gate = TargetLocks.GetOrAdd(Path.GetFullPath(target), _ => new object());
         lock (gate)
         {
+            // Read inside the lock so a concurrent extraction cannot leave this view stale.
+            var oldManifest = ReadManifest(target);
             var stagingFull = Path.GetFullPath(staging);
             var files = Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories).ToList();
-            // Pre-flight: a locked existing file (the app is running) fails before anything moves.
+            string Key(string rel) => rel.Replace('\\', '/');
+            bool UserChanged(string rel, string existingPath) =>
+                !oldManifest.TryGetValue(Key(rel), out var h) || !string.Equals(h, Sha256Of(existingPath), StringComparison.OrdinalIgnoreCase);
+
+            // Plan: what is replaced, what is kept (as .new), what is stale.
+            var plan = new List<(string Src, string Dest, string Rel, bool ReplaceExisting)>();
+            var kept = new List<string>();
             foreach (var src in files)
             {
                 var rel = Path.GetRelativePath(stagingFull, src);
-                var existing = Path.Combine(target, rel);
+                var dest = Path.Combine(target, rel);
+                if (File.Exists(dest) && IsUserEditable(rel) && UserChanged(rel, dest)
+                    && !string.Equals(Sha256Of(dest), Sha256Of(src), StringComparison.OrdinalIgnoreCase))
+                {
+                    kept.Add(Key(rel));
+                    plan.Add((src, dest + ".new", rel + ".new", true));
+                }
+                else plan.Add((src, dest, rel, true));
+            }
+            var stale = new List<string>();
+            foreach (var kv in oldManifest)
+            {
+                if (newManifest.ContainsKey(kv.Key)) continue;
+                var existing = Path.Combine(target, kv.Key.Replace('/', Path.DirectorySeparatorChar));
                 if (!File.Exists(existing)) continue;
-                try { using var fs = new FileStream(existing, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                // Unchanged since install: obsolete binary, safe to remove. Changed by the user: keep.
+                if (string.Equals(Sha256Of(existing), kv.Value, StringComparison.OrdinalIgnoreCase)) stale.Add(existing);
+            }
+
+            // Pre-flight: a locked file we are about to replace or remove (the app is running) fails
+            // before anything moves.
+            foreach (var path in plan.Select(x => x.Dest).Concat(stale))
+            {
+                if (!File.Exists(path)) continue;
+                try { using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    throw new IOException("Could not replace \"" + rel + "\". If the app is running, close it and try again.", ex);
+                    throw new IOException("Could not replace \"" + Path.GetRelativePath(target, path) + "\". If the app is running, close it and try again.", ex);
                 }
             }
 
             var backup = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(staging))!, ".backup-" + Guid.NewGuid().ToString("N"));
-            var movedIn = new List<string>();                         // destination paths now holding new files
-            var backedUp = new List<(string Original, string Saved)>(); // replaced originals
+            var movedIn = new List<string>();
+            var backedUp = new List<(string Original, string Saved)>();
             var createdDirs = new List<string>();
             try
             {
-                foreach (var src in files)
+                int Backup(string existing)
+                {
+                    var saved = Path.Combine(backup, Path.GetRelativePath(target, existing));
+                    Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+                    File.Move(existing, saved);
+                    backedUp.Add((existing, saved));
+                    return 0;
+                }
+                foreach (var old in stale) { ct.ThrowIfCancellationRequested(); Backup(old); }
+                foreach (var (src, dest, _, _) in plan)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var rel = Path.GetRelativePath(stagingFull, src);
-                    var dest = Path.Combine(target, rel);
                     var destDir = Path.GetDirectoryName(dest)!;
                     for (var d = destDir; !Directory.Exists(d); d = Path.GetDirectoryName(d)!) createdDirs.Add(d);
                     Directory.CreateDirectory(destDir);
-                    if (File.Exists(dest))
-                    {
-                        var saved = Path.Combine(backup, rel);
-                        Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
-                        File.Move(dest, saved);
-                        backedUp.Add((dest, saved));
-                    }
+                    if (File.Exists(dest)) Backup(dest);
                     File.Move(src, dest);
                     movedIn.Add(dest);
                     if (FailAfterMovesForTests is { } n && movedIn.Count >= n)
@@ -267,17 +337,33 @@ public static class ZipExtractionService
             }
             catch (Exception ex)
             {
-                // Roll back: remove what was moved in, then restore the originals.
                 foreach (var f in movedIn) { try { File.Delete(f); } catch { } }
-                foreach (var (original, saved) in backedUp) { try { File.Move(saved, original, overwrite: true); } catch { } }
+                foreach (var (original, saved) in backedUp) { try { Directory.CreateDirectory(Path.GetDirectoryName(original)!); File.Move(saved, original, overwrite: true); } catch { } }
                 foreach (var d in createdDirs) { try { if (Directory.Exists(d) && !Directory.EnumerateFileSystemEntries(d).Any()) Directory.Delete(d); } catch { } }
                 try { if (Directory.Exists(backup)) Directory.Delete(backup, true); } catch { }
-                if (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
-                    throw ex is OperationCanceledException ? ex
-                        : new IOException("Could not update the extracted app; the previous version was left untouched. If the app is running, close it and try again. (" + ex.Message + ")", ex);
+                if (ex is OperationCanceledException) throw;
+                if (ex is IOException or UnauthorizedAccessException)
+                    throw new IOException("Could not update the app; the previous version was left untouched. If the app is running, close it and try again. (" + ex.Message + ")", ex);
                 throw;
             }
+            // Success: drop the backup and any folders emptied by removing stale files.
             try { if (Directory.Exists(backup)) Directory.Delete(backup, true); } catch { /* harmless leftover */ }
+            foreach (var old in stale)
+            {
+                try
+                {
+                    for (var d = Path.GetDirectoryName(old); d != null && d.Length > target.Length && Directory.Exists(d)
+                            && !Directory.EnumerateFileSystemEntries(d).Any(); d = Path.GetDirectoryName(d))
+                        Directory.Delete(d);
+                }
+                catch { }
+            }
+            if (ownerId != null)
+            {
+                try { File.WriteAllText(Path.Combine(target, OwnerMarkerFile), ownerId); } catch { }
+            }
+            try { WriteManifest(target, ownerId, newManifest); } catch { }
+            return kept;
         }
     }
 

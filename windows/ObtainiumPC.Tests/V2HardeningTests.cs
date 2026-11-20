@@ -185,19 +185,99 @@ public class V2ZipSafetyTests : IDisposable
     }
 }
 
-public class V2FolderNameTests
+public class V2InPlaceUpdateTests : IDisposable
 {
-    [Fact]
-    public void Unversioned_zip_name_gets_the_release_version()
+    private readonly string _tmp = Path.Combine(Path.GetTempPath(), "obt-v2c-" + Guid.NewGuid().ToString("N"));
+    public V2InPlaceUpdateTests() => Directory.CreateDirectory(_tmp);
+    public void Dispose() { ZipExtractionService.FailAfterMovesForTests = null; try { Directory.Delete(_tmp, true); } catch { } }
+
+    private string MakeZip(string name, params (string Path, string Text)[] entries)
     {
-        var root = Path.Combine(Path.GetTempPath(), "obt-fn-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        try
+        var path = Path.Combine(_tmp, name);
+        if (File.Exists(path)) File.Delete(path);
+        using var z = ZipFile.Open(path, ZipArchiveMode.Create);
+        foreach (var (p, t) in entries)
         {
-            Assert.Equal(Path.Combine(root, "tool v1.2"), ZipExtractionService.ChooseTarget(root, "tool.zip", "a", "v1.2"));
-            Assert.Equal(Path.Combine(root, "tool-1.2"), ZipExtractionService.ChooseTarget(root, "tool-1.2.zip", "a", "v1.2"));
-            Assert.Equal(Path.Combine(root, "tool"), ZipExtractionService.ChooseTarget(root, "tool.zip", "a", null));
+            var e = z.CreateEntry(p);
+            using var w = new StreamWriter(e.Open());
+            w.Write(t);
         }
-        finally { Directory.Delete(root, true); }
+        return path;
+    }
+
+    private string Root => Path.Combine(_tmp, "Obtainium");
+
+    [Fact]
+    public void Folder_is_named_after_the_app_and_a_new_version_replaces_the_old_in_place()
+    {
+        var one = ZipExtractionService.Extract(MakeZip("Tool-1.0.zip", ("tool.exe", "v1")), Root, ownerId: "a", folderName: "Tool");
+        var two = ZipExtractionService.Extract(MakeZip("Tool-2.0.zip", ("tool.exe", "v2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal(one.Folder, two.Folder);
+        Assert.EndsWith("Tool", two.Folder);
+        Assert.Equal("v2", File.ReadAllText(Path.Combine(two.Folder, "tool.exe")));
+        Assert.Single(Directory.GetDirectories(Root)); // no accumulated version folders
+    }
+
+    [Fact]
+    public void Obsolete_program_files_are_removed_but_user_files_survive()
+    {
+        var r1 = ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("old.dll", "v1"), ("lib/x.dll", "v1")), Root, ownerId: "a", folderName: "Tool");
+        File.WriteAllText(Path.Combine(r1.Folder, "my-notes.md"), "mine");
+        Directory.CreateDirectory(Path.Combine(r1.Folder, "userdata"));
+        File.WriteAllText(Path.Combine(r1.Folder, "userdata", "save.bin"), "save");
+        var r2 = ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("new.dll", "v2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("v2", File.ReadAllText(Path.Combine(r2.Folder, "tool.exe")));
+        Assert.True(File.Exists(Path.Combine(r2.Folder, "new.dll")));
+        Assert.False(File.Exists(Path.Combine(r2.Folder, "old.dll")));       // stale binary gone
+        Assert.False(Directory.Exists(Path.Combine(r2.Folder, "lib")));      // emptied folder gone
+        Assert.Equal("mine", File.ReadAllText(Path.Combine(r2.Folder, "my-notes.md")));
+        Assert.Equal("save", File.ReadAllText(Path.Combine(r2.Folder, "userdata", "save.bin")));
+    }
+
+    [Fact]
+    public void A_user_edited_settings_file_is_kept_and_the_new_copy_goes_next_to_it()
+    {
+        var r1 = ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("config.ini", "default1")), Root, ownerId: "a", folderName: "Tool");
+        File.WriteAllText(Path.Combine(r1.Folder, "config.ini"), "edited by user");
+        var r2 = ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("config.ini", "default2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("edited by user", File.ReadAllText(Path.Combine(r2.Folder, "config.ini")));
+        Assert.Equal("default2", File.ReadAllText(Path.Combine(r2.Folder, "config.ini.new")));
+        Assert.Contains("config.ini", r2.KeptUserFiles!);
+        Assert.Equal("v2", File.ReadAllText(Path.Combine(r2.Folder, "tool.exe")));
+    }
+
+    [Fact]
+    public void An_unedited_settings_file_is_simply_replaced()
+    {
+        var r1 = ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("config.ini", "default1")), Root, ownerId: "a", folderName: "Tool");
+        var r2 = ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("config.ini", "default2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("default2", File.ReadAllText(Path.Combine(r2.Folder, "config.ini")));
+        Assert.False(File.Exists(Path.Combine(r2.Folder, "config.ini.new")));
+    }
+
+    [Fact]
+    public void Failure_restores_replaced_and_removed_files()
+    {
+        var r1 = ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("old.dll", "v1"), ("keep.dll", "v1")), Root, ownerId: "a", folderName: "Tool");
+        var zip2 = MakeZip("t2.zip", ("tool.exe", "v2"), ("keep.dll", "v2"), ("new.dll", "v2"));
+        ZipExtractionService.FailAfterMovesForTests = 2;
+        Assert.Throws<IOException>(() => ZipExtractionService.Extract(zip2, Root, ownerId: "a", folderName: "Tool"));
+        ZipExtractionService.FailAfterMovesForTests = null;
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(r1.Folder, "tool.exe")));
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(r1.Folder, "old.dll")));   // removed stale file came back
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(r1.Folder, "keep.dll")));
+        Assert.False(File.Exists(Path.Combine(r1.Folder, "new.dll")));
+        Assert.Empty(Directory.GetDirectories(Root, ".staging-*"));
+        Assert.Empty(Directory.GetDirectories(Root, ".backup-*"));
+    }
+
+    [Fact]
+    public void Different_apps_with_the_same_name_do_not_share_a_folder()
+    {
+        var one = ZipExtractionService.Extract(MakeZip("a.zip", ("tool.exe", "A")), Root, ownerId: "appA", folderName: "Tool");
+        var two = ZipExtractionService.Extract(MakeZip("b.zip", ("tool.exe", "B")), Root, ownerId: "appB", folderName: "Tool");
+        Assert.NotEqual(one.Folder, two.Folder);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(one.Folder, "tool.exe")));
+        Assert.Equal("B", File.ReadAllText(Path.Combine(two.Folder, "tool.exe")));
     }
 }
