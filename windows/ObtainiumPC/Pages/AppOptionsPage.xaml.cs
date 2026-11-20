@@ -22,6 +22,8 @@ namespace ObtainiumPC.Pages
     {
         private TrackedApp? _app;
         private bool _building;
+        private bool _dirty;
+        private readonly List<Func<Task>> _flushers = new();
 
         public AppOptionsPage()
         {
@@ -40,11 +42,32 @@ namespace ObtainiumPC.Pages
             BuildForm();
         }
 
+        protected override async void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            var app = _app;
+            try
+            {
+                foreach (var f in _flushers.ToList()) await f();
+                // Filters, pre-release and version options change what the last check found: check again now
+                // instead of showing the old result until the next scheduled check.
+                if (_dirty && app != null)
+                {
+                    _dirty = false;
+                    await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
+                    await App.SaveAppsAsync();
+                    Services.Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
+                }
+            }
+            catch (Exception ex) { Services.Logging.AppLogger.Warn("Re-check after option change failed: " + ex.Message); }
+        }
+
         private void BuildForm()
         {
             if (_app == null) return;
             _building = true;
             FormPanel.Children.Clear();
+            _flushers.Clear();
 
             if (!SourceCatalog.TryResolve(_app.Url, App.Settings, out var source, _app.OverrideSource) || source == null)
             {
@@ -97,6 +120,7 @@ namespace ObtainiumPC.Pages
                                 SetIntermediateLinkField(_app, "autoLinkFilterByArch", toggle.IsOn);
                             else
                                 _app.SetSetting(key, toggle.IsOn);
+                            _dirty = true;
                             await App.SaveAppsAsync();
                         };
                         FormPanel.Children.Add(toggle);
@@ -131,9 +155,11 @@ namespace ObtainiumPC.Pages
                         };
                         var key = item.Key;
                         var validateRegex = item.ValidateRegex;
-                        box.LostFocus += async (_, _) =>
+                        var pending = false;
+                        async Task Commit()
                         {
-                            if (_building || _app == null) return;
+                            if (_building || _app == null || !pending) return;
+                            pending = false;
                             var value = box.Text.Trim();
                             if (validateRegex && value.Length > 0)
                             {
@@ -152,8 +178,18 @@ namespace ObtainiumPC.Pages
                                 SetIntermediateLinkField(_app, "customLinkFilterRegex", value.Length == 0 ? null : value);
                             else
                                 _app.SetSetting(key, value.Length == 0 ? null : value);
+                            _dirty = true;
                             await App.SaveAppsAsync();
-                        };
+                        }
+                        // Saved when the box loses focus, shortly after typing stops, and when the page is left,
+                        // so closing the window right after typing does not lose the edit.
+                        var timer = DispatcherQueue.CreateTimer();
+                        timer.Interval = TimeSpan.FromMilliseconds(700);
+                        timer.IsRepeating = false;
+                        timer.Tick += async (_, _) => await Commit();
+                        box.TextChanged += (_, _) => { if (_building) return; pending = true; timer.Stop(); timer.Start(); };
+                        box.LostFocus += async (_, _) => { timer.Stop(); await Commit(); };
+                        _flushers.Add(Commit);
                         FormPanel.Children.Add(box);
                         FormPanel.Children.Add(error);
                         break;
@@ -180,6 +216,7 @@ namespace ObtainiumPC.Pages
                         {
                             if (_building || _app == null || combo.SelectedIndex < 0) return;
                             _app.SetSetting(key, values[combo.SelectedIndex]);
+                            _dirty = true;
                             await App.SaveAppsAsync();
                         };
                         FormPanel.Children.Add(combo);
