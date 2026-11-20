@@ -133,6 +133,17 @@ public static class Loc
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
         // Messages that had no upstream translation
+        ["Applied {0} settings."] = "تم تطبيق {0} من الإعدادات.",
+        ["Apply settings from this file?"] = "تطبيق الإعدادات من هذا الملف؟",
+        ["Apply settings"] = "تطبيق الإعدادات",
+        ["Cancel download"] = "إلغاء التنزيل",
+        ["Cancel downloads"] = "إلغاء التنزيلات",
+        ["Download cancelled. The partial file was removed."] = "تم إلغاء التنزيل. تم حذف الملف الجزئي.",
+        ["Download size: "] = "حجم التنزيل: ",
+        ["Downloaded {0}. It is not a Windows installer, so it was not launched; the file is in your downloads folder."] = "تم تنزيل {0}. ليس مثبّت Windows لذلك لم يتم تشغيله؛ الملف موجود في مجلد التنزيلات.",
+        ["Keep my settings"] = "الإبقاء على إعداداتي",
+        ["Settings in the file were not applied."] = "لم يتم تطبيق الإعدادات الموجودة في الملف.",
+        ["The file contains settings (including tokens, if it was exported with them). Applying them replaces your current values for the same settings."] = "يحتوي الملف على إعدادات (بما فيها الرموز إذا تم التصدير بها). تطبيقها يستبدل قيمك الحالية لنفس الإعدادات.",
         ["This app is already downloading."] = "هذا التطبيق قيد التنزيل بالفعل.",
         ["App already added: "] = "التطبيق مضاف بالفعل: ",
         ["Could not fetch starred repos"] = "تعذّر جلب المستودعات المميزة بنجمة",

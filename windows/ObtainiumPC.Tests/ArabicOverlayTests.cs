@@ -18,16 +18,19 @@ public class ArabicOverlayTests
     }
 
     [Fact]
-    public void Every_literal_status_message_passed_to_Loc_T_has_an_Arabic_entry()
+    public void Every_literal_passed_to_Loc_T_in_the_pages_has_a_translation_source()
     {
         var root = Root();
         var loc = File.ReadAllText(Path.Combine(root, "ObtainiumPC", "Services", "Localization", "Loc.cs"));
         var upstream = File.ReadAllText(Path.Combine(root, "ObtainiumPC", "Services", "Localization", "LocTranslations.g.cs"));
-        var re = new Regex("(?:Show|ShowResult)\\(InfoBarSeverity\\.[A-Za-z]+, Services\\.Localization\\.Loc\\.T\\(\"([^\"]*)\"\\)");
+        var re = new Regex("Services\\.Localization\\.Loc\\.T\\(\"([^\"]*)\"\\)");
         var keys = Directory.GetFiles(Path.Combine(root, "ObtainiumPC", "Pages"), "*.cs")
             .SelectMany(f => re.Matches(File.ReadAllText(f)).Select(m => m.Groups[1].Value)).Distinct().ToList();
         Assert.True(keys.Count >= 10);
         foreach (var k in keys)
-            Assert.True(loc.Contains("[\"" + k + "\"] = \""), "no Arabic text for: " + k);
+        {
+            var up = k.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("{}", "\\u007b\\u007d").Replace("{0}", "\\u007b0\\u007d");
+            Assert.True(loc.Contains("[\"" + k + "\"] = \"") || upstream.Contains("[\"" + up + "\"] = \""), "no Arabic text for: " + k);
+        }
     }
 }
