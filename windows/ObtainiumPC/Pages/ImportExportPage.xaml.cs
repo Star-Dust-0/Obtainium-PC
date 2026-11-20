@@ -316,7 +316,7 @@ namespace ObtainiumPC.Pages
             await App.InitAsync();
             try
             {
-                var (allApps, hasSettings, _) = Services.Store.AppStore.Import(json);
+                var (allApps, hasSettings, importedSettings) = Services.Store.AppStore.Import(json);
                 // Windows-only: records from Android app sources are not imported (the file is not modified).
                 var skippedAndroid = allApps.Where(a => App.Updater.IsLegacyUnsupported(a)).ToList();
                 var apps = allApps.Except(skippedAndroid).ToList();
@@ -327,9 +327,25 @@ namespace ObtainiumPC.Pages
                     if (App.UpsertApp(app)) replaced++; else added++;
                 }
                 await App.SaveAppsAsync();
-                var settingsNote = hasSettings
-                    ? " The file also contains settings; applying them lands with the settings import step."
-                    : "";
+                var settingsNote = "";
+                if (hasSettings && importedSettings != null)
+                {
+                    var ask = new ThemedContentDialog
+                    {
+                        Title = Services.Localization.Loc.T("Apply settings from this file?"),
+                        Content = Services.Localization.Loc.T("The file contains settings (including tokens, if it was exported with them). Applying them replaces your current values for the same settings."),
+                        PrimaryButtonText = Services.Localization.Loc.T("Apply settings"),
+                        CloseButtonText = Services.Localization.Loc.T("Keep my settings"),
+                        XamlRoot = XamlRoot,
+                    };
+                    if (await ask.ShowAsync() == ContentDialogResult.Primary)
+                    {
+                        var n = App.Settings.ApplyImported(importedSettings);
+                        App.Settings.Save();
+                        settingsNote = " " + string.Format(Services.Localization.Loc.T("Applied {0} settings."), n);
+                    }
+                    else settingsNote = " " + Services.Localization.Loc.T("Settings in the file were not applied.");
+                }
                 if (skippedAndroid.Count > 0)
                     settingsNote += "\n" + string.Format(Services.Localization.Loc.T("Skipped {0} Android apps (not supported): {1}"),
                         skippedAndroid.Count, string.Join(", ", skippedAndroid.Select(a => a.FinalName)));

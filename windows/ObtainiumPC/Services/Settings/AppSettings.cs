@@ -155,6 +155,32 @@ public sealed class AppSettings
         }
     }
 
+    // Machine-local keys an import never overwrites.
+    private static readonly HashSet<string> ImportSkipped = new(StringComparer.OrdinalIgnoreCase) { nameof(AutoExportPath), nameof(FirstRunHandled) };
+
+    /// Applies the "settings" block of an export file (the same JSON names the export wrote, tokens
+    /// included) to this instance. Unknown keys and values of the wrong type are skipped, never fatal.
+    /// Returns how many settings were applied.
+    public int ApplyImported(IReadOnlyDictionary<string, System.Text.Json.JsonElement> values)
+    {
+        var applied = 0;
+        foreach (var prop in typeof(AppSettings).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            if (!prop.CanWrite || prop.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonIgnoreAttribute), true).Length > 0) continue;
+            if (ImportSkipped.Contains(prop.Name)) continue;
+            var key = values.Keys.FirstOrDefault(k => string.Equals(k, prop.Name, StringComparison.OrdinalIgnoreCase));
+            if (key == null) continue;
+            try
+            {
+                var v = System.Text.Json.JsonSerializer.Deserialize(values[key].GetRawText(), prop.PropertyType);
+                prop.SetValue(this, v);
+                applied++;
+            }
+            catch (Exception) { /* wrong type or out-of-range value: keep the current setting */ }
+        }
+        return applied;
+    }
+
     /// Tokens are encrypted with the Windows user's DPAPI key in settings.json only. In memory
     /// (and so in every export) they stay in clear: an export has to restore on another machine.
     [System.Text.Json.Serialization.JsonIgnore]
