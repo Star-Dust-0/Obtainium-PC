@@ -450,7 +450,7 @@ namespace ObtainiumPC.Pages
             async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress, bool queueInstaller = false)
             {
                 var entry = Services.Download.DownloadRegistry.TryBegin(app.Id, asset.Key, app.FinalName);
-                if (entry == null) { results.Add(app.FinalName + ": already downloading, skipped"); return; }
+                if (entry == null) { results.Add(string.Format(Services.Localization.Loc.T("{0}: already downloading, skipped"), app.FinalName)); return; }
                 var outcome = Services.Download.DownloadState.Failed;
                 string? outcomeMessage = null;
                 try
