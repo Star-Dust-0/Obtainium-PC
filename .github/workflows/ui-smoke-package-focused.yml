@@ -341,6 +341,20 @@ jobs:
           $go = FindNamed 'Download' $root
           if ($go -eq $null) { throw 'confirm button not found' }
           $go.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          # The bulk download offers each app its own file picker (the upstream behaviour, even for one file): confirm both.
+          foreach ($n in 1..2) {
+            $pk = $null
+            foreach ($i in 1..30) {
+              Start-Sleep -Milliseconds 500
+              foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Choose a file*') { $pk = $el; break } }
+              if ($pk -ne $null) { break }
+            }
+            if ($pk -eq $null) { Shot "s1-picker-$n-missing"; throw "file picker $n did not appear" }
+            "picker $n : $($pk.Current.Name)"
+            $btn = FindNamed 'Download' $root
+            $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep 2
+          }
           $la = 'C:\srv\log\appA-2.0.0.txt'; $lb = 'C:\srv\log\appB-2.0.0.txt'
           foreach ($i in 1..60) {
             Start-Sleep 3
