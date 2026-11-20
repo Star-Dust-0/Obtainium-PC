@@ -128,7 +128,7 @@ namespace ObtainiumPC.Pages
                 }
                 catch (InvalidUrlException) { throw; }
                 catch (AndroidSourceNotSupportedException) { throw; }
-                catch (MinUpdateAgeException) { throw; }
+                catch (ObtainiumPC.Services.Updates.MinUpdateAgeException) { throw; }
                 catch (Exception checkEx) when (App.Settings.AllowAddingAppsWithoutCheck)
                 {
                     // lib/pages/add_app.dart: on an unexpected failure, offer to
