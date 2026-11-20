@@ -412,8 +412,8 @@ public sealed class GitHubSource : AppSourceBase
     {
         var releaseSkipped = 0;
         var userFilteredOut = 0;
-        var titleRegex = regexFilter != null ? new Regex(regexFilter) : null;
-        var notesRegex = regexNotesFilter != null ? new Regex(regexNotesFilter) : null;
+        var titleRegex = regexFilter != null ? ObtainiumPC.Services.Versioning.UserRegex.Create(regexFilter) : null;
+        var notesRegex = regexNotesFilter != null ? ObtainiumPC.Services.Versioning.UserRegex.Create(regexNotesFilter) : null;
         var invertTitleFilter = GetBool(additionalSettings, "invertReleaseTitlesFilter");
         var invertNotesFilter = GetBool(additionalSettings, "invertReleaseNotesFilter");
         for (var i = 0; i < releases.Count; i++)

@@ -247,7 +247,7 @@ public sealed class HtmlSource : AppSourceBase
         var customFilter = GetString(additionalSettings, "customLinkFilterRegex");
         if (!string.IsNullOrEmpty(customFilter))
         {
-            var reg = new Regex(customFilter);
+            var reg = ObtainiumPC.Services.Versioning.UserRegex.Create(customFilter);
             links = allLinks.Where(e =>
             {
                 var link = e.Key;

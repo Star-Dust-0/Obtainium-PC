@@ -117,7 +117,7 @@ public static class AssetFilterService
 
     /// Zips that accompany a release without being the app itself (symbols, sources, docs, ...).
     private static readonly Regex AuxiliaryArchiveRegex = new(
-        @"(^|[^a-z])(symbols?|pdbs?|debug|mapping|sources?|src|sbom|docs?|documentation|tests?|checksums?)([^a-z]|$)",
+        @"(^|[^a-z])(symbols?|pdbs?|debug|mapping|sources?|src|sbom|documentation|checksums?)([^a-z]|$)",
         RegexOptions.IgnoreCase);
 
     public static bool IsAuxiliaryArchive(string name) => AuxiliaryArchiveRegex.IsMatch(name);
@@ -128,8 +128,20 @@ public static class AssetFilterService
     {
         var names = assetNames.ToList();
         if (names.Any(n => IsAppOrContainerFile(n) || IsAndroidPackage(n))) return false;
-        return names.Any(n => IsZipArchive(n) && !IsAuxiliaryArchive(n));
+        return names.Any(IsPortableCandidate);
     }
+
+    /// A real zip that is not a symbols/sources/docs archive and is not clearly built for another
+    /// OS. Generic names ("tool-1.2.zip") qualify: only an explicit mac/linux/android marker without
+    /// a Windows marker rules a zip out.
+    public static bool IsPortableCandidate(string name) =>
+        IsZipArchive(name) && !IsAuxiliaryArchive(name)
+        && (WindowsMarkerRegex.IsMatch(name) || !OtherOsMarkerRegex.IsMatch(name));
+
+    /// True when none of the release's assets is an installer or Android package, so a zip the
+    /// user picked is the app itself (portable) and not a container around an installer.
+    public static bool HasNoInstallerAsset(IEnumerable<string> assetNames) =>
+        !assetNames.Any(n => IsAppOrContainerFile(n) || IsAndroidPackage(n));
 
     private static readonly Regex WindowsMarkerRegex = new(
         @"(^|[^a-z])(win|windows|win32|win64|msvc|mingw)([^a-z]|$)", RegexOptions.IgnoreCase);
@@ -164,7 +176,7 @@ public static class AssetFilterService
     {
         if (!string.IsNullOrEmpty(assetFilterRegEx))
         {
-            var reg = new Regex(assetFilterRegEx);
+            var reg = ObtainiumPC.Services.Versioning.UserRegex.Create(assetFilterRegEx);
             assetUrls = assetUrls.Where(e => invert == true ? !reg.IsMatch(e.Key) : reg.IsMatch(e.Key)).ToList();
         }
         return assetUrls;

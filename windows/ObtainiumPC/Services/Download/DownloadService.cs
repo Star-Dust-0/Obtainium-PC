@@ -56,13 +56,14 @@ public sealed class DownloadService
         string? personalAccessToken = null,
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         Func<string, Task>? verifyBeforePromote = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? subFolder = null)
     {
         for (var attempt = 0; ; attempt++)
         {
             try
             {
-                return await DownloadOnceAsync(url, fileName, progress, personalAccessToken, extraHeaders, verifyBeforePromote, ct);
+                return await DownloadOnceAsync(url, fileName, progress, personalAccessToken, extraHeaders, verifyBeforePromote, ct, subFolder);
             }
             catch (Exception e) when (attempt < _retries && IsRetryable(e, ct))
             {
@@ -78,10 +79,14 @@ public sealed class DownloadService
         string? personalAccessToken = null,
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         Func<string, Task>? verifyBeforePromote = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? subFolder = null)
     {
-        Directory.CreateDirectory(DownloadDir);
-        var target = Path.Combine(DownloadDir, Sanitize(fileName));
+        // A per-app subfolder keeps two apps that publish the same file name (setup.exe) from
+        // sharing one .part file during parallel downloads.
+        var dir = string.IsNullOrEmpty(subFolder) ? DownloadDir : Path.Combine(DownloadDir, Sanitize(subFolder));
+        Directory.CreateDirectory(dir);
+        var target = Path.Combine(dir, Sanitize(fileName));
         var req = BuildRequest(url, personalAccessToken, extraHeaders);
         using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         res.EnsureSuccessStatusCode();

@@ -24,6 +24,23 @@ public static class ZipExtractionService
 {
     public const string RootFolderName = "Obtainium";
 
+    /// Upper bounds against zip bombs: 8 GiB written and 50,000 files.
+    public const long MaxTotalBytes = 8L * 1024 * 1024 * 1024;
+    public const int MaxFileCount = 50_000;
+
+    /// A path segment Windows cannot store as written: reserved device names (with or without an
+    /// extension), a trailing dot or space, or ".." / ".".
+    public static bool IsSafeSegment(string segment)
+    {
+        if (segment.Length == 0 || segment == "." || segment == "..") return false;
+        if (segment.EndsWith('.') || segment.EndsWith(' ')) return false;
+        var stem = segment;
+        var dot = stem.IndexOf('.');
+        if (dot > 0) stem = stem.Substring(0, dot);
+        stem = stem.TrimEnd(' ');
+        return !Array.Exists(ReservedNames, r => string.Equals(r, stem, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static readonly string[] ReservedNames =
     {
         "CON", "PRN", "AUX", "NUL",
@@ -101,12 +118,18 @@ public static class ZipExtractionService
                 .ToList();
             if (files.Count == 0) throw new InvalidDataException("The zip file is empty.");
 
-            EnsureFreeSpace(root, files.Sum(f => f.Length));
+            if (files.Count > MaxFileCount)
+                throw new InvalidDataException("The zip contains too many files (" + files.Count + ").");
+            var declared = files.Sum(f => f.Length);
+            if (declared > MaxTotalBytes)
+                throw new InvalidDataException("The zip is too large when extracted (" + DownloadTexts.Bytes(declared) + ").");
+            EnsureFreeSpace(root, declared);
 
             var prefix = CommonRootFolder(files.Select(f => f.FullName));
             Directory.CreateDirectory(staging);
             var stagingFull = Path.GetFullPath(staging) + Path.DirectorySeparatorChar;
             var written = 0;
+            long actual = 0;
             foreach (var entry in files)
             {
                 ct.ThrowIfCancellationRequested();
@@ -117,8 +140,24 @@ public static class ZipExtractionService
                 // Zip-slip: an entry such as "..\..\x" or "C:\x" must never leave the staging folder.
                 if (!dest.StartsWith(stagingFull, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("The zip contains an unsafe path: " + entry.FullName);
+                foreach (var seg in rel.Split('/', StringSplitOptions.RemoveEmptyEntries))
+                    if (!IsSafeSegment(seg))
+                        throw new InvalidDataException("The zip contains an unsafe name: " + entry.FullName);
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                entry.ExtractToFile(dest, overwrite: true);
+                // Copy by hand and count the real bytes: the sizes declared in a zip header can lie.
+                using (var src = entry.Open())
+                using (var dst = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    var buf = new byte[81920];
+                    int n;
+                    while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        actual += n;
+                        if (actual > MaxTotalBytes)
+                            throw new InvalidDataException("The zip expands beyond the allowed size.");
+                        dst.Write(buf, 0, n);
+                    }
+                }
                 written++;
             }
 
@@ -136,6 +175,19 @@ public static class ZipExtractionService
     private static void MergeInto(string staging, string target, CancellationToken ct)
     {
         var stagingFull = Path.GetFullPath(staging);
+        // Pre-flight: if an existing file is locked (the app is running), fail before moving anything,
+        // so the folder is never left half old and half new.
+        foreach (var src in Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories))
+        {
+            var existing = Path.Combine(target, Path.GetRelativePath(stagingFull, src));
+            if (!File.Exists(existing)) continue;
+            try { using var fs = new FileStream(existing, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException("Could not replace \"" + Path.GetRelativePath(stagingFull, src)
+                    + "\". If the app is running, close it and try again.", ex);
+            }
+        }
         foreach (var src in Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories))
         {
             ct.ThrowIfCancellationRequested();

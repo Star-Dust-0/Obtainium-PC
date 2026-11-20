@@ -160,7 +160,7 @@ public class FDroidSource : AppSourceBase
             : new List<JsonElement>();
         if (apkFilterRegEx != null)
         {
-            var filter = new Regex(apkFilterRegEx);
+            var filter = ObtainiumPC.Services.Versioning.UserRegex.Create(apkFilterRegEx);
             packages = packages.Where(rel =>
             {
                 var code = rel.TryGetProperty("versionCode", out var vc) ? vc.ToString() : "";
@@ -190,7 +190,7 @@ public class FDroidSource : AppSourceBase
         {
             version = null;
             releaseChoices = new List<JsonElement>();
-            var versionFilter = new Regex(filterVersionsByRegEx);
+            var versionFilter = ObtainiumPC.Services.Versioning.UserRegex.Create(filterVersionsByRegEx);
             foreach (var rel in packages)
             {
                 var name = GetVersionName(rel);

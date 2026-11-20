@@ -34,7 +34,7 @@ public static class VersionService
     public static string? ExtractVersion(string? versionExtractionRegEx, string? matchGroupString, string stringToCheck)
     {
         if (string.IsNullOrEmpty(versionExtractionRegEx)) return null;
-        var matches = new Regex(versionExtractionRegEx).Matches(stringToCheck);
+        var matches = UserRegex.Create(versionExtractionRegEx).Matches(stringToCheck);
         if (matches.Count == 0) throw new NoVersionException();
         var trimmedGroup = matchGroupString?.Trim();
         var version = ReplaceMatchGroupsInString(
@@ -135,7 +135,7 @@ public static class VersionService
     /// Whether the first match of pattern is identical in both strings.
     public static bool DoStringsMatchUnderRegEx(string pattern, string value1, string value2)
     {
-        var regExp = new Regex(pattern);
+        var regExp = UserRegex.Create(pattern);
         var match1 = regExp.Match(value1);
         var match2 = regExp.Match(value2);
         return match1.Success && match2.Success && match1.Value == match2.Value;

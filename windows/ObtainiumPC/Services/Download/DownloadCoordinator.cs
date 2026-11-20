@@ -43,12 +43,13 @@ public static class DownloadCoordinator
             DownloadRegistry.Report(entry, p.Received, p.Total);
             ui?.Report(p);
         });
-        var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck, ct: entry.Token);
+        var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck, subFolder: app.Id, ct: entry.Token);
         Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
         app.RecordAssetSize(new FileInfo(path).Length, asset.Value);
         await App.SaveAppsAsync();
         return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
-            Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key));
+            Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key)
+                && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key)));
     }
 
     /// Portable apps (.zip): extracts to "C:\Obtainium\<zip name>\" and records the release as installed.
