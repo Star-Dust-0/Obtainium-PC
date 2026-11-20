@@ -818,15 +818,32 @@ jobs:
           if ($inst1 -notlike '*1.0.1*') { Shot 'shuck-after-update-wrong'; throw "after the update the app did not detect 1.0.1 (got: $inst1)" }
           $upd1 = FindNamed 'Update' $win2
           if ($upd1 -ne $null -and $upd1.Current.IsEnabled) { Shot 'shuck-update-still-enabled'; throw 'Update stays enabled after the installed version caught up' }
-          # Mismatch case: the installer picked in the picker is NOT the preferred file, so its
-          # saved size must not be shown as the detail page's "Download size" (exact current file only).
+          # The detail page shows a size only when it was recorded for exactly the file that would be
+          # downloaded. If a size is shown, it must be the size of the file this run downloaded.
           $sizeEl = $null
           foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
             if ($el.Current.Name -like '*size: *') { $sizeEl = $el.Current.Name; break }
           }
-          "shuck size line after downloading a non-preferred installer (expected none): [$sizeEl]"
+          "shuck size line after the update download: [$sizeEl] (downloaded file $($shFile.Length) bytes)"
           Shot '26d-shuck-updated-detail'
-          if ($sizeEl -ne $null) { throw "detail page shows a size ($sizeEl) after downloading a file that is not the selected one" }
+          if ($sizeEl -ne $null) {
+            $mb = [double](($sizeEl -replace '[^0-9.]','').Trim('.'))
+            $real = $shFile.Length / 1048576.0
+            if ([math]::Abs($mb - $real) -gt 0.06) { throw "detail page size ($sizeEl) does not match the downloaded file ($([math]::Round($real,2)) MB)" }
+          }
+          # The bottom strip must leave the 'waiting for the installer' state once the version is confirmed.
+          $stillWaiting = $true
+          foreach ($i in 1..15) {
+            Start-Sleep 3
+            $stillWaiting = $false
+            foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -like '*waiting for it to finish*') { $stillWaiting = $true; break }
+            }
+            if (-not $stillWaiting) { break }
+          }
+          Shot '26e-shuck-strip-after-confirm'
+          "download strip still waiting after confirmation: $stillWaiting"
+          if ($stillWaiting) { throw 'the download strip stays on "waiting for the installer" 45 s after the installed version was confirmed' }
           # Probe case: with 'Check for updates on opening an app detail page' on, the size of the
           # preferred asset is fetched (HEAD, then headers-only GET) and shown; compare to the real size.
           ClickNamedIn 'Settings' $win2
