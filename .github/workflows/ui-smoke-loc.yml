@@ -160,17 +160,13 @@ jobs:
           Start-Sleep 3; AssertAlive 'settings'
           $comboType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ComboBox)
 
-          # --- switch to Arabic (العربية is 3rd from the end) ---
+          # --- switch to Arabic (العربية is the last item) ---
           $combos = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           if ($combos.Count -lt 2) { Shot 'combo-missing'; throw 'language combo not found on Settings page' }
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { throw 'language combo expand failed' }
           Start-Sleep 2
           [System.Windows.Forms.SendKeys]::SendWait('{END}')
           Start-Sleep -Milliseconds 400
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4; AssertAlive 'arabic-switch'
           if (-not (PollNamed 'التطبيقات' $win 15)) { DumpNames $win 'ar-missing'; Shot 'ar-missing'; throw 'Arabic nav label not found after switch' }

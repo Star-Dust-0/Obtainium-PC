@@ -98,11 +98,11 @@ namespace ObtainiumPC.Pages
             GroupByCombo.SelectedIndex = App.Settings.GroupBy == "category" ? 1 : App.Settings.GroupBy == "source" ? 2 : 0;
             CollapseGroupsToggle.IsOn = App.Settings.CollapseGroupsOnStartup;
             ThemeCombo.SelectedIndex = Math.Max(0, Array.FindIndex(ThemeOptions, o => o.Value == s.Theme));
-            // Upstream _LocaleDropdown: "Follow system" + supportedLocales.
+            // "Follow system" + the offered languages (English and Arabic).
             LanguageCombo.Items.Add(new ComboBoxItem { Content = Services.Localization.Loc.T("Follow system"), Tag = "" });
             var langIdx = 0;
             var li = 1;
-            foreach (var (tag, name) in Services.Localization.LocTranslations.SupportedLanguages)
+            foreach (var (tag, name) in Services.Localization.LocaleResolution.OfferedLanguages)
             {
                 LanguageCombo.Items.Add(new ComboBoxItem { Content = name, Tag = tag });
                 if (App.Settings.Language == tag) langIdx = li;

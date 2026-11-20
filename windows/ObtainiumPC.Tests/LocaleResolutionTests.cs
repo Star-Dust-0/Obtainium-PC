@@ -1,3 +1,4 @@
+using System.Linq;
 using ObtainiumPC.Services.Localization;
 using Xunit;
 
@@ -8,18 +9,41 @@ namespace ObtainiumPC.Tests;
 public class LocaleResolutionTests
 {
     [Theory]
-    [InlineData("fr-FR", "fr")]       // region variant falls back to language
-    [InlineData("pt-BR", "pt-BR")]    // exact tag wins over language prefix
-    [InlineData("zh-Hant-TW", "zh-Hant-TW")]
-    [InlineData("zh-TW", "zh-Hant-TW")] // traditional Chinese region maps to the Hant table
-    [InlineData("zh-CN", "zh")]
-    [InlineData("ar-EG", "ar")]
-    [InlineData("de-DE", "de")]
-    [InlineData("xx", "en")]          // unsupported language falls back to English
+    [InlineData("en-US", "en")]
+    [InlineData("en", "en")]
+    [InlineData("ar", "ar")]
+    [InlineData("ar-EG", "ar")]      // region variant falls back to language
+    [InlineData("AR-sa", "ar")]
+    [InlineData("fr-FR", "en")]      // languages that are not offered fall back to English
+    [InlineData("pt-BR", "en")]
+    [InlineData("zh-Hant-TW", "en")]
+    [InlineData("zh-CN", "en")]
+    [InlineData("de-DE", "en")]
+    [InlineData("fa-IR", "en")]
+    [InlineData("xx", "en")]
     [InlineData(null, "en")]
     [InlineData("", "en")]
     public void Resolve_maps_system_tags(string? tag, string expected) =>
         Assert.Equal(expected, LocaleResolution.Resolve(tag));
+
+    [Fact]
+    public void Offered_languages_are_English_and_Arabic_only()
+    {
+        Assert.Equal(new[] { "en", "ar" }, LocaleResolution.OfferedLanguages.Select(l => l.Tag).ToArray());
+        Assert.Equal("English", LocaleResolution.OfferedLanguages[0].Name);
+        Assert.Equal("\u0627\u0644\u0639\u0631\u0628\u064a\u0629", LocaleResolution.OfferedLanguages[1].Name);
+    }
+
+    [Theory]
+    [InlineData("ar", "en", "ar")]   // an offered choice wins over the system language
+    [InlineData("en", "ar", "en")]
+    [InlineData("", "ar", "ar")]     // follow system
+    [InlineData(null, "en", "en")]
+    [InlineData("de", "en", "en")]   // saved by an earlier version, no longer offered: follow system
+    [InlineData("fr", "ar", "ar")]
+    [InlineData("zh-Hant-TW", "en", "en")]
+    public void Stored_language_that_is_no_longer_offered_follows_the_system(string? stored, string system, string expected) =>
+        Assert.Equal(expected, LocaleResolution.ResolveStored(stored, () => system));
 
     [Fact]
     public void Supported_languages_cover_all_upstream_locales()
@@ -44,9 +68,9 @@ public class LocaleResolutionTests
 public class LocaleResolutionChineseTests
 {
     [Theory]
-    [InlineData("zh-HK", "zh-Hant-TW")]
-    [InlineData("zh-MO", "zh-Hant-TW")]
-    [InlineData("zh-Hans-CN", "zh")]
-    public void Chinese_variants_map_by_script_and_region(string tag, string expected) =>
-        Assert.Equal(expected, LocaleResolution.Resolve(tag));
+    [InlineData("zh-HK")]
+    [InlineData("zh-MO")]
+    [InlineData("zh-Hans-CN")]
+    public void Chinese_variants_are_not_offered_and_resolve_to_English(string tag) =>
+        Assert.Equal("en", LocaleResolution.Resolve(tag));
 }

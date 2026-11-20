@@ -622,13 +622,9 @@ jobs:
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win2 | Out-Null }
           Start-Sleep 2
           # The full locale list is virtualized; off-screen items are absent
-          # from UIA. العربية is 3rd from the end: END, UP x2, ENTER.
+          # from UIA. العربية is the last item: END, ENTER.
           [System.Windows.Forms.SendKeys]::SendWait('{END}')
           Start-Sleep -Milliseconds 400
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           if ((FindNamed 'التطبيقات' $win2) -eq $null) { Shot 'arabic-nav-missing'; throw 'Arabic nav label missing after keyboard selection' }
@@ -1506,13 +1502,9 @@ jobs:
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          # Keyboard selection (virtualized list): العربية is 3rd from the end.
+          # Keyboard selection (virtualized list): العربية is the last item (the list is Follow system, English, العربية).
           [System.Windows.Forms.SendKeys]::SendWait('{END}')
           Start-Sleep -Milliseconds 400
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
-          [System.Windows.Forms.SendKeys]::SendWait('{UP}')
-          Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
           Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dlJson2))
@@ -1540,31 +1532,30 @@ jobs:
           AssertAlive 'dialog-roundtrip-done'
           'dialog theme+language round-trip verified'
 
-          # Representative non-RTL locale from the reused upstream tables:
-          # French must retranslate chrome (generated LocTranslations).
+          # The program offers only English and Arabic (plus Follow system): the
+          # other upstream languages must not be selectable.
           $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
           try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
           Start-Sleep 2
-          # Keyboard selection (virtualized list): Français is index 10.
-          [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
-          Start-Sleep -Milliseconds 400
-          foreach ($i in 1..10) { [System.Windows.Forms.SendKeys]::SendWait('{DOWN}'); Start-Sleep -Milliseconds 150 }
-          [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
-          Start-Sleep 4
-          if ((FindNamed 'Applications' $win3) -eq $null) { Shot 'language-french-missing'; throw 'French nav label missing after language switch' }
-          Shot '27-language-french'
-          $combos = $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboType)
-          try { $combos[1].GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() } catch { ClickPartial $combos[1].Current.Name $win3 | Out-Null }
-          Start-Sleep 2
-          # Keyboard selection (virtualized list): English is index 1.
+          $langItems = @()
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($el.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem) { $langItems += $el.Current.Name }
+          }
+          "language picker items: $($langItems -join ' | ')"
+          foreach ($gone in 'Français', 'Deutsch', 'Español', 'Italiano', '日本語', 'Русский', 'فارسی') {
+            if ($langItems -contains $gone) { Shot 'language-removed-still-offered'; throw "language still offered: $gone" }
+          }
+          if (-not ($langItems -contains 'English') -or -not ($langItems -contains 'العربية')) { Shot 'language-picker-incomplete'; throw 'English or Arabic missing from the language picker' }
+          Shot '27-language-picker-en-ar'
+          # Keyboard selection: English is index 1 (Follow system, English, العربية).
           [System.Windows.Forms.SendKeys]::SendWait('{HOME}')
           Start-Sleep -Milliseconds 400
           [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
           Start-Sleep -Milliseconds 300
           [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
           Start-Sleep 4
-          if ((FindNamed 'Settings' $win3) -eq $null) { DumpNames $win3 'english-restore-after-french'; Shot 'language-english-restore'; throw 'English nav label missing after restore' }
-          'French language selection verified'
+          if ((FindNamed 'Settings' $win3) -eq $null) { DumpNames $win3 'english-restore-after-picker'; Shot 'language-english-restore'; throw 'English nav label missing after restore' }
+          'language picker offers only English and Arabic'
 
           # Full filter dialog (AppsFilter): a name filter narrows the list;
           # Clear restores it.

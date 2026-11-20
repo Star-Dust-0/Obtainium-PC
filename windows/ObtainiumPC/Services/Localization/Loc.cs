@@ -19,11 +19,11 @@ public static class Loc
 
     public static event Action? Changed;
 
-    public static bool IsRtl => ResolvedLanguage is "ar" or "fa";
+    public static bool IsRtl => ResolvedLanguage is "ar";
 
     /// The effective language tag after system-locale resolution.
     public static string ResolvedLanguage =>
-        Language.Length > 0 ? Language : SystemLanguage();
+        LocaleResolution.ResolveStored(Language, SystemLanguage);
 
     private static string SystemLanguage()
     {
