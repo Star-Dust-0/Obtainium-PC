@@ -35,11 +35,11 @@ jobs:
           $srv = 'C:\srv'; New-Item -ItemType Directory -Force $srv | Out-Null
           function MakeZip($ver, $files) {
             $tmp = Join-Path $env:TEMP "z$ver"; Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force $tmp | Out-Null
-            foreach ($k in $files.Keys) { Set-Content (Join-Path $tmp $k) $files[$k] }
+            foreach ($k in $files.Keys) { if ($k -eq '__exe') { Copy-Item $files[$k] (Join-Path $tmp 'myapp.exe') } else { Set-Content (Join-Path $tmp $k) $files[$k] } }
             Compress-Archive -Path (Join-Path $tmp '*') -DestinationPath (Join-Path $srv "myapp-$ver.zip") -Force
           }
-          MakeZip '1.0.0' @{ 'run.txt'='v1'; 'old-only.txt'='gone in v2'; 'config.ini'='default=1' }
-          MakeZip '2.0.0' @{ 'run.txt'='v2'; 'new.txt'='added in v2'; 'config.ini'='default=2' }
+          MakeZip '1.0.0' @{ '__exe'='C:\Windows\System32\whoami.exe'; 'run.txt'='v1'; 'old-only.txt'='gone in v2'; 'config.ini'='default=1' }
+          MakeZip '2.0.0' @{ '__exe'='C:\Windows\System32\hostname.exe'; 'run.txt'='v2'; 'new.txt'='added in v2'; 'config.ini'='default=2' }
           Set-Content (Join-Path $srv 'index.html') '<html><body><a href="http://127.0.0.1:8099/myapp-1.0.0.zip">myapp-1.0.0.zip</a></body></html>'
           @'
           $l = New-Object System.Net.HttpListener; $l.Prefixes.Add('http://127.0.0.1:8099/'); $l.Start()
@@ -234,6 +234,7 @@ jobs:
           "detail after 2.0.0: $(Installed)"
           if ((Installed) -notlike '*2.0.0*') { throw 'app does not record 2.0.0 after the upgrade' }
           if ((Get-Content (Join-Path $folder 'run.txt') -Raw).Trim() -ne 'v2') { throw 'run.txt was not replaced by v2' }
+          if ((Get-Item (Join-Path $folder 'myapp.exe')).Length -ne (Get-Item 'C:\Windows\System32\hostname.exe').Length) { throw 'myapp.exe is not the 2.0.0 program' }
           if (-not (Test-Path (Join-Path $folder 'new.txt'))) { throw 'file added in 2.0.0 is missing' }
           if (Test-Path (Join-Path $folder 'old-only.txt')) { throw 'file that 2.0.0 no longer ships was left behind' }
           if ((Get-Content (Join-Path $folder 'user-note.txt') -Raw).Trim() -ne 'keep me') { throw 'user file lost' }
