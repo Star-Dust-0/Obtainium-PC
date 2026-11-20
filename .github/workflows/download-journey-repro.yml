@@ -261,7 +261,7 @@ jobs:
 
           $dlDir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
           function PartInfo() {
-            $x = Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*slowtool*' }
+            $x = Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*slowtool*' }
             if (-not $x) { return 'no slowtool files' }
             return (($x | ForEach-Object { "$($_.Name)=$($_.Length)" }) -join ', ')
           }
@@ -366,7 +366,7 @@ jobs:
           Start-Sleep 3
           "part after keep: $p1 -> $(PartInfo)"
           AssertAlive 'after-keep'
-          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Recurse -File -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           Start-Sleep 3
           Shot 'd7-after-complete'
           "after complete: $(PartInfo)"
@@ -386,7 +386,7 @@ jobs:
           $aj = Get-Content $af -Raw | ConvertFrom-Json
           foreach ($a in $aj) { if ($a.id -eq 'seed-slow') { $a.installedVersion = '0'; $a.installedVersionSource = $null } }
           ConvertTo-Json -InputObject @($aj) -Depth 8 | Set-Content $af
-          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
           $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
@@ -417,7 +417,7 @@ jobs:
           $sj = Get-Content $sf -Raw | ConvertFrom-Json
           $sj | Add-Member -NotePropertyName TrayIcon -NotePropertyValue $true -Force
           ($sj | ConvertTo-Json) | Set-Content $sf
-          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
           $p.Refresh(); "tray run alive: $(-not $p.HasExited)"
@@ -444,13 +444,13 @@ jobs:
           "tray/overflow elements named Obtainium: $($tn -join ' | ')"
           Start-Sleep 5
           "part 5s later: $(PartInfo)"
-          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Recurse -File -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           "download finished while window hidden: $(PartInfo)"
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
           "== D8: server drops mid-download -> Failed row -> Retry from the flyout; Alt+F4 with tray on =="
           Get-Process | Where-Object { $_.Path -and $_.Path -like '*ObtainiumPC*slowtool*' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep 2
-          Get-ChildItem $dlDir -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-          "dir [D8 before launch, after clear]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          "dir [D8 before launch, after clear]: $((Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
           $p = Start-Process $exe -PassThru
           Start-Sleep 25
           $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $p.Id)
@@ -460,14 +460,14 @@ jobs:
           Start-Sleep 3
           StartDownload
           Start-Sleep 4
-          "dir [D8 download running, before server kill]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          "dir [D8 download running, before server kill]: $((Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
           $own = @(Get-NetTCPConnection -LocalPort 8099 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
           "server pids on 8099: $($own -join ',')"
           foreach ($o in $own) { Stop-Process -Id $o -Force -ErrorAction SilentlyContinue }
           Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           $failedSeen = ''
           foreach ($i in 1..60) { Start-Sleep 3; $failedSeen = TextsLike '*ailed*'; if ($failedSeen) { "failure shown after ~$($i*3)s: $failedSeen"; break } }
-          "dir [D8 after failure]: $((Get-ChildItem $dlDir -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
+          "dir [D8 after failure]: $((Get-ChildItem $dlDir -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { '{0} {1} {2:HH:mm:ss}' -f $_.Name, $_.Length, $_.LastWriteTime }) -join ' ; ') at $(Get-Date -Format HH:mm:ss)"
           "part after server drop: $(PartInfo)"
           Shot 'd12-failed-strip'
           "clicked Downloads: $(ClickByName 'Downloads' $win)"
@@ -480,7 +480,7 @@ jobs:
           Start-Sleep 4
           Shot 'd14-after-retry'
           "after retry: $(TextsLike 'Downloading*') ; $(PartInfo)"
-          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
+          foreach ($i in 1..40) { Start-Sleep 2; if ((Get-ChildItem $dlDir -Recurse -File -Filter '*slowtool.exe' -ErrorAction SilentlyContinue)) { break } }
           "retry finished: $(PartInfo)"
           [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep 1
           try { $win.SetFocus() } catch { 'SetFocus failed' }; Start-Sleep 1

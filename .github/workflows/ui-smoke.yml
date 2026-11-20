@@ -368,7 +368,7 @@ jobs:
           $file = $null
           foreach ($i in 1..40) {
             Start-Sleep 3
-            $file = Get-ChildItem $dlDir -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            $file = Get-ChildItem $dlDir -Recurse -File -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($file -and $file.Length -gt 1000000) { break }
           }
           AssertAlive 'download'; Shot '11-download-complete'
@@ -791,7 +791,7 @@ jobs:
           $shFile = $null
           foreach ($i in 1..40) {
             Start-Sleep 3
-            $shFile = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter 'Shuck*1.0.1*setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            $shFile = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Recurse -File -Filter 'Shuck*1.0.1*setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($shFile -and $shFile.Length -gt 1000000) { break }
           }
           if (-not $shFile) { Shot 'shuck-update-no-download'; throw 'Shuck update download did not produce the 1.0.1 installer' }
@@ -1209,11 +1209,11 @@ jobs:
           $done = $false
           foreach ($w in 1..15) {
             Start-Sleep 6
-            $zf = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.zip -ErrorAction SilentlyContinue
+            $zf = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Recurse -File -Filter *.zip -ErrorAction SilentlyContinue
             if ($zf -and $zf.Count -gt 0) { Start-Sleep 3; $done = $true; break }
           }
           if (-not $done) { Shot 'track-only-download-timeout'; throw 'zip download did not complete' }
-          $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Filter *.zip -ErrorAction SilentlyContinue
+          $apkFiles = Get-ChildItem (Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC') -Recurse -File -Filter *.zip -ErrorAction SilentlyContinue
           if ($apkFiles.Count -eq 0) { Shot 'track-only-file-missing'; throw 'downloaded zip not found in the downloads folder' }
           Shot '28g-track-only-apk-downloaded'
 

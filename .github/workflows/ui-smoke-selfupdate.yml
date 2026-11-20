@@ -279,7 +279,7 @@ jobs:
           $file = $null
           foreach ($i in 1..40) {
             Start-Sleep 3
-            $file = Get-ChildItem $dlDir -Filter 'ObtainiumPC-Setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            $file = Get-ChildItem $dlDir -Recurse -File -Filter 'ObtainiumPC-Setup*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($file -and $file.Length -gt 1000000) { break }
           }
           if (-not $file) { throw 'installer was not downloaded' }
