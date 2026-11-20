@@ -1491,8 +1491,11 @@ jobs:
             if ($yes -ne $null) { $acc = $false; try { $yes.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $acc = $true } catch { 'Yes invoke failed: ' + $_.Exception.Message }; if (-not $acc) { [System.Windows.Forms.SendKeys]::SendWait('%y') }; 'overwrite confirmation accepted'; break }
           }
           $exportDone = $false
-          foreach ($i in 1..20) {
+          foreach ($i in 1..30) {
             Start-Sleep 1
+            # The credentials warning (always shown for the complete export) appears after the picker closes.
+            $cont = FindNamed 'Continue' $root
+            if ($cont -ne $null) { try { $cont.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); 'credentials warning confirmed' } catch { 'Continue invoke failed: ' + $_.Exception.Message } }
             foreach ($el in $win3.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
               if ($el.Current.Name -eq 'Export complete') { $exportDone = $true; break }
             }
