@@ -15,14 +15,7 @@ public static class DownloadCoordinator
 {
     /// True only when the URL's real host is GitHub (never a lookalike such as github.com.evil.com
     /// or a URL that merely contains the text in its query), so the PAT is not sent elsewhere.
-    public static bool IsGitHubHost(string url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
-        if (u.Scheme != Uri.UriSchemeHttps && u.Scheme != Uri.UriSchemeHttp) return false;
-        var h = u.Host.ToLowerInvariant();
-        return h == "github.com" || h.EndsWith(".github.com")
-            || h == "githubusercontent.com" || h.EndsWith(".githubusercontent.com");
-    }
+    public static bool IsGitHubHost(string url) => DownloadService.IsGitHubHost(url);
 
     public static async Task<DownloadResult> FetchAsync(TrackedApp app, KeyValuePair<string, string> asset,
         DownloadEntry entry, IProgress<(long Received, long? Total)>? ui = null)

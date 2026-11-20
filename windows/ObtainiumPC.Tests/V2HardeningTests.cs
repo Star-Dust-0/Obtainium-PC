@@ -372,3 +372,18 @@ public class V2SmallFixTests
         => Assert.Equal(expected, ObtainiumPC.Services.Settings.AppSettings.CleanPrefix(input));
 }
 
+public class V2TokenHostTests
+{
+    [Theory]
+    [InlineData("https://github.com/a/b/releases/download/v1/x.zip", true)]
+    [InlineData("https://objects.githubusercontent.com/x", true)]
+    [InlineData("https://api.github.com/repos/a/b", true)]
+    [InlineData("https://github.com.evil.com/x", false)]
+    [InlineData("https://evil.com/?x=github.com", false)]
+    [InlineData("https://evilgithub.com/x", false)]
+    [InlineData("ftp://github.com/x", false)]
+    [InlineData("not a url", false)]
+    public void The_token_goes_only_to_real_GitHub_hosts(string url, bool expected)
+        => Assert.Equal(expected, ObtainiumPC.Services.Download.DownloadService.IsGitHubHost(url));
+}
+

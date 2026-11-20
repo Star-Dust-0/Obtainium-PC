@@ -171,7 +171,7 @@ public sealed class DownloadService
         for (var hop = 0; hop < 10; hop++)
         {
             var currentUri = new Uri(current);
-            var token = DownloadCoordinator.IsGitHubHost(current) ? personalAccessToken : null;
+            var token = IsGitHubHost(current) ? personalAccessToken : null;
             var headers = string.Equals(currentUri.Host, originalHost, StringComparison.OrdinalIgnoreCase) ? extraHeaders : null;
             using var req = BuildRequest(current, token, headers);
             req.Method = method;
@@ -338,6 +338,16 @@ public sealed class DownloadService
     {
         var expected = ExpectedSha256(checksumText, fileName, sumAssetName);
         return expected != null && !expected.Equals(Sha256Of(path), StringComparison.Ordinal);
+    }
+
+    /// True only when the URL's real host is GitHub (never a lookalike or a URL that merely contains the text).
+    public static bool IsGitHubHost(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
+        if (u.Scheme != Uri.UriSchemeHttps && u.Scheme != Uri.UriSchemeHttp) return false;
+        var h = u.Host.ToLowerInvariant();
+        return h == "github.com" || h.EndsWith(".github.com")
+            || h == "githubusercontent.com" || h.EndsWith(".githubusercontent.com");
     }
 
     internal static string Sanitize(string fileName)
