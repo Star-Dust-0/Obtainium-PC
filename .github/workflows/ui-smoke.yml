@@ -428,9 +428,38 @@ jobs:
           ClickNamed 'Options' 'Notepad++ options'
           Start-Sleep 2; AssertAlive 'options'; Shot '10-app-options'
 
+          # Targeted: an option typed into a text box is saved without leaving the box (no blur), and leaving
+          # the page after a change re-checks the app.
+          $appsFile = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          function ReadNpp { (Get-Content $appsFile -Raw | ConvertFrom-Json) | Where-Object { $_.url -like '*notepad-plus-plus*' } | Select-Object -First 1 }
+          $nppBefore = ReadNpp
+          $editCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+          $edit = $null
+          foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $editCond)) {
+            if ($e.Current.Name -match 'regular expression|regex' -and $e.Current.Name -notmatch 'version') { $edit = $e; break }
+          }
+          if ($edit -eq $null) { DumpNames $win 'options-edits'; throw 'options page: no filter text box found' }
+          "options edit: $($edit.Current.Name)"
+          $vp = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+          $vp.SetValue('zz-smoke-typed')
+          Start-Sleep 3   # focus stays in the box; the debounced save must have written it
+          $typed = ReadNpp
+          if ($typed.additionalSettings -notlike '*zz-smoke-typed*') { Shot 'options-typed-not-saved'; throw 'options: text typed without leaving the box was not saved' }
+          'options: typed value saved without blur'
+          $vp.SetValue('')
+          Start-Sleep 3
+          $cleared = ReadNpp
+          if ($cleared.additionalSettings -like '*zz-smoke-typed*') { Shot 'options-clear-not-saved'; throw 'options: clearing the text box was not saved' }
+          'options: cleared value saved'
+          $script:nppChecked = $nppBefore.lastUpdateCheck
+
           # Settings scrolled capture (best effort) and theme persistence.
           ClickNamed 'Settings' 'Theme'
           Start-Sleep 2
+          $recheckOk = $false
+          for ($i = 0; $i -lt 30 -and -not $recheckOk; $i++) { $n2 = ReadNpp; if ($n2.lastUpdateCheck -gt $script:nppChecked) { $recheckOk = $true } else { Start-Sleep 2 } }
+          if (-not $recheckOk) { Shot 'options-no-recheck'; throw 'options: leaving the page after a change did not re-check the app (lastUpdateCheck unchanged for 60 s)' }
+          'options: re-check ran after leaving the page'
           try {
             $allEls = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
             foreach ($el in $allEls) {

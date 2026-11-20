@@ -166,7 +166,7 @@ jobs:
             }
           }
           function AssertAlive($tag) { $p.Refresh(); if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" } }
-          function PickAndDownload($zipName) {
+          function PickAndDownload($zipName, [switch]$ExpectFailure) {
             ClickNamedIn 'Update' $win
             Start-Sleep 3
             $dlg = FindNamed 'Choose a file' $root
@@ -185,6 +185,11 @@ jobs:
             Shot 'z1-picker'
             Start-Sleep 1
             ClickNamedIn 'Download' $root
+            if ($ExpectFailure) {
+              # The merge cannot replace a locked file: no 'Extracted' dialog may appear.
+              foreach ($i in 1..10) { Start-Sleep 3; if ((FindNamed 'Extracted' $root) -ne $null) { Shot 'failed-upgrade-reported-success'; throw 'a failed upgrade was reported as extracted' } }
+              return
+            }
             $ext = $null
             foreach ($i in 1..40) {
               Start-Sleep 3
@@ -193,6 +198,11 @@ jobs:
             }
             if ($ext -eq $null) { Shot 'zip-no-extracted-dialog'; throw 'no Extracted dialog after the zip download' }
             Shot 'z2-extracted-dialog'
+            $script:dialogText = ''
+            foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.Name -like '*extracted to:*') { $script:dialogText = $el.Current.Name; break }
+            }
+            "extracted dialog text: [$script:dialogText]"
             ClickNamedIn 'OK' $root
             Start-Sleep 2
           }
@@ -241,7 +251,26 @@ jobs:
           "before the upgrade: $(Installed) | $lat"
           if ($lat -notlike '*2.0.0*') { Shot 'v2-latest-wrong'; throw "latest is not 2.0.0 (got: $lat)" }
           Shot 'v2-before-upgrade'
+          # ---- 2a. failed upgrade: a locked file must roll the folder back to exactly 1.0.0 ----
+          $cfgBefore = Get-Content (Join-Path $folder 'config.ini') -Raw
+          $exeBefore = (Get-Item (Join-Path $folder 'myapp.exe')).Length
+          $lock = [IO.File]::Open((Join-Path $folder 'run.txt'), 'Open', 'Read', 'Read')
+          try { PickAndDownload $zipName -ExpectFailure } finally { $lock.Dispose() }
+          ShotWin 'v2-failed-upgrade-window'
+          "after failed upgrade: installed=$(Installed)"
+          if ((Get-Content (Join-Path $folder 'run.txt') -Raw).Trim() -ne 'v1') { throw 'rollback: run.txt is not v1 after the failed upgrade' }
+          if ((Get-Item (Join-Path $folder 'myapp.exe')).Length -ne $exeBefore) { throw 'rollback: myapp.exe changed after the failed upgrade' }
+          if ((Get-Content (Join-Path $folder 'config.ini') -Raw) -ne $cfgBefore) { throw 'rollback: config.ini changed after the failed upgrade' }
+          if (Test-Path (Join-Path $folder 'new.txt')) { throw 'rollback: a v2 file was left behind' }
+          if (-not (Test-Path (Join-Path $folder 'old-only.txt'))) { throw 'rollback: a v1 file was lost' }
+          if ((Installed) -notlike '*1.0.0*') { throw 'rollback: the app no longer records 1.0.0 after the failed upgrade' }
+          $leftovers = @(Get-ChildItem 'C:\Obtainium' -Force | Where-Object { $_.Name -like '.staging-*' })
+          if ($leftovers.Count -ne 0) { throw "rollback: staging folder left behind: $($leftovers.Name -join ', ')" }
+          'failed upgrade rolled back to 1.0.0 intact'
+          # ---- 2b. the same upgrade without the lock succeeds ----
           PickAndDownload $zipName
+          if ($script:dialogText -notlike '*config.ini*' -or $script:dialogText -notlike '*kept*') { throw "the extraction dialog did not list the kept user-edited config.ini (text: $script:dialogText)" }
+          'kept-files list shown in the dialog'
           Snap 'after 2.0.0'
           # Automatic export is complete (credentials included) and holds the app; synthetic token only.
           Start-Sleep 5
