@@ -17,7 +17,7 @@ namespace ObtainiumPC.Pages
             // Persisted like upstream settings_provider exportSettings; the
             // same level drives auto-export on changes.
             ExportLevelCombo.SelectedIndex = App.Settings.ExportSettingsLevel;
-            ExportSecretsWarning.IsOpen = App.Settings.ExportSettingsLevel >= 2;
+            ExportSecretsWarning.IsOpen = true; // every export is complete, credentials included
             ExportLevelCombo.SelectionChanged += (_, _) =>
             {
                 if (ExportLevelCombo.SelectedIndex >= 0)
@@ -27,7 +27,7 @@ namespace ObtainiumPC.Pages
                     // Level 2 stays tied to this explicit selection; the warning
                     // (upstream exportIncludesSecretsWarning) stays visible while
                     // it is selected, and it also covers auto-export-on-changes.
-                    ExportSecretsWarning.IsOpen = ExportLevelCombo.SelectedIndex >= 2;
+                    ExportSecretsWarning.IsOpen = true;
                 }
             };
             Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
@@ -67,7 +67,9 @@ namespace ObtainiumPC.Pages
             var file = await picker.PickSaveFileAsync();
             if (file == null) return;
 
-            var level = ExportLevelCombo.SelectedIndex; // 0 apps, 1 +settings, 2 +creds
+            // A manual export is always complete and restorable, credentials included (owner decision 2026-11-20).
+            // The old level selector is hidden; no export strips anything.
+            var level = 2;
             // lib/pages/import_export.dart runObtainiumExport: a secrets-level
             // export re-confirms every time.
             if (level >= 2)
@@ -93,7 +95,7 @@ namespace ObtainiumPC.Pages
             var toExport = App.Settings.ExportInstalledOnly
                 ? App.SnapshotApps().Where(a => a.InstalledVersion != null).ToList()
                 : App.SnapshotApps();
-            var json = Services.Store.AppStore.Export(toExport, settings, level, Services.Updates.SelfUpdate.RunningVersion());
+            var json = Services.Store.AppStore.Export(toExport, settings, level, Services.Updates.SelfUpdate.RunningVersion(), complete: true);
             // The auto-export target and this manual target can be the same file. Then both
             // writers go through the same serialized, atomic path so neither can truncate or
             // interleave with the other; otherwise keep the picker-granted write.

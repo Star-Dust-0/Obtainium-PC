@@ -127,11 +127,11 @@ public sealed class AppStore
     /// Builds an Obtainium export document. exportLevel: 0 = apps only, 1 = with
     /// settings (credentials stripped), 2 = with settings incl. credentials.
     /// </summary>
-    public static string Export(IEnumerable<TrackedApp> apps, Dictionary<string, object?>? settings, int exportLevel, string appVersion)
+    public static string Export(IEnumerable<TrackedApp> apps, Dictionary<string, object?>? settings, int exportLevel, string appVersion, bool complete = false)
     {
-        // Owner decision (2026-11-20): an export is always complete and restorable, including credentials,
-        // tokens and request headers; the level argument is kept for callers but no longer removes anything.
-        exportLevel = 2;
+        // Owner decision (2026-11-20): a manual export is complete and restorable (credentials, tokens, headers).
+        // Callers ask for that with complete: true; the automatic export keeps using the chosen level.
+        if (complete) exportLevel = 2;
         var appList = new List<Dictionary<string, JsonElement>>();
         foreach (var app in apps)
         {

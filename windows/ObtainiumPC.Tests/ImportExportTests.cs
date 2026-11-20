@@ -74,7 +74,7 @@ public class ImportExportTests
     }
 
     [Fact]
-    public void Export_is_complete_at_every_level_with_synthetic_credentials_and_roundtrips()
+    public void Complete_export_includes_credentials_at_every_level_and_roundtrips_synthetic_secrets()
     {
         var settings = new Dictionary<string, object?>
         {
@@ -84,7 +84,7 @@ public class ImportExportTests
         };
         foreach (var level in new[] { 0, 1, 2 })
         {
-            var json = AppStore.Export(new[] { SampleApp() }, settings, level, "1.0.0-test");
+            var json = AppStore.Export(new[] { SampleApp() }, settings, level, "1.0.0-test", complete: true);
             Assert.Contains("synthetic-gh-token", json);
             Assert.Contains("synthetic-gl-token", json);
             var (apps, hasSettings, imported) = AppStore.Import(json);

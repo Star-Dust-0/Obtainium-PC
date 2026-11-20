@@ -250,14 +250,14 @@ namespace ObtainiumPC
                     // Upstream auto-export uses the persisted exportSettings
                     // level (apps_provider_import_export.dart generateExportJSON);
                     // AppStore.Export strips credentials below level 2.
-                    var level = Settings.ExportSettingsLevel;
+                    // Owner decision 2026-11-20: automatic exports are complete and restorable too (credentials included).
+                    var level = 2;
                     System.Collections.Generic.Dictionary<string, object?>? settings = null;
-                    if (level > 0)
                     {
                         var el = System.Text.Json.JsonSerializer.SerializeToElement(Settings);
                         settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
                     }
-                    var json = Services.Store.AppStore.Export(SnapshotApps(), settings, level, Services.Updates.SelfUpdate.RunningVersion());
+                    var json = Services.Store.AppStore.Export(SnapshotApps(), settings, level, Services.Updates.SelfUpdate.RunningVersion(), complete: true);
                     Services.Store.AppStore.WriteFileAtomic(Settings.AutoExportPath!, json);
                 }
                 catch (Exception ex)
