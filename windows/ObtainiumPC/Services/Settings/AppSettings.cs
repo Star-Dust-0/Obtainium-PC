@@ -119,7 +119,7 @@ public sealed class AppSettings
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                return FromDisk(File.ReadAllText(FilePath));
         }
         catch (Exception e)
         {
@@ -149,10 +149,30 @@ public sealed class AppSettings
         {
             Directory.CreateDirectory(Dir);
             var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(tmp, ToDisk());
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
         }
+    }
+
+    /// Tokens are encrypted with the Windows user's DPAPI key in settings.json only. In memory
+    /// (and so in every export) they stay in clear: an export has to restore on another machine.
+    internal string ToDisk()
+    {
+        var copy = (AppSettings)MemberwiseClone();
+        copy.GitHubPersonalAccessToken = SecretProtector.Protect(GitHubPersonalAccessToken);
+        copy.GitLabPersonalAccessToken = SecretProtector.Protect(GitLabPersonalAccessToken);
+        copy.ForgejoPersonalAccessToken = SecretProtector.Protect(ForgejoPersonalAccessToken);
+        return JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    internal static AppSettings FromDisk(string json)
+    {
+        var s = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+        s.GitHubPersonalAccessToken = SecretProtector.Unprotect(s.GitHubPersonalAccessToken);
+        s.GitLabPersonalAccessToken = SecretProtector.Unprotect(s.GitLabPersonalAccessToken);
+        s.ForgejoPersonalAccessToken = SecretProtector.Unprotect(s.ForgejoPersonalAccessToken);
+        return s;
     }
 
     // Saves come from the UI thread and from background checks; one tmp file must not be shared by two writers.
@@ -169,5 +189,34 @@ public sealed class AppSettings
             if (t.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) { t = t.Substring(scheme.Length); break; }
         t = t.TrimEnd('/');
         return t.Length == 0 ? null : t;
+    }
+}
+
+
+/// DPAPI (current user) protection for stored tokens. Values written by older versions are plain
+/// text and are read as they are; they are encrypted on the next save. A value that cannot be
+/// decrypted (another Windows account or machine) reads as empty so the user is asked for it again.
+internal static class SecretProtector
+{
+    private const string Prefix = "dpapi1:";
+
+    public static string? Protect(string? plain)
+    {
+        if (string.IsNullOrEmpty(plain) || plain.StartsWith(Prefix, StringComparison.Ordinal)) return plain;
+        var bytes = System.Security.Cryptography.ProtectedData.Protect(
+            System.Text.Encoding.UTF8.GetBytes(plain), null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+        return Prefix + Convert.ToBase64String(bytes);
+    }
+
+    public static string? Unprotect(string? stored)
+    {
+        if (string.IsNullOrEmpty(stored) || !stored.StartsWith(Prefix, StringComparison.Ordinal)) return stored;
+        try
+        {
+            var plain = System.Security.Cryptography.ProtectedData.Unprotect(
+                Convert.FromBase64String(stored.Substring(Prefix.Length)), null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            return System.Text.Encoding.UTF8.GetString(plain);
+        }
+        catch (Exception) { return null; }
     }
 }
