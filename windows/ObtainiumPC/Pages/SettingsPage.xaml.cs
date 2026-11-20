@@ -277,9 +277,20 @@ namespace ObtainiumPC.Pages
         }
         private void RepoRenameToggle_Toggled(object sender, RoutedEventArgs e) { App.Settings.GitHubCheckRepoRename = RepoRenameToggle.IsOn; Save(); }
 
-        private void GlobalVersionRegexBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GlobalVersionExtractionRegEx = EmptyToNull(GlobalVersionRegexBox.Text); Save(); }
+        private static bool ValidRegex(string? text, TextBox box)
+        {
+            var v = EmptyToNull(text ?? "");
+            if (v == null) { box.ClearValue(Control.BorderBrushProperty); return true; }
+            try { _ = ObtainiumPC.Services.Versioning.UserRegex.Create(v); box.ClearValue(Control.BorderBrushProperty); return true; }
+            catch (ArgumentException)
+            {
+                box.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.IndianRed);
+                return false;
+            }
+        }
+        private void GlobalVersionRegexBox_LostFocus(object sender, RoutedEventArgs e) { if (!ValidRegex(GlobalVersionRegexBox.Text, GlobalVersionRegexBox)) return; App.Settings.GlobalVersionExtractionRegEx = EmptyToNull(GlobalVersionRegexBox.Text); Save(); }
         private void GlobalMatchGroupBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GlobalMatchGroupToUse = EmptyToNull(GlobalMatchGroupBox.Text); Save(); }
-        private void GlobalAssetFilterBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GlobalAssetFilterRegEx = EmptyToNull(GlobalAssetFilterBox.Text); Save(); }
+        private void GlobalAssetFilterBox_LostFocus(object sender, RoutedEventArgs e) { if (!ValidRegex(GlobalAssetFilterBox.Text, GlobalAssetFilterBox)) return; App.Settings.GlobalAssetFilterRegEx = EmptyToNull(GlobalAssetFilterBox.Text); Save(); }
         private void GitHubPatBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GitHubPersonalAccessToken = EmptyToNull(GitHubPatBox.Password); Save(); }
         private void GhReqPrefixBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GitHubReqPrefix = EmptyToNull(GhReqPrefixBox.Text); Save(); }
 

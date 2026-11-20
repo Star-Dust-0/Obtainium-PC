@@ -502,8 +502,12 @@ namespace ObtainiumPC.Pages
                 var batchDone = false;
                 dlg.Closed += (_, _) => { if (!batchDone) foreach (var (a, _) in picks) Services.Download.DownloadRegistry.Get(a.Id)?.Cancel(); };
                 var showAll = dlg.ShowAsync();
+                // At most 4 downloads at once: a large bulk update must not open dozens of connections.
+                var slots = new System.Threading.SemaphoreSlim(4);
                 await Task.WhenAll(picks.Select(async p =>
                 {
+                    await slots.WaitAsync();
+                    try {
                     var bar = bars[p.App.Id];
                     var progress = new Progress<(long Received, long? Total)>(pr =>
                     {
@@ -511,6 +515,7 @@ namespace ObtainiumPC.Pages
                     });
                     try { await DownloadOneAsync(p.App, p.Asset, progress); }
                     catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T)); }
+                    } finally { slots.Release(); }
                 }));
                 batchDone = true;
                 dlg.Hide();

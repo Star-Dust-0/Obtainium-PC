@@ -329,3 +329,15 @@ public class V2InPlaceUpdateTests : IDisposable
     }
 }
 
+public class V2ChecksumTests
+{
+    private static readonly string H = new string('a', 64);
+
+    [Fact]
+    public void A_bare_hash_file_is_used_only_when_named_after_the_file()
+    {
+        Assert.Equal(H, ObtainiumPC.Services.Download.DownloadService.ExpectedSha256(H + "\n", "app.zip", "app.zip.sha256"));
+        Assert.Null(ObtainiumPC.Services.Download.DownloadService.ExpectedSha256(H + "\n", "app.zip", "other.zip.sha256"));
+    }
+}
+

@@ -145,12 +145,18 @@ public sealed class AppSettings
                 (LoadBackupPath != null ? " Preserved copy: " + LoadBackupPath : ""));
             return;
         }
-        Directory.CreateDirectory(Dir);
-        var tmp = FilePath + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-        if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
-        else File.Move(tmp, FilePath);
+        lock (SaveLock)
+        {
+            Directory.CreateDirectory(Dir);
+            var tmp = FilePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+            else File.Move(tmp, FilePath);
+        }
     }
+
+    // Saves come from the UI thread and from background checks; one tmp file must not be shared by two writers.
+    private static readonly object SaveLock = new();
 
     public static string DataDir => Dir;
 }

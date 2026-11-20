@@ -20,6 +20,10 @@ public sealed record InstalledAppInfo(
 /// </summary>
 public static class InstalledAppsService
 {
+    // Explicit 64-bit views: the 32-bit app list is read from WOW6432Node by name, so the result no
+    // longer depends on whether this process is 32-bit or 64-bit.
+    private static readonly RegistryKey Hklm64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+    private static readonly RegistryKey Hkcu64 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64);
     private static readonly Regex NonAlnum = new("[^a-z0-9]+", RegexOptions.Compiled);
 
     // "+" is spelled out so "notepad-plus-plus" (repository name) and
@@ -42,9 +46,9 @@ public static class InstalledAppsService
         if (!OperatingSystem.IsWindows()) return new InstalledAppsProbe(new List<InstalledAppInfo>(), false);
         var results = new List<InstalledAppInfo>();
         var ok = true;
-        ok &= ReadHive(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ok &= ReadHive(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ok &= ReadHive(Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ok &= ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ok &= ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ok &= ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
         return new InstalledAppsProbe(results, ok);
     }
 
@@ -52,9 +56,9 @@ public static class InstalledAppsService
     {
         var results = new List<InstalledAppInfo>();
         if (!OperatingSystem.IsWindows()) return results;
-        ReadHive(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ReadHive(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
-        ReadHive(Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
+        ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
         return results;
     }
 

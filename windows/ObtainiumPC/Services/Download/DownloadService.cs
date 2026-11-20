@@ -249,8 +249,8 @@ public sealed class DownloadService
             var text = await fetchText(sum.Value, ct);
             if (text == null) continue; // unavailable: cannot verify with this file
             anyFetched = true;
-            if (ExpectedSha256(text, fileName) == null) continue; // does not list this file
-            if (ChecksumMismatch(path, fileName, text))
+            if (ExpectedSha256(text, fileName, sum.Key) == null) continue; // does not list this file
+            if (ChecksumMismatch(path, fileName, text, sum.Key))
             {
                 TryDelete(path);
                 throw new InvalidDataException("The downloaded file does not match the published SHA-256 checksum.");
@@ -310,7 +310,9 @@ public sealed class DownloadService
 
     /// Finds the expected SHA-256 for fileName in checksum-file text
     /// ("<hex>  name" / "<hex> *name" lines, or a bare hash file).
-    public static string? ExpectedSha256(string checksumText, string fileName)
+    /// A bare single-hash file is accepted only when the checksum asset is named after this file
+    /// (sumAssetName given): in a multi-asset release it would otherwise be matched to the wrong file.
+    public static string? ExpectedSha256(string checksumText, string fileName, string? sumAssetName = null)
     {
         var lines = checksumText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var line in lines)
@@ -319,7 +321,8 @@ public sealed class DownloadService
             if (m.Success && Path.GetFileName(m.Groups[2].Value.Trim()).Equals(fileName, StringComparison.OrdinalIgnoreCase))
                 return m.Groups[1].Value.ToLowerInvariant();
         }
-        if (lines.Length == 1 && System.Text.RegularExpressions.Regex.IsMatch(lines[0], @"^[0-9a-fA-F]{64}$"))
+        if (lines.Length == 1 && System.Text.RegularExpressions.Regex.IsMatch(lines[0], @"^[0-9a-fA-F]{64}$")
+            && (sumAssetName == null || sumAssetName.Contains(fileName, StringComparison.OrdinalIgnoreCase)))
             return lines[0].ToLowerInvariant();
         return null;
     }
@@ -331,9 +334,9 @@ public sealed class DownloadService
     }
 
     /// True when a checksum file lists this asset and the hash differs.
-    public static bool ChecksumMismatch(string path, string fileName, string checksumText)
+    public static bool ChecksumMismatch(string path, string fileName, string checksumText, string? sumAssetName = null)
     {
-        var expected = ExpectedSha256(checksumText, fileName);
+        var expected = ExpectedSha256(checksumText, fileName, sumAssetName);
         return expected != null && !expected.Equals(Sha256Of(path), StringComparison.Ordinal);
     }
 
