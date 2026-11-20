@@ -38,21 +38,21 @@ jobs:
         run: |
           actual=$(git rev-parse HEAD)
           echo "CHECKED-OUT SHA: $actual (ref input: '${{ inputs.ref }}')"
-          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44781311892' }} --jq .head_sha)
-          echo "BUILD RUN ${{ inputs.build_run_id || '44781311892' }} head_sha: $run_sha"
-          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44781311892' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
+          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44786249245' }} --jq .head_sha)
+          echo "BUILD RUN ${{ inputs.build_run_id || '44786249245' }} head_sha: $run_sha"
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44786249245' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
           if [ "$actual" != "$run_sha" ]; then echo "NOTE: harness commit differs from the build run commit (harness-only changes)"; fi
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-Setup-win-x64
           path: pkg/setup
-          run-id: ${{ inputs.build_run_id || '44781311892' }}
+          run-id: ${{ inputs.build_run_id || '44786249245' }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-win-x64
           path: pkg/portable
-          run-id: ${{ inputs.build_run_id || '44781311892' }}
+          run-id: ${{ inputs.build_run_id || '44786249245' }}
           github-token: ${{ github.token }}
       - name: Hash the candidate package and install it
         shell: pwsh
@@ -321,6 +321,39 @@ jobs:
           "seed-c url after confirming: $cAfter"
           if ($cAfter -notlike '*/other/index.html') { throw 'confirming the deep-link import did not apply the new URL' }
           'deep-link URL change: listed in the dialog, cancel changes nothing, confirm applies it'
+
+          # --- B2. manual link to an installed program (appC has no update; the installed Obtainium-PC is the program) ---
+          ClickNamedIn 'Apps' $win
+          Start-Sleep 2
+          ClickPartial 'appC' $win | Out-Null
+          Start-Sleep 3
+          $lk = FindNamed 'Link to installed program' $win
+          if ($lk -eq $null) { ClickNamedIn '...' $win; Start-Sleep 1; $lk = FindNamed 'Link to installed program' $root }
+          if ($lk -eq $null) { DumpNames $win 'detail-c'; Shot 's1-link-button-missing'; throw 'Link to installed program button not found' }
+          try { $lk.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickNamedIn 'Link to installed program' $root }
+          Start-Sleep 3
+          $flt = $null
+          foreach ($e in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))) { if ($e.Current.Name -like '*Search installed programs*') { $flt = $e; break } }
+          if ($flt -eq $null) { Shot 's1-link-dialog-missing'; throw 'link dialog search box not found' }
+          $flt.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Obtainium')
+          Start-Sleep 2
+          $row = $null
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Obtainium*' -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem) { $row = $el; break } }
+          if ($row -eq $null) { DumpNames $root 'link-dialog'; Shot 's1-link-row-missing'; throw 'the installed Obtainium-PC program is not listed in the link dialog' }
+          "link row: $($row.Current.Name)"
+          try { $row.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { $r = $row.Current.BoundingRectangle; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2)); Start-Sleep -Milliseconds 300; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }
+          Start-Sleep 1
+          Shot 's1-link-dialog'
+          (FindNamed 'Link' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 3
+          $regV = (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Obtainium-PC' } | Select-Object -First 1)
+          $cApp = ReadApps | Where-Object { $_.id -eq 'seed-c' }
+          "seed-c after the link: installedVersion=$($cApp.installedVersion) source=$($cApp.installedVersionSource) osMatchedName=$($cApp.osMatchedName) settings=$($cApp.additionalSettings)"
+          "registry version of Obtainium-PC: $($regV.DisplayVersion)"
+          if ($cApp.installedVersion -ne $regV.DisplayVersion) { Shot 's1-link-version'; throw 'the linked app does not carry the program version' }
+          if ($cApp.additionalSettings -notlike '*installedKeyName*') { throw 'the program key was not remembered' }
+          ShotWin 's1-link-done'
+          'manual link: program picked, version and key recorded'
 
           # --- C. bulk install of two apps: installers must run one after the other ---
           ClickNamedIn 'Apps' $win
