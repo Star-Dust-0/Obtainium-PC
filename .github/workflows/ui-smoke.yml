@@ -1462,7 +1462,7 @@ jobs:
           $beforeWrite = (Get-Item $autoPath).LastWriteTimeUtc
           ClickNamedIn 'Import / Export' $win3
           Start-Sleep 3
-          ClickNamedIn 'Export to file...' $win3
+          ClickNamedIn 'Export to file (complete, with credentials)...' $win3
           $fnEdit = $null
           foreach ($i in 1..20) {
             Start-Sleep 1
@@ -1486,7 +1486,7 @@ jobs:
             Start-Sleep 1
             $yes = $null
             foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-              if ($el.Current.Name -eq 'Yes') { $yes = $el; break }
+              if ($el.Current.Name -eq 'Yes' -or $el.Current.Name -eq 'Continue') { $yes = $el; break }
             }
             if ($yes -ne $null) { $acc = $false; try { $yes.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $acc = $true } catch { 'Yes invoke failed: ' + $_.Exception.Message }; if (-not $acc) { [System.Windows.Forms.SendKeys]::SendWait('%y') }; 'overwrite confirmation accepted'; break }
           }
