@@ -560,8 +560,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
         {
             if (_app == null || !CanDetectInstalled()) return false;
             // A manual detect must read the registry now, not a result cached up to 3 s ago (before the install finished).
-            Services.Detection.InstalledAppsService.InvalidateCache();
-            var match = Services.Detection.InstalledAppsService.FindMatchFor(_app);
+            var match = Services.Detection.InstalledAppsService.RefreshAndFindMatchFor(_app);
             if (match is not { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong })
                 return false;
             if (string.IsNullOrEmpty(match.Info.DisplayVersion)) return false;

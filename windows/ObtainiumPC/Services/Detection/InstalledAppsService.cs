@@ -54,16 +54,21 @@ public static class InstalledAppsService
 
     public static IReadOnlyList<InstalledAppInfo> ListInstalledApps()
     {
-        if (!OperatingSystem.IsWindows()) return new List<InstalledAppInfo>();
+        var reader = ReaderOverride;
+        if (reader == null && !OperatingSystem.IsWindows()) return new List<InstalledAppInfo>();
         lock (CacheGate)
         {
             // Every match used to re-read three registry hives; a burst of matches (list refresh,
             // install watcher) now shares one read for a few seconds.
             if (_cache != null && DateTimeOffset.Now - _cacheAt < CacheTtl) return _cache;
             var results = new List<InstalledAppInfo>();
-            ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
-            ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
-            ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+            if (reader != null) results.AddRange(reader());
+            else
+            {
+                ReadHive(Hklm64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+                ReadHive(Hklm64, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", results);
+                ReadHive(Hkcu64, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", results);
+            }
             _cache = Dedupe(results); _cacheAt = DateTimeOffset.Now;
             return _cache;
         }
@@ -87,6 +92,16 @@ public static class InstalledAppsService
         foreach (var a in all)
             if (seen.Add(Normalize(a.DisplayName) + "|" + (a.DisplayVersion ?? "") + "|" + Normalize(a.Publisher ?? ""))) result.Add(a);
         return result;
+    }
+
+    /// Test seam: supplies the installed-program list instead of the registry (null in the app).
+    public static Func<IReadOnlyList<InstalledAppInfo>>? ReaderOverride { get; set; }
+
+    /// The manual "detect now" path: always reads fresh data, never a list cached before the install finished.
+    public static MatchResult? RefreshAndFindMatchFor(Models.TrackedApp app)
+    {
+        InvalidateCache();
+        return FindMatchFor(app);
     }
 
     private static readonly object CacheGate = new();

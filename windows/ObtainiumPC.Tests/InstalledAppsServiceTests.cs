@@ -1,8 +1,11 @@
+using System.Collections.Generic;
+using System.Linq;
 using ObtainiumPC.Services.Detection;
 using Xunit;
 
 namespace ObtainiumPC.Tests;
 
+[Collection("InstalledAppsCache")]
 public class InstalledAppsServiceTests
 {
     private static InstalledAppInfo Entry(string name, string? publisher = null, string? version = "1.0") =>
@@ -168,4 +171,28 @@ public class InstalledAppsServiceTests
         Assert.Equal(InstalledAppsService.MatchConfidence.Exact, m!.Confidence);
         Assert.Equal("2.0", m.Info.DisplayVersion);
     }
+
+    [Fact]
+    public void Manual_detect_sees_an_install_that_finished_after_the_cache_was_filled()
+    {
+        var app = new ObtainiumPC.Models.TrackedApp { Name = "Shuck", Author = "acme" };
+        var data = new List<InstalledAppInfo> { new("Shuck", "1.0.0", null, "acme") };
+        InstalledAppsService.ReaderOverride = () => data.ToList();
+        try
+        {
+            InstalledAppsService.InvalidateCache();
+            // The watcher scans: the cache now holds the pre-install state.
+            Assert.Equal("1.0.0", InstalledAppsService.FindMatchFor(app)!.Info.DisplayVersion);
+            // The installer finishes within the cache lifetime.
+            data[0] = new("Shuck", "2.0.0", null, "acme");
+            // Documents the cause: a plain match inside the cache lifetime still returns the old version.
+            Assert.Equal("1.0.0", InstalledAppsService.FindMatchFor(app)!.Info.DisplayVersion);
+            // The manual refresh path must see the new version.
+            Assert.Equal("2.0.0", InstalledAppsService.RefreshAndFindMatchFor(app)!.Info.DisplayVersion);
+        }
+        finally { InstalledAppsService.ReaderOverride = null; InstalledAppsService.InvalidateCache(); }
+    }
 }
+
+[CollectionDefinition("InstalledAppsCache", DisableParallelization = true)]
+public class InstalledAppsCacheCollection { }
