@@ -1,0 +1,404 @@
+name: Focused behaviour checks on the candidate package (manual)
+
+# Downloads the Build Windows artifacts of a given run, records their SHA-256, installs the actual Setup
+# package and runs focused UI scenarios against the INSTALLED app: global version regex validation,
+# deep-link URL-change confirmation, serial bulk installers and the re-armed update timer.
+# Runner-only, synthetic fixtures served from 127.0.0.1; nothing touches real apps or accounts.
+
+on:
+  push:
+    branches: [v2-work]
+    paths: ['.github/workflows/ui-smoke-package-focused.yml']
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build Windows run id whose artifacts are the candidate package'
+        required: true
+      ref:
+        description: 'Ref holding the harness (must be the build run commit)'
+        required: false
+        default: 'v2-work'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  focused:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Report the checked-out commit and the build run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "CHECKED-OUT SHA: $actual (ref input: '${{ inputs.ref }}')"
+          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44781311892' }} --jq .head_sha)
+          echo "BUILD RUN ${{ inputs.build_run_id || '44781311892' }} head_sha: $run_sha"
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44781311892' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
+          if [ "$actual" != "$run_sha" ]; then echo "NOTE: harness commit differs from the build run commit (harness-only changes)"; fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: ObtainiumPC-Setup-win-x64
+          path: pkg/setup
+          run-id: ${{ inputs.build_run_id || '44781311892' }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ObtainiumPC-win-x64
+          path: pkg/portable
+          run-id: ${{ inputs.build_run_id || '44781311892' }}
+          github-token: ${{ github.token }}
+      - name: Hash the candidate package and install it
+        shell: pwsh
+        run: |
+          "== SHA-256 of the downloaded Setup package =="
+          Get-ChildItem pkg/setup -Recurse -File | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)  $($_.Length)  $($_.Name)" }
+          "== portable artifact main files =="
+          foreach ($n in 'ObtainiumPC.exe', 'ObtainiumPC.dll') {
+            $f = Get-ChildItem pkg/portable -Recurse -File -Filter $n | Select-Object -First 1
+            "$((Get-FileHash $f.FullName -Algorithm SHA256).Hash)  $($f.Length)  $($f.Name)"
+          }
+          $setup = Get-ChildItem pkg/setup -Recurse -File -Filter *.exe | Select-Object -First 1
+          & $setup.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "install exit $LASTEXITCODE" }
+          $dir = 'C:\Program Files\Obtainium-PC'
+          if (-not (Test-Path (Join-Path $dir 'ObtainiumPC.exe'))) { throw 'installed exe missing' }
+          "== installed files against the portable artifact =="
+          foreach ($n in 'ObtainiumPC.exe', 'ObtainiumPC.dll') {
+            $h = (Get-FileHash (Join-Path $dir $n) -Algorithm SHA256).Hash
+            $src = (Get-ChildItem pkg/portable -Recurse -File -Filter $n | Select-Object -First 1)
+            $sh = (Get-FileHash $src.FullName -Algorithm SHA256).Hash
+            "$h  installed $n ; portable $sh ; equal=$($h -eq $sh)"
+            if ($h -ne $sh) { throw "installed $n differs from the portable artifact" }
+          }
+          (Get-Item (Join-Path $dir 'ObtainiumPC.exe')).VersionInfo | Format-List FileVersion, ProductVersion | Out-String
+      - name: Local release server, fixture installers and seeded apps
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force 'C:\srv', 'C:\srv\log', 'C:\srv\a', 'C:\srv\b', 'C:\srv\c' | Out-Null
+          @'
+          using System; using System.IO; using System.Threading;
+          class P { static void Main() {
+            string n = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
+            string f = @"C:\srv\log\" + n + ".txt";
+            File.AppendAllText(f, "start " + DateTime.UtcNow.Ticks + "\r\n");
+            Thread.Sleep(9000);
+            File.AppendAllText(f, "end " + DateTime.UtcNow.Ticks + "\r\n");
+          } }
+          '@ | Set-Content C:\srv\inst.cs
+          & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /out:C:\srv\appA-2.0.0.exe C:\srv\inst.cs
+          if ($LASTEXITCODE -ne 0) { throw 'csc failed' }
+          Copy-Item C:\srv\appA-2.0.0.exe C:\srv\appB-2.0.0.exe
+          Set-Content C:\srv\a\index.html '<html><body><a href="http://127.0.0.1:8099/appA-2.0.0.exe">appA-2.0.0.exe</a></body></html>'
+          Set-Content C:\srv\b\index.html '<html><body><a href="http://127.0.0.1:8099/appB-2.0.0.exe">appB-2.0.0.exe</a></body></html>'
+          Set-Content C:\srv\c\index.html '<html><body><a href="http://127.0.0.1:8099/appC-1.0.0.exe">appC-1.0.0.exe</a></body></html>'
+          @'
+          $l = New-Object System.Net.HttpListener; $l.Prefixes.Add('http://127.0.0.1:8099/'); $l.Start()
+          while ($true) {
+            $c = $l.GetContext(); $path = $c.Request.Url.AbsolutePath.TrimStart('/')
+            $f = Join-Path 'C:\srv' $path
+            if (Test-Path $f -PathType Leaf) { $b = [IO.File]::ReadAllBytes($f); $c.Response.ContentLength64 = $b.Length; $c.Response.OutputStream.Write($b,0,$b.Length) } else { $c.Response.StatusCode = 404 }
+            $c.Response.Close()
+          }
+          '@ | Set-Content C:\srv\server.ps1
+          Start-Process pwsh -ArgumentList '-NoProfile','-File','C:\srv\server.ps1' -WindowStyle Hidden
+          Start-Sleep 2
+          (Invoke-WebRequest http://127.0.0.1:8099/a/index.html -UseBasicParsing).Content
+      - name: Focused scenarios on the installed app
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
+          function Shot($name) {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $b.X,$b.Y),[System.Drawing.Point]::Empty,(New-Object System.Drawing.Size $b.Width,$b.Height))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          function ClickPartial($prefix, $scope) {
+            # The bottom download strip repeats the app name ("shuck ..."): never click its elements. The list is
+            # virtualized, so scroll the wheel a few times when the row is not realized yet.
+            foreach ($pass in 0..24) {
+              $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              foreach ($el in $all) {
+                $n = $el.Current.Name
+                if ($n -and $n.StartsWith($prefix)) {
+                  if ($el.Current.AutomationId -like 'DownloadStrip*') { continue }
+                  $r = $el.Current.BoundingRectangle
+                  if ($el.Current.IsOffscreen) { continue }
+                  if ($r.Width -gt 10 -and $r.Height -gt 10) {
+                    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+                    Start-Sleep -Milliseconds 300
+                    [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+                    return $el
+                  }
+                }
+              }
+              if ($pass -lt 24) {
+                $wr = $scope.Current.BoundingRectangle
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($wr.X + $wr.Width/2), [int]($wr.Y + $wr.Height/2))
+                # first look upward (the list may already be scrolled down), then downward
+                if ($pass -lt 10) { [M]::mouse_event(0x0800,0,0,[uint32]120,0) } else { [M]::mouse_event(0x0800,0,0,[uint32]4294967176,0) }
+                Start-Sleep -Milliseconds 400
+              }
+            }
+            Shot "missing-$($prefix -replace '[^\w]','_')"
+            throw "element starting with '$prefix' not found"
+          }
+          function FindNamed($name, $scope) {
+            $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+            # The bottom download strip repeats the app name of the last download: never let it satisfy a list lookup.
+            foreach ($m in $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c)) {
+              if ($m.Current.AutomationId -notlike 'DownloadStrip*') { return $m }
+            }
+            return $null
+          }
+          # The list is virtualized and the viewport is small: realize an off-screen row by wheel-scrolling.
+          function ClickNamedIn($name, $scope) {
+            # Retry: UIA lookups can race a page re-layout (one transient miss
+            # after the health page refresh cost a full run).
+            $el = $null
+            foreach ($attempt in 1..6) {
+              $navIds = @{ 'Apps'='Nav_apps'; 'التطبيقات'='Nav_apps'; 'Add App'='Nav_addapp'; 'Update Health'='Nav_updatehealth'; 'Import / Export'='Nav_importexport'; 'Logs'='Nav_logs'; 'Settings'='Nav_settings' }
+              if ($navIds.ContainsKey($name)) {
+                # Stable AutomationId (language independent, cannot collide with a page title).
+                $ci = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $navIds[$name])
+                $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $ci)
+                if ($el -ne $null) { break }
+              }
+              $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+              $el = $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c)
+              if ($el -ne $null) { break }
+              Start-Sleep 1
+            }
+            if ($el -eq $null) { Shot "missing-$($name -replace '[^\w]','_')"; throw "element '$name' not found" }
+            try { $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {
+              $r = $el.Current.BoundingRectangle
+              if ([double]::IsNaN($r.X) -or [double]::IsInfinity($r.X) -or $r.Width -le 0) {
+                # Diagnostic: the first UIA match has no usable bounds. List every match and use the first visible one.
+                $cc = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)
+                $all = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cc)
+                $pick = $null
+                foreach ($m in $all) {
+                  $mr = $m.Current.BoundingRectangle
+                  "ClickNamedIn '$name' match: rect=$mr class=$($m.Current.ClassName) type=$($m.Current.ControlType.ProgrammaticName) autoId=$($m.Current.AutomationId) offscreen=$($m.Current.IsOffscreen)"
+                  if ($pick -eq $null -and -not $m.Current.IsOffscreen -and -not [double]::IsInfinity($mr.X) -and $mr.Width -gt 0) { $pick = $m }
+                }
+                if ($pick -eq $null) { Shot "unclickable-$($name -replace '[^\w]','_')"; throw "element '$name' has no usable bounds ($($all.Count) matches)" }
+                try { $pick.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); return } catch { $r = $pick.Current.BoundingRectangle }
+              }
+              [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2))
+              Start-Sleep -Milliseconds 300
+              [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0)
+            }
+          }
+          function AssertAlive($tag) { $p.Refresh(); if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" } }
+          function ShotWin($name) {
+            # Visible frame (DWM extended bounds), not the UIA rectangle that includes the invisible resize border.
+            $x = 0; $y = 0; $w = 0; $h = 0
+            $hwnd = [IntPtr]$win.Current.NativeWindowHandle
+            $fr = New-Object DwmFrame+RECT
+            if ($hwnd -ne [IntPtr]::Zero -and [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+              $x = $fr.Left; $y = $fr.Top; $w = $fr.Right - $fr.Left; $h = $fr.Bottom - $fr.Top
+            } else {
+              $r = $win.Current.BoundingRectangle; $x = [int]$r.X; $y = [int]$r.Y; $w = [int]$r.Width; $h = [int]$r.Height
+            }
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x, $y), [System.Drawing.Point]::Empty, (New-Object System.Drawing.Size $w, $h))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+
+          $exe = 'C:\Program Files\Obtainium-PC\ObtainiumPC.exe'
+          $data = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'
+          New-Item -ItemType Directory -Force $data | Out-Null
+          $appsFile = Join-Path $data 'apps.json'; $setFile = Join-Path $data 'settings.json'
+          function MkApp($id, $name, $path, $filter) {
+            @{ id = $id; url = "http://127.0.0.1:8099/$path/index.html"; author = 'local'; name = $name; overrideSource = 'HTML'
+               apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
+               additionalSettings = ('{"customLinkFilterRegex":"' + $filter + '","versionExtractionRegEx":"(\\d+\\.\\d+\\.\\d+)","matchGroupToUse":"1"}')
+               categories = @(); pinned = $false; disabled = $false; installedVersion = '1.0.0' }
+          }
+          function Seed($checkOnStart, $withC) {
+            Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep 3
+            Remove-Item (Join-Path $data '*') -Recurse -Force -ErrorAction SilentlyContinue
+            $apps = @((MkApp 'seed-a' 'appA' 'a' 'appA-.*\\.exe'), (MkApp 'seed-b' 'appB' 'b' 'appB-.*\\.exe'))
+            if ($withC) { $apps += (MkApp 'seed-c' 'appC' 'c' 'appC-.*\\.exe') }
+            ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content $appsFile
+            $s = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $checkOnStart; NotifyUpdates = $false }
+            ($s | ConvertTo-Json) | Set-Content $setFile
+          }
+          function StartApp {
+            $script:p = Start-Process $exe -PassThru
+            Start-Sleep 12
+            $script:p.Refresh()
+            if ($script:p.HasExited) { Shot 'exited'; throw 'app exited at launch' }
+            $wcond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:p.Id)
+            $script:win = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $wcond)
+            if ($script:win -eq $null) { throw 'main window not found' }
+            Start-Sleep 8
+            $procPath = (Get-Process -Id $script:p.Id).Path
+            "running process path: $procPath"
+            if ($procPath -ne $exe) { throw "the running app is not the installed package ($procPath)" }
+          }
+          function ReadApps { Get-Content $appsFile -Raw | ConvertFrom-Json }
+          function ReadSettings { Get-Content $setFile -Raw | ConvertFrom-Json }
+          function EditNamed($name) {
+            $ec = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+            foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $ec)) { if ($e.Current.Name -like "*$name*") { return $e } }
+            return $null
+          }
+          function LogTail { $lp = Join-Path $data 'logs.jsonl'; Get-ChildItem $data -Filter '*.jsonl' | ForEach-Object { "-- $($_.Name)"; Get-Content $_.FullName -Tail 25 | ForEach-Object { $_.Substring(0, [Math]::Min(240, $_.Length)) } } }
+
+          # ===== Session 1: regex validation, deep-link URL change, serial bulk installers =====
+          Seed $true $true
+          StartApp
+          # wait for the start-up check to record the 2.0.0 release for both updatable apps
+          foreach ($i in 1..30) { Start-Sleep 3; $a = ReadApps; if (@($a | Where-Object { $_.latestVersion -like '2.0.0*' }).Count -ge 2) { break } }
+          $lv = ReadApps | ForEach-Object { "$($_.id)=$($_.latestVersion)" }
+          "latest versions after the start check: $($lv -join ', ')"
+          if (@(ReadApps | Where-Object { $_.latestVersion -like '2.0.0*' }).Count -lt 2) { LogTail; Shot 's1-no-latest'; throw 'start-up check did not record 2.0.0 for both apps' }
+
+          # --- A. global version regex: invalid is refused, valid is saved, cleared is cleared ---
+          ClickNamedIn 'Settings' $win
+          Start-Sleep 2
+          $edit = EditNamed 'Trim version string'
+          if ($edit -eq $null) { ClickPartial 'Version detection' $win | Out-Null; Start-Sleep 1; $edit = EditNamed 'Trim version string' }
+          if ($edit -eq $null) { DumpNames $win 'settings'; Shot 's1-settings-missing'; throw 'global version regex box not found' }
+          $other = EditNamed 'Match group'
+          if ($other -eq $null) { throw 'match group box not found (needed to move focus)' }
+          $vp = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+          $edit.SetFocus(); $vp.SetValue('('); Start-Sleep 1; $other.SetFocus(); Start-Sleep 2
+          ShotWin 's1-regex-invalid'
+          $g1 = (ReadSettings).GlobalVersionExtractionRegEx
+          "settings after the invalid regex: [$g1]"
+          if ($g1) { throw "an invalid global regex was saved: [$g1]" }
+          $edit.SetFocus(); $vp.SetValue('(\d+)'); Start-Sleep 1; $other.SetFocus(); Start-Sleep 2
+          $g2 = (ReadSettings).GlobalVersionExtractionRegEx
+          "settings after the valid regex: [$g2]"
+          if ($g2 -ne '(\d+)') { Shot 's1-regex-valid-not-saved'; throw "the valid global regex was not saved: [$g2]" }
+          $edit.SetFocus(); $vp.SetValue(''); Start-Sleep 1; $other.SetFocus(); Start-Sleep 2
+          $g3 = (ReadSettings).GlobalVersionExtractionRegEx
+          if ($g3) { throw "clearing the global regex did not clear it: [$g3]" }
+          'global version regex: invalid refused, valid saved, cleared'
+
+          # --- B. deep link that keeps an id but changes the URL: the dialog names the change ---
+          ClickNamedIn 'Apps' $win
+          Start-Sleep 2
+          $cUrlBefore = (ReadApps | Where-Object { $_.id -eq 'seed-c' }).url
+          $dl = '{"id":"seed-c","url":"http://127.0.0.1:8099/other/index.html","author":"local","name":"appC","additionalSettings":"{}"}'
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dl))
+          Start-Sleep 5
+          if ((FindNamed 'Import app' $root) -eq $null) { Shot 's1-dl-missing'; throw 'deep-link import dialog did not appear' }
+          $txt = ''
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like '*will change*') { $txt = $el.Current.Name; break } }
+          "deep-link dialog text: [$txt]"
+          if ($txt -notlike '*will change*' -or $txt -notlike '*127.0.0.1:8099/c/index.html*' -or $txt -notlike '*127.0.0.1:8099/other/index.html*') { Shot 's1-dl-nochange-text'; throw 'the dialog does not list the old and new source address' }
+          Shot 's1-dl-url-change'
+          (FindNamed 'Cancel' $root).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 2
+          if ((ReadApps | Where-Object { $_.id -eq 'seed-c' }).url -ne $cUrlBefore) { throw 'cancelling the deep-link dialog still changed the URL' }
+          Start-Process $exe -ArgumentList ('obtainium://app/' + [uri]::EscapeDataString($dl))
+          Start-Sleep 5
+          $imp = FindNamed 'Import' $root
+          if ($imp -eq $null) { Shot 's1-dl2-missing'; throw 'second deep-link dialog did not appear' }
+          $imp.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          Start-Sleep 3
+          $cl = FindNamed 'Close' $root; if ($cl -ne $null) { try { $cl.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 2
+          $cAfter = (ReadApps | Where-Object { $_.id -eq 'seed-c' }).url
+          "seed-c url after confirming: $cAfter"
+          if ($cAfter -notlike '*/other/index.html') { throw 'confirming the deep-link import did not apply the new URL' }
+          'deep-link URL change: listed in the dialog, cancel changes nothing, confirm applies it'
+
+          # --- C. bulk install of two apps: installers must run one after the other ---
+          ClickNamedIn 'Apps' $win
+          Start-Sleep 2
+          ClickNamedIn 'Select' $win
+          Start-Sleep 1
+          ClickPartial 'appA' $win | Out-Null
+          Start-Sleep -Milliseconds 500
+          ClickPartial 'appB' $win | Out-Null
+          Start-Sleep 1
+          $batchDl = FindNamed 'Download updates' $win
+          if ($batchDl -eq $null) { ClickNamedIn '...' $win; Start-Sleep 1; $batchDl = FindNamed 'Download updates' $root }
+          if ($batchDl -eq $null) { Shot 's1-bulk-button-missing'; throw 'Download updates button not found' }
+          try { $batchDl.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickPartial 'Download updates' $root | Out-Null }
+          Start-Sleep 2
+          if ((FindNamed 'Download 2?' $root) -eq $null) { Shot 's1-bulk-confirm-missing'; throw 'the bulk confirmation did not list both apps' }
+          Shot 's1-bulk-confirm'
+          $go = FindNamed 'Download' $root
+          if ($go -eq $null) { throw 'confirm button not found' }
+          $go.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          $la = 'C:\srv\log\appA-2.0.0.txt'; $lb = 'C:\srv\log\appB-2.0.0.txt'
+          foreach ($i in 1..60) {
+            Start-Sleep 3
+            if ((Test-Path $la) -and (Test-Path $lb) -and ((Get-Content $la) -match '^end') -and ((Get-Content $lb) -match '^end')) { break }
+          }
+          Shot 's1-bulk-after'
+          if (-not ((Test-Path $la) -and (Test-Path $lb))) { LogTail; throw 'not both fixture installers were launched' }
+          function Ticks($f, $k) { [int64](((Get-Content $f) | Where-Object { $_ -like "$k *" } | Select-Object -First 1) -split ' ')[1] }
+          $sa = Ticks $la 'start'; $ea = Ticks $la 'end'; $sb = Ticks $lb 'start'; $eb = Ticks $lb 'end'
+          "installer A start/end ms: $([int](($sa - $sa)/10000)) / $([int](($ea - $sa)/10000)); B start/end ms: $([int](($sb - $sa)/10000)) / $([int](($eb - $sa)/10000))"
+          if (-not ($ea -gt 0 -and $eb -gt 0)) { LogTail; throw 'an installer did not finish (no end line)' }
+          if ($sa -lt $sb) { $firstEnd = $ea; $secondStart = $sb } else { $firstEnd = $eb; $secondStart = $sa }
+          if ($secondStart -lt $firstEnd) { throw "the installers overlapped: second started $([int](($firstEnd - $secondStart)/10000)) ms before the first ended" }
+          "bulk installers ran one after the other (gap $([int](($secondStart - $firstEnd)/10000)) ms)"
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          New-Item -ItemType Directory -Force logs-out | Out-Null
+          Get-ChildItem $data -Filter '*.jsonl' | ForEach-Object { Copy-Item $_.FullName ("logs-out\s1-" + $_.Name) }
+          Copy-Item C:\srv\log logs-out\installer-logs -Recurse -Force
+
+          # ===== Session 2: the update interval takes effect without a restart =====
+          Seed $false $false
+          StartApp
+          if (@(ReadApps | Where-Object { $_.lastUpdateCheck }).Count -ne 0) { throw 'a check ran before the interval was changed (CheckOnStart is off)' }
+          ClickNamedIn 'Settings' $win
+          Start-Sleep 2
+          $combo = $null
+          foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Background update interval*' -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox) { $combo = $el; break } }
+          if ($combo -eq $null) { ClickPartial 'Updates' $win | Out-Null; Start-Sleep 1; foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Background update interval*' -and $el.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox) { $combo = $el; break } } }
+          if ($combo -eq $null) { DumpNames $win 'settings-interval'; Shot 's2-combo-missing'; throw 'interval combo not found' }
+          $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+          Start-Sleep 1
+          $item = $null
+          foreach ($el in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -eq '15 minutes') { $item = $el; break } }
+          if ($item -eq $null) { Shot 's2-item-missing'; throw '15 minutes option not found' }
+          try { $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { $r = $item.Current.BoundingRectangle; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point([int]($r.X + $r.Width/2), [int]($r.Y + $r.Height/2)); Start-Sleep -Milliseconds 300; [M]::mouse_event(0x02,0,0,0,0); [M]::mouse_event(0x04,0,0,0,0) }
+          Start-Sleep 2
+          $t0 = Get-Date
+          $iv = (ReadSettings).UpdateIntervalMinutes
+          "interval in settings.json after the change: $iv (changed at $($t0.ToString('HH:mm:ss')))"
+          if ($iv -ne 15) { Shot 's2-not-15'; throw "interval was not stored as 15 (got $iv)" }
+          ShotWin 's2-interval-15'
+          $seen = $null
+          while (((Get-Date) - $t0).TotalSeconds -lt 1260) {
+            Start-Sleep 15
+            $p.Refresh(); if ($p.HasExited) { throw 'the app exited while waiting for the timer' }
+            if (@(ReadApps | Where-Object { $_.lastUpdateCheck }).Count -gt 0) { $seen = ((Get-Date) - $t0).TotalSeconds; break }
+          }
+          LogTail
+          if ($seen -eq $null) { Shot 's2-no-check'; throw 'no background check ran within 21 minutes after switching to 15 minutes (the old 6-hour timer was still armed, or the check was skipped)' }
+          "first background check recorded $([int]$seen) s after the interval change (15-minute timer; the old 360-minute timer could not have fired)"
+          if ($seen -lt 600) { throw "a check ran after only $([int]$seen) s, earlier than a 15-minute timer allows" }
+          Get-ChildItem $data -Filter '*.jsonl' | ForEach-Object { Copy-Item $_.FullName ("logs-out\s2-" + $_.Name) }
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          'update interval applied without restart'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: focused-package-checks
+          path: |
+            shots/
+            logs-out/
