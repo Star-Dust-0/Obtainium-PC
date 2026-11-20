@@ -4,7 +4,7 @@ using ObtainiumPC.Sources;
 
 namespace ObtainiumPC.Services.Download;
 
-public sealed record DownloadResult(string Path, bool Installable, DownloadService.ChecksumStatus Checksum, AppSourceBase? Source);
+public sealed record DownloadResult(string Path, bool Installable, DownloadService.ChecksumStatus Checksum, AppSourceBase? Source, bool Extractable = false);
 
 /// <summary>
 /// The download pipeline for one tracked app and one chosen asset, independent of any page:
@@ -36,7 +36,23 @@ public static class DownloadCoordinator
         Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
         app.RecordAssetSize(new FileInfo(path).Length, asset.Value);
         await App.SaveAppsAsync();
-        return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source);
+        return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
+            Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key));
+    }
+
+    /// Portable apps (.zip): extracts to "C:\Obtainium\<zip name>\" and records the release as installed.
+    /// There is no installer to watch, so the app is marked installed directly (source "manual", like Mark as updated).
+    public static async Task<ExtractionResult> ExtractAsync(TrackedApp app, DownloadEntry entry, string zipPath)
+    {
+        var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token);
+        app.ExtractedPath = result.Folder;
+        if (!string.IsNullOrEmpty(app.LatestVersion)) app.InstalledVersion = app.LatestVersion;
+        app.InstalledVersionSource = "manual";
+        app.OsMatchedName = null;
+        await App.SaveAppsAsync();
+        Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
+        Logging.AppLogger.Info($"Extracted {Path.GetFileName(zipPath)} for {app.FinalName} to {result.Folder} ({result.FileCount} files)");
+        return result;
     }
 
     /// Launches the installer and, for every app but ourselves (our own installer closes this app),
@@ -113,6 +129,11 @@ public static class DownloadCoordinator
         {
             var r = await FetchAsync(app, asset, entry);
             if (r.Installable) { outcome = DownloadState.InstallerOpened; LaunchInstaller(app, entry, r.Path); }
+            else if (r.Extractable)
+            {
+                var ex = await ExtractAsync(app, entry, r.Path);
+                outcome = DownloadState.Installed; message = "extracted to " + ex.Folder;
+            }
             else outcome = DownloadState.Saved;
         }
         catch (OperationCanceledException) when (entry.CancelRequested) { outcome = DownloadState.Cancelled; message = "Cancelled - partial file removed"; }

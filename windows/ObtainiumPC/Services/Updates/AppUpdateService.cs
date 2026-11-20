@@ -131,6 +131,10 @@ public sealed class AppUpdateService
         var filterRegex = SettingString(settings, "apkFilterRegEx") ?? _settings.GlobalAssetFilterRegEx;
         assetUrls = AssetFilterService.FilterAssets(
             assetUrls, filterRegex, SettingBool(settings, "invertAPKFilter") ? true : (bool?)null);
+        // Portable (zip-only) releases often ship one zip per OS/CPU: keep the Windows build for
+        // this CPU as the default pick. Applied after the user's own filter, so that always wins.
+        if (assetUrls.Count > 1 && assetUrls.All(a => AssetFilterService.IsZipArchive(a.Key)))
+            assetUrls = AssetFilterService.PreferWindowsArchives(assetUrls, CurrentArches());
         if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
 
         if (SettingBool(settings, "autoApkFilterByArch"))

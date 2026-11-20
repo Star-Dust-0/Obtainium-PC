@@ -460,6 +460,14 @@ namespace ObtainiumPC.Pages
                     if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
                     else Services.Download.DownloadCoordinator.LaunchInstaller(app, entry, path);
                 }
+                else if (fetched.Extractable)
+                {
+                    // Portable app (.zip): extracted to C:\Obtainium\<zip name>\ (no installer to launch).
+                    var extractedTo = await Services.Download.DownloadCoordinator.ExtractAsync(app, entry, path);
+                    outcome = Services.Download.DownloadState.Installed;
+                    outcomeMessage = "extracted to " + extractedTo.Folder;
+                    results.Add(app.FinalName + ": extracted to " + extractedTo.Folder);
+                }
                 else outcome = Services.Download.DownloadState.Saved;
                 }
                 catch (OperationCanceledException) when (entry.CancelRequested)

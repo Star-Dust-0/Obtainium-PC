@@ -424,6 +424,7 @@ namespace ObtainiumPC.Pages
             DownloadPanel.Visibility = Visibility.Visible;
             var outcome = Services.Download.DownloadState.Failed;
             string? outcomeMessage = null;
+            Services.Download.ExtractionResult? extracted = null;
             try
             {
                 var ui = new Progress<(long Received, long? Total)>(p =>
@@ -457,6 +458,17 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                         DetectNowButton.Visibility = Visibility.Collapsed;
                     }
                 }
+                else if (fetched.Extractable)
+                {
+                    // Portable app (.zip): extract to C:\Obtainium\<zip name>\ instead of launching an installer.
+                    DownloadText.Text = Services.Localization.Loc.T("Extracting...");
+                    extracted = await Services.Download.DownloadCoordinator.ExtractAsync(_app, entry, path);
+                    outcome = Services.Download.DownloadState.Installed;
+                    outcomeMessage = "extracted to " + extracted.Folder;
+                    Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Downloaded {0} and extracted it."), asset.Key));
+                    PostDownloadNote.Text = "";
+                    DetectNowButton.Visibility = Visibility.Collapsed;
+                }
                 else
                 {
                     Show(InfoBarSeverity.Success, Sources.AssetFilterService.IsAndroidPackage(asset.Key)
@@ -487,6 +499,11 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                 var postEnabled = Services.Updates.SelfUpdate.DetailAction(_app).Enabled;
                 UpdateButton.IsEnabled = postEnabled;
                 InstallButton.IsEnabled = postEnabled;
+            }
+            if (extracted != null)
+            {
+                Render();
+                await ExtractedFolderDialog.ShowAsync(this.XamlRoot, _app.FinalName, extracted.Folder, extracted.UsedFallbackRoot);
             }
         }
 

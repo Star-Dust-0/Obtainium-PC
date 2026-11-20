@@ -356,6 +356,16 @@ public sealed class GitHubSource : AppSourceBase
     // Asset extraction
     // ------------------------------------------------------------------
 
+    /// A release with no installer and no Android package but with a real .zip is a portable app:
+    /// its zips are accepted even when the "Include ZIP files" option is off.
+    private static bool IsPortableArchiveRelease(JsonNode release)
+    {
+        var assets = release["assets"] as JsonArray;
+        if (assets == null) return false;
+        var names = assets.Select(a => a?["name"]?.GetValue<string>() ?? "").ToList();
+        return AssetFilterService.IsPortableArchiveRelease(names);
+    }
+
     private List<JsonNode?> FindReleaseAssetUrls(
         JsonNode release, bool includeZips, bool includeTarballs)
     {
@@ -425,10 +435,17 @@ public sealed class GitHubSource : AppSourceBase
             // Assets are JSON objects; their [name, url] pair lives under
             // "final_url" (upstream: e['final_url'] as MapEntry).
             KeyValuePair<string, string> PairOf(JsonNode? asset) => PairFrom(asset?["final_url"]);
-            var allAssetsWithUrls = FindReleaseAssetUrls(rel, includeZips, includeTarballs);
+            var autoZips = !includeZips && IsPortableArchiveRelease(rel);
+            var relIncludeZips = includeZips || autoZips;
+            var allAssetsWithUrls = FindReleaseAssetUrls(rel, relIncludeZips, includeTarballs);
             var allAssetUrls = allAssetsWithUrls.Select(PairOf).ToList();
             var appAssetsWithUrls = allAssetsWithUrls.Where(e =>
-                AssetFilterService.IsAppOrContainerFile(PairOf(e).Key, includeZips, includeTarballs)).ToList();
+            {
+                var assetName = PairOf(e).Key;
+                if (!AssetFilterService.IsAppOrContainerFile(assetName, relIncludeZips, includeTarballs)) return false;
+                // Auto-accepted zips skip symbols/sources/docs archives.
+                return !(autoZips && AssetFilterService.IsZipArchive(assetName) && AssetFilterService.IsAuxiliaryArchive(assetName));
+            }).ToList();
             var filteredAssetPairs = AssetFilterService.FilterAssets(
                 appAssetsWithUrls.Select(PairOf).ToList(),
                 GetString(additionalSettings, "apkFilterRegEx"),
@@ -550,10 +567,13 @@ public sealed class GitHubSource : AppSourceBase
             // (it keeps releases without assets).
             var published = releases.Where(r => r != null && r["draft"]?.GetValue<bool>() != true).ToList();
             if (published.Count > 0 && !published.Any(r =>
-                    FindReleaseAssetUrls(r, includeZips, includeTarballs).Any(a =>
-                        AssetFilterService.IsAppOrContainerFile(PairFrom(a?["final_url"]).Key, includeZips, includeTarballs))))
+                {
+                    var rz = includeZips || IsPortableArchiveRelease(r!);
+                    return FindReleaseAssetUrls(r!, rz, includeTarballs).Any(a =>
+                        AssetFilterService.IsAppOrContainerFile(PairFrom(a?["final_url"]).Key, rz, includeTarballs));
+                }))
                 throw NoAppAssetException.NoWindowsInstaller(
-                    FindReleaseAssetUrls(published[0], includeZips, includeTarballs).Select(a => PairFrom(a?["final_url"])).ToList());
+                    FindReleaseAssetUrls(published[0]!, includeZips, includeTarballs).Select(a => PairFrom(a?["final_url"])).ToList());
             throw new NoReleasesException();
         }
 

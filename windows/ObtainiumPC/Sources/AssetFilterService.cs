@@ -108,6 +108,48 @@ public static class AssetFilterService
             || (includeTarballs && EndsWithAny(TarballExtensions));
     }
 
+    // ------------------------------------------------------------------
+    // Portable (zip-only) releases
+    // ------------------------------------------------------------------
+
+    public static bool IsZipArchive(string name) =>
+        name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
+    /// Zips that accompany a release without being the app itself (symbols, sources, docs, ...).
+    private static readonly Regex AuxiliaryArchiveRegex = new(
+        @"(^|[^a-z])(symbols?|pdbs?|debug|mapping|sources?|src|sbom|docs?|documentation|tests?|checksums?)([^a-z]|$)",
+        RegexOptions.IgnoreCase);
+
+    public static bool IsAuxiliaryArchive(string name) => AuxiliaryArchiveRegex.IsMatch(name);
+
+    /// True when a release has no installer (.exe/.msi/.msix/...) and no Android package but does
+    /// ship a real .zip: a portable app. Such zips are accepted without the include-ZIPs option.
+    public static bool IsPortableArchiveRelease(IEnumerable<string> assetNames)
+    {
+        var names = assetNames.ToList();
+        if (names.Any(n => IsAppOrContainerFile(n) || IsAndroidPackage(n))) return false;
+        return names.Any(n => IsZipArchive(n) && !IsAuxiliaryArchive(n));
+    }
+
+    private static readonly Regex WindowsMarkerRegex = new(
+        @"(^|[^a-z])(win|windows|win32|win64|msvc|mingw)([^a-z]|$)", RegexOptions.IgnoreCase);
+
+    private static readonly Regex OtherOsMarkerRegex = new(
+        @"(^|[^a-z])(linux|macos|osx|darwin|mac|android|ios|ubuntu|debian|fedora|freebsd|appimage)([^a-z]|$)",
+        RegexOptions.IgnoreCase);
+
+    /// Among several zips, keep the Windows build (then the one for this CPU) as the default pick.
+    /// Never returns an empty list: when nothing is recognisable the input is returned unchanged.
+    public static List<KeyValuePair<string, string>> PreferWindowsArchives(
+        List<KeyValuePair<string, string>> assets, IReadOnlyList<string> arches)
+    {
+        if (assets.Count < 2) return assets;
+        var windows = assets.Where(a => WindowsMarkerRegex.IsMatch(a.Key)).ToList();
+        var pool = windows.Count > 0 ? windows : assets.Where(a => !OtherOsMarkerRegex.IsMatch(a.Key)).ToList();
+        if (pool.Count == 0) pool = assets;
+        return FilterAssetsByArch(pool, arches);
+    }
+
     /// Non-canonical arch names commonly used in Windows installer filenames.
     public static readonly IReadOnlyDictionary<string, string[]> ArchNameAliases =
         new Dictionary<string, string[]>

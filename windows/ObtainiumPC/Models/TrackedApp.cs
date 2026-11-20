@@ -25,6 +25,8 @@ public sealed class TrackedApp
     // recorded identity verifiably disappears with a fully successful probe.
     [JsonPropertyName("installedVersionSource")] public string? InstalledVersionSource { get; set; }
     [JsonPropertyName("osMatchedName")] public string? OsMatchedName { get; set; }
+    // Portable (zip) apps: the folder the last release was extracted to (null for installer apps).
+    [JsonPropertyName("extractedPath")] public string? ExtractedPath { get; set; }
     [JsonPropertyName("latestVersion")] public string? LatestVersion { get; set; }
 
     // The original schema stores asset lists and settings as JSON-encoded strings

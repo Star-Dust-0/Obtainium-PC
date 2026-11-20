@@ -132,6 +132,13 @@ public static class Loc
     // Upstream ar.json entries come from the generated table instead.
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
+        // Portable (zip) apps
+        ["Extracted"] = "تم فك الضغط",
+        ["{0} was extracted to:"] = "تم فك ضغط {0} في المسار:",
+        ["Open folder"] = "فتح المجلد",
+        ["Extracting..."] = "جارٍ فك الضغط...",
+        ["Downloaded {0} and extracted it."] = "تم تنزيل {0} وفك ضغطه.",
+        ["C:\\Obtainium could not be created, so the per-user folder was used instead."] = "تعذّر إنشاء C:\\Obtainium، فتم استخدام مجلد المستخدم بدلًا منه.",
         // Navigation + page titles
         ["Apps"] = "التطبيقات",
         ["Add App"] = "إضافة تطبيق",

@@ -40,6 +40,10 @@ public static class BatchDownloadPlanner
     public static bool ShouldLaunchInstaller(bool? sourceSupportsInstall, string assetKey)
         => sourceSupportsInstall != false && AssetFilterService.IsAppOrContainerFile(assetKey);
 
+    /// A .zip release asset is a portable app: it is extracted to a folder instead of being launched.
+    public static bool ShouldExtractArchive(bool? sourceSupportsInstall, string assetKey)
+        => sourceSupportsInstall != false && AssetFilterService.IsZipArchive(assetKey);
+
     /// Assets offered in a manual picker: filtered assets first, then the rest of
     /// the release without duplicates, checksum files or source snapshots.
     public static List<KeyValuePair<string, string>> PickerAssets(

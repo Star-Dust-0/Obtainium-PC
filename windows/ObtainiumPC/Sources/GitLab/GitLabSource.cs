@@ -157,6 +157,9 @@ public sealed class GitLabSource : AppSourceBase
         foreach (var e in doc.RootElement.EnumerateArray())
         {
             var assetUrls = new Dictionary<string, string>();
+            // Portable apps: real .zip links are kept aside and used only when the release has no installer.
+            var zipFallback = new Dictionary<string, string>();
+            var sawAndroidPackage = false;
 
             if (e.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Object
                 && assets.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Array)
@@ -167,10 +170,16 @@ public sealed class GitLabSource : AppSourceBase
                     var linkUrl = link.TryGetProperty("direct_asset_url", out var du) && du.ValueKind == JsonValueKind.String ? du.GetString() ?? ""
                         : link.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() ?? "" : "";
                     var linkType = link.TryGetProperty("link_type", out var lt) && lt.ValueKind == JsonValueKind.String ? lt.GetString() : null;
-                    if (!IsInstallableAsset(linkName, linkUrl, linkType)) continue;
                     var key = linkName.Length > 0 ? linkName
                         : Uri.TryCreate(linkUrl, UriKind.Absolute, out var parsed) && parsed.Segments.Length > 0
                             ? parsed.Segments[^1] : "unknown";
+                    if (!IsInstallableAsset(linkName, linkUrl, linkType))
+                    {
+                        if (AssetFilterService.IsAndroidPackage(key)) sawAndroidPackage = true;
+                        else if (key.Length > 0 && AssetFilterService.IsZipArchive(key) && !AssetFilterService.IsAuxiliaryArchive(key))
+                            zipFallback[key] = linkUrl;
+                        continue;
+                    }
                     if (key.Length > 0) assetUrls[key] = linkUrl;
                 }
             }
@@ -188,6 +197,10 @@ public sealed class GitLabSource : AppSourceBase
                 var segName = full.Split('/')[^1];
                 assetUrls[segName] = full;
             }
+
+            // A release with no installer and no Android package but with a real .zip is a portable app.
+            if (assetUrls.Count == 0 && !sawAndroidPackage)
+                foreach (var kv in zipFallback) assetUrls[kv.Key] = kv.Value;
 
             var version = e.TryGetProperty("tag_name", out var tn) && tn.ValueKind == JsonValueKind.String ? tn.GetString()
                 : e.TryGetProperty("name", out var nm) && nm.ValueKind == JsonValueKind.String ? nm.GetString() : null;
