@@ -39,7 +39,9 @@ public static class DownloadCoordinator
         var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck, subFolder: app.Id, ct: entry.Token);
         Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
         app.RecordAssetSize(new FileInfo(path).Length, asset.Value);
+        var saveClock = System.Diagnostics.Stopwatch.StartNew();
         await App.SaveAppsAsync();
+        Logging.AppLogger.Info($"Download of {asset.Key}: apps saved in {saveClock.ElapsedMilliseconds} ms");
         return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
             Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key)
                 && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key))
@@ -65,7 +67,9 @@ public static class DownloadCoordinator
     /// starts the independent installed-version check that finishes the job's state.
     public static void LaunchInstaller(TrackedApp app, DownloadEntry entry, string path, bool watch = true)
     {
+        var launchClock = System.Diagnostics.Stopwatch.StartNew();
         var proc = DownloadService.OpenInstaller(path);
+        Logging.AppLogger.Info($"Installer {Path.GetFileName(path)} opened for {app.FinalName} in {launchClock.ElapsedMilliseconds} ms (process {(proc == null ? "none" : proc.Id.ToString())})");
         if (watch && !Updates.SelfUpdate.IsSelf(app)) _ = WatchInstallAsync(app, entry, proc);
     }
 

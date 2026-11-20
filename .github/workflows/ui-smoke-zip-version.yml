@@ -63,7 +63,7 @@ jobs:
             installedVersion = '0.1.0'
           })
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
-          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false }
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = 'synthetic-token-for-export-check'; AutoExportOnChanges = $true; AutoExportPath = (Join-Path $dir 'auto-export.json') }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
       - name: Real ZIP install, then upgrade in place
         shell: pwsh
@@ -202,6 +202,13 @@ jobs:
           }
           $zipName = 'myapp-'
           $folder = 'C:\Obtainium\myapp'
+          function ShotWin($name) {
+            $r = $win.Current.BoundingRectangle
+            $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen((New-Object System.Drawing.Point ([int]$r.X), ([int]$r.Y)), [System.Drawing.Point]::Empty, (New-Object System.Drawing.Size ([int]$r.Width), ([int]$r.Height)))
+            $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
           function Snap($tag) { "== $tag =="; Get-ChildItem $folder -Recurse -Force | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 250 }
           function Installed() { foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Installed: *') { return $el.Current.Name } } }
 
@@ -230,6 +237,21 @@ jobs:
           Shot 'v2-before-upgrade'
           PickAndDownload $zipName
           Snap 'after 2.0.0'
+          # Automatic export is complete (credentials included) and holds the app; synthetic token only.
+          Start-Sleep 5
+          $ae = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
+          if (-not (Test-Path $ae)) { throw 'automatic export file missing' }
+          $aeText = Get-Content $ae -Raw
+          "auto-export has the synthetic token: $($aeText.Contains('synthetic-token-for-export-check')); has the app: $($aeText.Contains('seed-myapp'))"
+          if (-not $aeText.Contains('synthetic-token-for-export-check')) { throw 'automatic export does not include the stored token' }
+          if (-not $aeText.Contains('seed-myapp')) { throw 'automatic export does not include the app' }
+          ClickNamedIn 'Import / Export' $win
+          Start-Sleep 3
+          ShotWin 'x1-import-export-window'
+          $sel = FindNamed 'What to include' $win
+          "export level selector present: $($sel -ne $null)"
+          if ($sel -ne $null) { throw 'the old export level selector is still visible' }
+          if ((FindNamed 'Export to file (complete, with credentials)...' $win) -eq $null) { throw 'complete export button label not found' }
           Shot 'v3-after-upgrade'
           "detail after 2.0.0: $(Installed)"
           if ((Installed) -notlike '*2.0.0*') { throw 'app does not record 2.0.0 after the upgrade' }
