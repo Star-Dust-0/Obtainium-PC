@@ -143,6 +143,8 @@ public static class VersionService
     /// Compares two versions numerically when they share a common non-strict
     /// standard format. Negative: version1 older; positive: newer; 0: equal;
     /// null: not comparable.
+    private static readonly Regex PreReleaseTag = new("[-+.](alpha|beta|rc|pre|dev|snapshot|nightly)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static int? CompareVersionsNumerically(string version1, string version2)
     {
         var formats1 = FindStandardFormatsForVersion(version1, strict: false);
@@ -171,6 +173,10 @@ public static class VersionService
         {
             if (runs1[i] != runs2[i]) return runs1[i] > runs2[i] ? 1 : -1;
         }
+        // Same numbers: a final release is newer than its own pre-release (2.0.0 > 2.0.0-rc1).
+        var pre1 = PreReleaseTag.IsMatch(version1);
+        var pre2 = PreReleaseTag.IsMatch(version2);
+        if (pre1 != pre2) return pre1 ? -1 : 1;
         return 0;
     }
 

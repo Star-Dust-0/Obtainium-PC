@@ -156,4 +156,13 @@ public class DetailActionTests
         Assert.False(action.Enabled);
     }
 
+
+    [Theory]
+    [InlineData("2.0.0-rc1", "2.0.0", -1)]
+    [InlineData("2.0.0", "2.0.0-rc1", 1)]
+    [InlineData("2.0.0-beta", "2.0.0-beta", 0)]
+    [InlineData("2.0.0", "2.0.0", 0)]
+    [InlineData("2.0.0-rc1", "2.0.1", -1)]
+    public void A_release_is_newer_than_its_own_prerelease(string v1, string v2, int sign)
+        => Assert.Equal(sign, Math.Sign(VersionService.CompareVersionsNumerically(v1, v2)!.Value));
 }
