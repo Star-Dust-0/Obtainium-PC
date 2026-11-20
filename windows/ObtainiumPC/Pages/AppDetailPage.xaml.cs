@@ -19,6 +19,9 @@ namespace ObtainiumPC.Pages
             Loaded += (_, _) =>
             {
                 Services.Localization.Localizer.Apply(this);
+                // A secondary command lives in the overflow popup, outside the tree walk above: translate it here.
+                LinkInstalledButton.Label = Services.Localization.Loc.T("Link to installed program");
+                ToolTipService.SetToolTip(LinkInstalledButton, Services.Localization.Loc.T("Pick the installed Windows program that is this app, so its version is read from it"));
                 // The Back button is icon-only like upstream; its accessible
                 // name and tooltip carry the localized string (Flutter
                 // MaterialLocalizations backButtonTooltip, mirrored into
