@@ -974,14 +974,14 @@ jobs:
             $hasTok = (Get-Content $exportFile -Raw).Contains($tokCheck)
             "auto-export contains the stored token (complete export): $hasTok"
             if (-not $hasTok) {
-    $ae = Get-Content $exportFile -Raw | ConvertFrom-Json
-    $setObj = $ae.settings
-    $tv = if ($setObj) { $setObj.GitHubPersonalAccessToken } else { $null }
-    "diag: export has settings object: $($setObj -ne $null); token key present: $($tv -ne $null); length in export: $(if ($tv) { $tv.Length } else { 0 }); expected length: $($tokCheck.Length); equal: $($tv -eq $tokCheck)"
-    $sj = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw | ConvertFrom-Json
-    "diag: settings.json token present: $([bool]$sj.GitHubPersonalAccessToken); length: $($sj.GitHubPersonalAccessToken.Length)"
-    throw 'automatic export does not include the stored token'
-  }
+              $ae = Get-Content $exportFile -Raw | ConvertFrom-Json
+              $setObj = $ae.settings
+              $tv = if ($setObj) { $setObj.GitHubPersonalAccessToken } else { $null }
+              "diag: export has settings object: $($setObj -ne $null); token key present: $($tv -ne $null); length in export: $(if ($tv) { $tv.Length } else { 0 }); expected length: $($tokCheck.Length); equal: $($tv -eq $tokCheck)"
+              $sj = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\settings.json') -Raw | ConvertFrom-Json
+              "diag: settings.json token present: $([bool]$sj.GitHubPersonalAccessToken); length: $($sj.GitHubPersonalAccessToken.Length)"
+              throw 'automatic export does not include the stored token'
+            }
           }
           'auto-export round-trip verified'
 
