@@ -133,6 +133,10 @@ public static class Loc
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
         // Messages that had no upstream translation
+        ["Advanced options"] = "خيارات متقدمة",
+        ["Filter assets by regular expression (optional)"] = "تصفية الملفات بتعبير نمطي (اختياري)",
+        ["Include pre-releases"] = "تضمين الإصدارات التجريبية",
+        ["Invalid regular expression; not saved."] = "تعبير نمطي غير صالح؛ لم يتم الحفظ.",
         ["Search sources (GitHub, GitLab, Codeberg)"] = "مصادر البحث (GitHub، GitLab، Codeberg)",
         ["{0}: already downloading, skipped"] = "{0}: قيد التنزيل بالفعل، تم التخطي",
         ["...and {0} more"] = "...و{0} أخرى",

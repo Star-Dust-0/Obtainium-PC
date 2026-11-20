@@ -209,6 +209,14 @@ jobs:
             $p.Refresh()
             if ($p.HasExited) { Shot "exited-on-$($pg[1])"; throw "app exited navigating to $($pg[0]) (code $($p.ExitCode))" }
             Shot $pg[1]
+            if ($pg[0] -eq 'Add App') {
+              # The Add page offers the options that decide the first check (asset filter, pre-releases).
+              if ((FindNamed 'Advanced options' $win) -eq $null) { DumpNames $win 'add-advanced'; throw 'Add page: Advanced options section not found' }
+              ClickNamed 'Advanced options'
+              Start-Sleep 1
+              if ((FindNamed 'Include pre-releases' $win) -eq $null) { Shot 'add-advanced-not-expanded'; throw 'Add page: Advanced options did not expand to the pre-release switch' }
+              Shot '03b-add-advanced'
+            }
           }
 
           # --- Interaction testing ---

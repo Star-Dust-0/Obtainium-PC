@@ -14,6 +14,12 @@
             <TextBox x:Name="UrlBox" PlaceholderText="https://github.com/owner/repository"/>
             <ComboBox x:Name="OverrideSourceCombo" Header="Override source (optional)" MinWidth="260" HorizontalAlignment="Left"/>
             <CheckBox x:Name="TrackOnlyBox" Content="Track only (check versions without downloading)"/>
+            <Expander x:Name="AdvancedExpander" Header="Advanced options" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <StackPanel Spacing="8">
+                    <TextBox x:Name="FilterBox" Header="Filter assets by regular expression (optional)" PlaceholderText="e.g. x64.*\.exe$"/>
+                    <CheckBox x:Name="PrereleaseBox" Content="Include pre-releases"/>
+                </StackPanel>
+            </Expander>
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="AddButton" Content="Add" Style="{StaticResource AccentButtonStyle}" Click="Add_Click"/>
                 <ProgressRing x:Name="BusyRing" IsActive="False" Width="18" Height="18" VerticalAlignment="Center"/>

@@ -107,6 +107,21 @@ namespace ObtainiumPC.Pages
                     settings["trackOnly"] = JsonSerializer.SerializeToElement(true);
                 }
                 var overrideSource = (OverrideSourceCombo.SelectedItem as ComboBoxItem)?.Tag as string;
+                // Options that decide whether the very first check finds an asset are set here, so a release
+                // that needs a filter or pre-releases can be added without "Add without checking".
+                var filter = FilterBox.Text?.Trim() ?? "";
+                if (filter.Length > 0)
+                {
+                    try { _ = System.Text.RegularExpressions.Regex.Match("", filter); }
+                    catch (ArgumentException)
+                    {
+                        AdvancedExpander.IsExpanded = true;
+                        Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Invalid regular expression; not saved."));
+                        return;
+                    }
+                    settings["apkFilterRegEx"] = JsonSerializer.SerializeToElement(filter);
+                }
+                if (PrereleaseBox.IsChecked == true) settings["includePrereleases"] = JsonSerializer.SerializeToElement(true);
                 // lib/pages/add_app.dart:628 includePrereleasesByDefault: prefill
                 // the per-app includePrereleases option when the source offers it.
                 if (App.Settings.IncludePrereleasesByDefault)
