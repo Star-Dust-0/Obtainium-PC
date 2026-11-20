@@ -1,6 +1,9 @@
 name: UI smoke - portable ZIP (manual)
 
 on:
+  push:
+    branches: [v2-work]
+    paths: ['.github/workflows/ui-smoke-zip.yml']
   workflow_dispatch:
     inputs:
       ref:
@@ -17,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
