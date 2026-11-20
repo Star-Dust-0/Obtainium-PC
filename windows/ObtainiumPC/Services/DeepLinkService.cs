@@ -212,6 +212,12 @@ public static class DeepLinkService
                 var skippedAndroid = apps.Where(a => App.Updater.IsLegacyUnsupported(a)).ToList();
                 apps = apps.Except(skippedAndroid).ToList();
                 var replaceCount = apps.Count(a => App.SnapshotApps().Any(x => x.Id == a.Id));
+                // An import that keeps an app's id but points it at a different URL is called out by name.
+                var urlChanges = apps
+                    .Select(a => (New: a, Old: App.SnapshotApps().FirstOrDefault(x => x.Id == a.Id)))
+                    .Where(p => p.Old != null && !string.Equals(p.Old.Url, p.New.Url, StringComparison.OrdinalIgnoreCase))
+                    .Select(p => $"{p.New.FinalName}: {p.Old!.Url} -> {p.New.Url}")
+                    .ToList();
 
                 // Upstream: confirmation dialog showing the raw JSON in an
                 // expansion tile. This port additionally states the counts and
@@ -236,6 +242,9 @@ public static class DeepLinkService
                     Text = string.Format(Loc.T("Apps to import: {0}. Will replace existing entries: {1}."), apps.Count, replaceCount)
                         + (skippedAndroid.Count > 0
                             ? "\n" + string.Format(Loc.T("Skipped {0} Android apps (not supported): {1}"), skippedAndroid.Count, string.Join(", ", skippedAndroid.Select(a => a.FinalName)))
+                            : "")
+                        + (urlChanges.Count > 0
+                            ? "\n" + string.Format(Loc.T("The source address of {0} existing app(s) will change:"), urlChanges.Count) + "\n" + string.Join("\n", urlChanges)
                             : ""),
                     Margin = new Thickness(0, 0, 0, 8),
                     TextWrapping = TextWrapping.Wrap,
@@ -288,25 +297,20 @@ public static class DeepLinkService
                 }
                 else
                 {
-                    var app = App.SnapshotApps().FirstOrDefault(a => a.Id == id);
-                    if (app != null)
+                    _ = Task.Run(async () =>
                     {
-                        _ = Task.Run(async () =>
+                        try
                         {
-                            try
-                            {
-                                await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
-                                await App.SaveAppsAsync();
-                                // Subscribers reload UI collections; marshal.
-                                App.MainWindowInstance?.DispatcherQueue.TryEnqueue(() =>
-                                    Updates.BackgroundUpdateService.Instance.NotifyAppsChanged());
-                            }
-                            catch (Exception ex)
-                            {
-                                Logging.AppLogger.Warn("Deep-link refresh failed", ex);
-                            }
-                        });
-                    }
+                            await Updates.BackgroundUpdateService.Instance.CheckOneAsync(id);
+                            // Subscribers reload UI collections; marshal.
+                            App.MainWindowInstance?.DispatcherQueue.TryEnqueue(() =>
+                                Updates.BackgroundUpdateService.Instance.NotifyAppsChanged());
+                        }
+                        catch (Exception ex)
+                        {
+                            Logging.AppLogger.Warn("Deep-link refresh failed", ex);
+                        }
+                    });
                 }
                 mw.NavigateToApps();
                 break;

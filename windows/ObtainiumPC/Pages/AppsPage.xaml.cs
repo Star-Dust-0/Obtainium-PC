@@ -441,7 +441,7 @@ namespace ObtainiumPC.Pages
             picks = Services.Updates.SelfUpdate.OrderSelfLast(picks, p => p.App);
             string? selfInstallPath = null;
             // One download pipeline per app; errors land in results per app.
-            async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress)
+            async Task DownloadOneAsync(ObtainiumPC.Models.TrackedApp app, KeyValuePair<string, string> asset, IProgress<(long Received, long? Total)> progress, bool queueInstaller = false)
             {
                 var entry = Services.Download.DownloadRegistry.TryBegin(app.Id, asset.Key, app.FinalName);
                 if (entry == null) { results.Add(app.FinalName + ": already downloading, skipped"); return; }
@@ -458,6 +458,7 @@ namespace ObtainiumPC.Pages
                 {
                     outcome = Services.Download.DownloadState.InstallerOpened;
                     if (Services.Updates.SelfUpdate.IsSelf(app)) selfInstallPath = path;
+                    else if (queueInstaller) await Services.Download.DownloadCoordinator.LaunchInstallerQueuedAsync(app, entry, path);
                     else Services.Download.DownloadCoordinator.LaunchInstaller(app, entry, path);
                 }
                 else if (fetched.Extractable)
@@ -513,7 +514,7 @@ namespace ObtainiumPC.Pages
                     {
                         if (pr.Total is > 0) bar.Value = Math.Min(100, (double)pr.Received / pr.Total.Value * 100);
                     });
-                    try { await DownloadOneAsync(p.App, p.Asset, progress); }
+                    try { await DownloadOneAsync(p.App, p.Asset, progress, queueInstaller: true); }
                     catch (Exception ex) { results.Add(p.App.FinalName + ": failed - " + Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T)); }
                     } finally { slots.Release(); }
                 }));

@@ -19,6 +19,8 @@ public sealed class BackgroundUpdateService
 
     private readonly DispatcherQueueTimer _timer;
     private bool _checking;
+    // Only one check run at a time touches the tracked-app objects (full check, or a deep-link refresh).
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private bool _started;
 
     public event EventHandler? AppsUpdated;
@@ -94,6 +96,7 @@ public sealed class BackgroundUpdateService
             Logging.AppLogger.Info($"Background update check skipped: {guard}");
             return;
         }
+        if (!await _gate.WaitAsync(0)) return;
         _checking = true;
         try
         {
@@ -154,7 +157,24 @@ public sealed class BackgroundUpdateService
         finally
         {
             _checking = false;
+            _gate.Release();
         }
+    }
+
+    /// Checks one app by id (deep-link refresh). Waits for any running check, then looks the app up in
+    /// the current list so a replaced or removed entry is never checked through a stale object.
+    public async Task CheckOneAsync(string id)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            await App.InitAsync();
+            var app = App.SnapshotApps().FirstOrDefault(a => a.Id == id);
+            if (app == null) return;
+            await App.Updater.CheckAppAsync(app.Url, app.AdditionalSettings, app);
+            await App.SaveAppsAsync();
+        }
+        finally { _gate.Release(); }
     }
 
     /// Windows toast for newly found updates. Unpackaged toast delivery is

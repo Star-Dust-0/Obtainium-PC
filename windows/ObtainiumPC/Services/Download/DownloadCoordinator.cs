@@ -69,6 +69,27 @@ public static class DownloadCoordinator
         if (watch && !Updates.SelfUpdate.IsSelf(app)) _ = WatchInstallAsync(app, entry, proc);
     }
 
+    private static readonly SemaphoreSlim InstallerGate = new(1, 1);
+
+    /// Bulk installs: one installer at a time. Parallel downloads finish together, and several
+    /// installers at once collide (MSI error 1618, stacked UAC prompts). Waits until the previous
+    /// installer exits (at most 30 minutes), then opens this one.
+    public static async Task LaunchInstallerQueuedAsync(TrackedApp app, DownloadEntry entry, string path)
+    {
+        await InstallerGate.WaitAsync();
+        try
+        {
+            var proc = DownloadService.OpenInstaller(path);
+            if (!Updates.SelfUpdate.IsSelf(app)) _ = WatchInstallAsync(app, entry, proc);
+            if (proc != null)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                try { await proc.WaitForExitAsync(cts.Token); } catch { /* timed out or already gone: next one may start */ }
+            }
+        }
+        finally { InstallerGate.Release(); }
+    }
+
     internal static async Task WatchInstallAsync(TrackedApp app, DownloadEntry entry, Process? proc, bool quick = false)
     {
         var expected = app.LatestVersion; var previous = app.InstalledVersion;
