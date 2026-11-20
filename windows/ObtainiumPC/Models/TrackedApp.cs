@@ -70,6 +70,21 @@ public sealed class TrackedApp
         return app;
     }
 
+    /// The user's file choice follows the file, not its position: after an update the list can be
+    /// reordered or change length. Exact name first, then the same name with version digits ignored,
+    /// else the first file.
+    public static int RemapPreferredIndex(IReadOnlyList<KeyValuePair<string, string>> oldAssets, int oldIndex, IReadOnlyList<KeyValuePair<string, string>> newAssets)
+    {
+        if (newAssets.Count == 0) return 0;
+        if (oldIndex < 0 || oldIndex >= oldAssets.Count) return 0;
+        var name = oldAssets[oldIndex].Key;
+        for (int i = 0; i < newAssets.Count; i++) if (newAssets[i].Key == name) return i;
+        static string Shape(string n) => System.Text.RegularExpressions.Regex.Replace(n, @"[vV]?\d+([.\-_]\d+)*", "#");
+        var shape = Shape(name);
+        for (int i = 0; i < newAssets.Count; i++) if (Shape(newAssets[i].Key) == shape) return i;
+        return 0;
+    }
+
     public static string SizeIdentity(string? version, string? assetUrl) => (version ?? "") + "|" + (assetUrl ?? "");
     public void RecordAssetSize(long bytes, string? assetUrl) { AssetSizeBytes = bytes; AssetSizeFor = SizeIdentity(LatestVersion, assetUrl); }
     /// <summary>Saved size only when it was recorded for exactly this release and file; otherwise null (unknown).</summary>

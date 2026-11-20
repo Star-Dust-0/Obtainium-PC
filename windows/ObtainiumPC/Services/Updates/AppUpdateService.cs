@@ -194,6 +194,8 @@ public sealed class AppUpdateService
         if (!suppressYoung)
         {
             app.LatestVersion = version;
+            if (currentApp != null)
+                app.PreferredAssetIndex = TrackedApp.RemapPreferredIndex(currentApp.AssetUrls, currentApp.PreferredAssetIndex, assetUrls);
             app.AssetUrls = assetUrls;
             app.OtherAssetUrls = details.AllAssetUrls;
             app.ReleaseDateUs = details.ReleaseDate is { } rd2 ? TrackedApp.ToMicroseconds(rd2) : null;
