@@ -70,7 +70,7 @@ namespace ObtainiumPC.Pages
             var url = UrlBox.Text.Trim();
             if (url.Length == 0)
             {
-                Show(InfoBarSeverity.Warning, "Enter a source URL first.");
+                Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("Enter a source URL first."));
                 return;
             }
             AddButton.IsEnabled = false;
@@ -160,7 +160,7 @@ namespace ObtainiumPC.Pages
             }
             catch (InvalidUrlException)
             {
-                Show(InfoBarSeverity.Error, "That URL is not a supported source. Pick an override source above for other pages (for example HTML).");
+                Show(InfoBarSeverity.Error, Services.Localization.Loc.T("That URL is not a supported source. Pick an override source above for other pages (for example HTML)."));
             }
             catch (Exception ex)
             {
@@ -223,7 +223,7 @@ namespace ObtainiumPC.Pages
                 SearchResults.ItemsSource = items;
                 SearchResults.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                 if (items.Count == 0 && errors.Count == 0)
-                    Show(InfoBarSeverity.Informational, "No results.");
+                    Show(InfoBarSeverity.Informational, Services.Localization.Loc.T("No results."));
                 else if (errors.Count > 0)
                     Show(InfoBarSeverity.Warning, "Some sources failed: " + string.Join("; ", errors));
             }

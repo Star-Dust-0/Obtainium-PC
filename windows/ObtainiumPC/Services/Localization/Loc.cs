@@ -132,6 +132,25 @@ public static class Loc
     // Upstream ar.json entries come from the generated table instead.
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
+        // Messages that had no upstream translation
+        ["App already added: "] = "التطبيق مضاف بالفعل: ",
+        ["Could not fetch starred repos"] = "تعذّر جلب المستودعات المميزة بنجمة",
+        ["Enter a source URL first."] = "أدخل رابط المصدر أولاً.",
+        ["Export complete"] = "اكتمل التصدير",
+        ["Import complete"] = "اكتمل الاستيراد",
+        ["Import failed"] = "فشل الاستيراد",
+        ["Imported"] = "تم الاستيراد",
+        ["No URLs"] = "لا توجد روابط",
+        ["No results."] = "لا توجد نتائج.",
+        ["Nothing found"] = "لم يتم العثور على شيء",
+        ["Nothing to import"] = "لا يوجد ما يُستورد",
+        ["Some sources failed: "] = "فشلت بعض المصادر: ",
+        ["Starred repos added"] = "تمت إضافة المستودعات المميزة بنجمة",
+        ["That URL is not a supported source. Pick an override source above for other pages (for example HTML)"] = "هذا الرابط ليس مصدراً مدعوماً. اختر مصدراً بديلاً بالأعلى للصفحات الأخرى (مثل HTML)",
+        ["URLs loaded"] = "تم تحميل الروابط",
+        ["Username required"] = "اسم المستخدم مطلوب",
+        ["Update available: {0} {1}"] = "تحديث متاح: {0} {1}",
+        ["{0} app updates available"] = "{0} تحديثات للتطبيقات متاحة",
         // Portable (zip) apps
         ["Extracted"] = "تم فك الضغط",
         ["Downloaded {0} to your downloads folder. It is not a portable app (it contains an installer or no program), so it was not extracted and the app was not marked as installed."] = "تم تنزيل {0} في مجلد التنزيلات. الملف ليس تطبيقًا محمولًا (يحتوي على مُثبّت أو لا يحتوي على برنامج)، لذلك لم يُفك ضغطه ولم يُسجَّل التطبيق كمثبّت.",

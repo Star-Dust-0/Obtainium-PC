@@ -185,8 +185,8 @@ public sealed class BackgroundUpdateService
         try
         {
             var text = apps.Count == 1
-                ? $"Update available: {apps[0].FinalName} {apps[0].LatestVersion}"
-                : $"{apps.Count} app updates available";
+                ? string.Format(Localization.Loc.T("Update available: {0} {1}"), apps[0].FinalName, apps[0].LatestVersion)
+                : string.Format(Localization.Loc.T("{0} app updates available"), apps.Count);
             var notification = new AppNotificationBuilder()
                 .AddText("Obtainium-PC")
                 .AddText(text)

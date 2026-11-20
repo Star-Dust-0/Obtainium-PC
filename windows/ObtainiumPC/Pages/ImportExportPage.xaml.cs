@@ -103,7 +103,7 @@ namespace ObtainiumPC.Pages
                 Services.Store.AppStore.WriteFileAtomic(file.Path, json);
             else
                 await FileIO.WriteTextAsync(file, json);
-            ShowResult(InfoBarSeverity.Success, "Export complete",
+            ShowResult(InfoBarSeverity.Success, Services.Localization.Loc.T("Export complete"),
                 string.Format(Services.Localization.Loc.T("{0} apps written to {1}."), App.TrackedApps.Count, file.Name));
         }
 
@@ -113,7 +113,7 @@ namespace ObtainiumPC.Pages
             var username = StarsUsernameBox.Text.Trim();
             if (username.Length == 0)
             {
-                ShowResult(InfoBarSeverity.Warning, "Username required", "Enter the GitHub username whose starred repos you want to import.");
+                ShowResult(InfoBarSeverity.Warning, Services.Localization.Loc.T("Username required"), "Enter the GitHub username whose starred repos you want to import.");
                 return;
             }
 
@@ -125,13 +125,13 @@ namespace ObtainiumPC.Pages
             catch (Exception ex)
             {
                 Services.Logging.AppLogger.Error("Fetching starred repos failed", ex);
-                ShowResult(InfoBarSeverity.Error, "Could not fetch starred repos",
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Could not fetch starred repos"),
                     Services.Localization.Loc.T("The request failed. Details are in the logs."));
                 return;
             }
             if (repos.Count == 0)
             {
-                ShowResult(InfoBarSeverity.Informational, "Nothing found", $"No starred repos for '{username}'.");
+                ShowResult(InfoBarSeverity.Informational, Services.Localization.Loc.T("Nothing found"), $"No starred repos for '{username}'.");
                 return;
             }
 
@@ -174,7 +174,7 @@ namespace ObtainiumPC.Pages
                 if (App.TryAddApp(app) == null) added++;
             }
             await App.SaveAppsAsync();
-            ShowResult(InfoBarSeverity.Success, "Starred repos added",
+            ShowResult(InfoBarSeverity.Success, Services.Localization.Loc.T("Starred repos added"),
                 string.Format(Services.Localization.Loc.T("Added {0} apps. They resolve their first version on the next update check."), added));
         }
 
@@ -204,11 +204,11 @@ namespace ObtainiumPC.Pages
                 .ToList();
             if (urls.Count == 0)
             {
-                ShowResult(InfoBarSeverity.Warning, "No URLs", "No supported app URLs found in that file.");
+                ShowResult(InfoBarSeverity.Warning, Services.Localization.Loc.T("No URLs"), "No supported app URLs found in that file.");
                 return;
             }
             UrlListBox.Text = string.Join("\n", urls);
-            ShowResult(InfoBarSeverity.Informational, "URLs loaded", $"{urls.Count} URL(s) loaded - review and tap Import URLs.");
+            ShowResult(InfoBarSeverity.Informational, Services.Localization.Loc.T("URLs loaded"), $"{urls.Count} URL(s) loaded - review and tap Import URLs.");
         }
 
         private void AutoExportToggle_Toggled(object sender, RoutedEventArgs e)
@@ -274,7 +274,7 @@ namespace ObtainiumPC.Pages
                 if (added > 0) await App.SaveAppsAsync();
                 if (errors.Count == 0)
                 {
-                    ShowResult(InfoBarSeverity.Success, "Imported", string.Format(Services.Localization.Loc.T("Imported {0} apps."), added));
+                    ShowResult(InfoBarSeverity.Success, Services.Localization.Loc.T("Imported"), string.Format(Services.Localization.Loc.T("Imported {0} apps."), added));
                     UrlListBox.Text = "";
                 }
                 else
@@ -349,17 +349,17 @@ namespace ObtainiumPC.Pages
                 if (skippedAndroid.Count > 0)
                     settingsNote += "\n" + string.Format(Services.Localization.Loc.T("Skipped {0} Android apps (not supported): {1}"),
                         skippedAndroid.Count, string.Join(", ", skippedAndroid.Select(a => a.FinalName)));
-                ShowResult(InfoBarSeverity.Success, "Import complete",
+                ShowResult(InfoBarSeverity.Success, Services.Localization.Loc.T("Import complete"),
                     string.Format(Services.Localization.Loc.T("Added: {0}; replaced: {1}."), added, replaced) + settingsNote);
             }
             catch (Services.Store.ObtainiumImportException ex)
             {
-                ShowResult(InfoBarSeverity.Error, "Import failed", ex.Message);
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"), ex.Message);
             }
             catch (Exception ex)
             {
                 Services.Logging.AppLogger.Error("Import failed", ex);
-                ShowResult(InfoBarSeverity.Error, "Import failed",
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"),
                     Services.Localization.Loc.T("The request failed. Details are in the logs."));
             }
         }
@@ -426,13 +426,13 @@ namespace ObtainiumPC.Pages
             catch (Exception ex)
             {
                 Services.Logging.AppLogger.Error("Listing downloads failed", ex);
-                ShowResult(InfoBarSeverity.Error, "Import failed",
+                ShowResult(InfoBarSeverity.Error, Services.Localization.Loc.T("Import failed"),
                     Services.Localization.Loc.T("The request failed. Details are in the logs."));
                 return;
             }
             if (candidates.Count == 0)
             {
-                ShowResult(InfoBarSeverity.Informational, "Nothing to import",
+                ShowResult(InfoBarSeverity.Informational, Services.Localization.Loc.T("Nothing to import"),
                     "No export files found in " + dir + ".");
                 return;
             }
