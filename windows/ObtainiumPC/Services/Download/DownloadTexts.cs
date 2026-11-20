@@ -14,7 +14,7 @@ public static class DownloadTexts
         var (r, t) = e.Snapshot;
         return e.State switch
         {
-            DownloadState.Downloading => e.CancelRequested ? "Cancelling..." : Progress(r, t),
+            DownloadState.Downloading => e.CancelRequested ? "Cancelling..." : e.Phase ?? Progress(r, t),
             DownloadState.Saved => "Saved - not a Windows installer, so it was not launched",
             DownloadState.InstallerOpened => "Installer opened - waiting for it to finish, then the installed version is checked",
             DownloadState.Installed => string.IsNullOrWhiteSpace(e.Message) ? "Installed - version confirmed" : "Installed - " + e.Message,

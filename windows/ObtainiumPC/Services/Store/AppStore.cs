@@ -102,7 +102,9 @@ public sealed class AppStore
         // replace entries while this save serializes.
         var snapshot = apps.ToList();
         // One save at a time: concurrent saves shared the same .tmp file.
+        var gateClock = System.Diagnostics.Stopwatch.StartNew();
         await _saveGate.WaitAsync();
+        if (gateClock.ElapsedMilliseconds > 500) Logging.AppLogger.Warn($"apps.json save waited {gateClock.ElapsedMilliseconds} ms for another save to finish");
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);

@@ -296,6 +296,7 @@ namespace ObtainiumPC.Pages
         private void ApplyDownloadProgress(Services.Download.DownloadEntry entry)
         {
             var (received, total) = entry.Snapshot;
+            if (entry.Phase != null) { DownloadText.Text = entry.Phase; return; }
             if (total is > 0)
             {
                 DownloadBar.Value = Math.Min(100, (double)received / total.Value * 100);

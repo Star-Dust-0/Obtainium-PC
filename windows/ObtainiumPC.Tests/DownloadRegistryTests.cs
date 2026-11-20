@@ -167,4 +167,46 @@ public class DownloadTextsTests
         Assert.Equal("Cancelled - partial file removed", DownloadTexts.Status(b));
         DownloadRegistry.ClearFinished();
     }
+
+    [Fact]
+    public void The_final_report_always_raises_even_inside_the_throttle_window()
+    {
+        var e = DownloadRegistry.TryBegin("app-final", "f.exe")!;
+        var changed = 0;
+        e.Changed += () => changed++;
+        DownloadRegistry.Report(e, 5_800_000, 6_297_561);   // raises (first)
+        var afterFirst = changed;
+        DownloadRegistry.Report(e, 6_000_000, 6_297_561);   // inside 150 ms: swallowed, strip would stay on 5.8 MB
+        Assert.Equal(afterFirst, changed);
+        e.ReportFinal(6_297_561, 6_297_561);
+        Assert.Equal(afterFirst + 1, changed);
+        Assert.Equal((6_297_561L, (long?)6_297_561L), e.Snapshot);
+        DownloadRegistry.End(e);
+    }
+
+    [Fact]
+    public void A_late_progress_report_cannot_move_the_count_backwards()
+    {
+        var e = DownloadRegistry.TryBegin("app-late", "l.exe")!;
+        e.ReportFinal(1000, 1000);
+        DownloadRegistry.Report(e, 400, 1000);
+        Assert.Equal((1000L, (long?)1000L), e.Snapshot);
+        DownloadRegistry.End(e);
+    }
+
+    [Fact]
+    public void A_phase_replaces_the_progress_text_until_the_job_ends()
+    {
+        var e = DownloadRegistry.TryBegin("app-phase", "p.exe")!;
+        e.ReportFinal(10, 10);
+        Assert.Contains("MB of", DownloadTexts.Status(e));  // plain progress text before any phase
+        e.SetPhase("Checking the file...");
+        Assert.Equal("Checking the file...", DownloadTexts.Status(e));
+        e.SetPhase("Opening the installer...");
+        Assert.Equal("Opening the installer...", DownloadTexts.Status(e));
+        e.SetState(DownloadState.InstallerOpened, null);
+        Assert.Null(e.Phase);
+        Assert.StartsWith("Installer opened", DownloadTexts.Status(e));
+        DownloadRegistry.End(e);
+    }
 }

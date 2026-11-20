@@ -30,18 +30,25 @@ public static class DownloadCoordinator
         var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
         // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.
         Func<string, Task> checksumCheck = async part =>
+        {
+            entry.SetPhase("Checking the file...");
             checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
+        };
         var progress = new Progress<(long Received, long? Total)>(p =>
         {
             DownloadRegistry.Report(entry, p.Received, p.Total);
             ui?.Report(p);
         });
         var path = await new DownloadService().DownloadAsync(url, asset.Key, progress, pat, headers, verifyBeforePromote: checksumCheck, subFolder: app.Id, ct: entry.Token);
+        var finalSize = new FileInfo(path).Length;
+        entry.ReportFinal(finalSize, finalSize);
+        entry.SetPhase("Saving...");
         Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
         app.RecordAssetSize(new FileInfo(path).Length, asset.Value);
         var saveClock = System.Diagnostics.Stopwatch.StartNew();
         await App.SaveAppsAsync();
         Logging.AppLogger.Info($"Download of {asset.Key}: apps saved in {saveClock.ElapsedMilliseconds} ms");
+        if (BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key)) entry.SetPhase("Opening the installer...");
         return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
             Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key)
                 && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key))

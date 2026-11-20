@@ -30,7 +30,11 @@ namespace ObtainiumPC
             SetMinimumTrackSize();
             Activated += MainWindow_Activated;
             InitDownloadCenter();
+            _uiStallWatch = new Services.Logging.UiStallWatch(DispatcherQueue);
+            _uiStallWatch.Start();
         }
+
+        private Services.Logging.UiStallWatch? _uiStallWatch;
 
         private void MinimizeCaption_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
         {

@@ -42,6 +42,8 @@ public sealed class DownloadEntry
     public CancellationToken Token => _cts.Token;
     public bool CancelRequested => _cts.IsCancellationRequested;
     public (long Received, long? Total) Snapshot { get { lock (this) return (_received, _total); } }
+    /// What the job is doing after the last byte arrived and before it ends ("Checking the file..."); null while bytes are still coming.
+    public string? Phase { get; private set; }
 
     /// Raised on the thread that reports progress; subscribers marshal to the UI thread themselves.
     public event Action? Changed;
@@ -57,7 +59,8 @@ public sealed class DownloadEntry
 
     internal void Report(long received, long? total)
     {
-        lock (this) { _received = received; _total = total; }
+        // A report queued earlier can be delivered after the final one: never move backwards.
+        lock (this) { if (received < _received) return; _received = received; _total = total; }
         // Progress arrives per 80 KB read; the UI needs a few updates per second.
         var now = Environment.TickCount64;
         if (now - Interlocked.Read(ref _lastRaiseTicks) < 150) return;
@@ -65,10 +68,26 @@ public sealed class DownloadEntry
         Changed?.Invoke();
     }
 
+    /// The last progress report of a transfer. Unlike Report it always raises Changed: the 150 ms throttle
+    /// can swallow the final chunks, which would leave a strip showing a stale "5.8 MB of 6.0 MB".
+    internal void ReportFinal(long received, long? total)
+    {
+        lock (this) { _received = received; _total = total; }
+        Interlocked.Exchange(ref _lastRaiseTicks, Environment.TickCount64);
+        Changed?.Invoke();
+    }
+
+    /// Names the step the job is in after the transfer (checking, saving, opening the installer).
+    public void SetPhase(string? phase)
+    {
+        Phase = phase;
+        Changed?.Invoke();
+    }
+
     /// Later state change of a finished job (install verification). Raises Changed only.
     public void SetState(DownloadState state, string? message)
     {
-        State = state; Message = message;
+        State = state; Message = message; Phase = null;
         Changed?.Invoke();
     }
 
@@ -76,6 +95,7 @@ public sealed class DownloadEntry
     {
         // A later install check may already have settled the job; the end of the transfer must not undo it.
         if (State is not (DownloadState.Installed or DownloadState.InstallUnconfirmed)) { State = state; Message = message; }
+        Phase = null;
         FinishedAt = DateTimeOffset.Now;
         Changed?.Invoke();
         Ended?.Invoke();

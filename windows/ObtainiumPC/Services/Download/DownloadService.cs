@@ -123,8 +123,12 @@ public sealed class DownloadService
             VerifyDownloaded(part, fileName, received, total);
             // e.g. the release SHA-256 check: runs on the .part file, so a wrong-hash
             // download is discarded before it can replace an earlier good installer.
+            var phaseClock = System.Diagnostics.Stopwatch.StartNew();
             if (verifyBeforePromote != null) await verifyBeforePromote(part);
+            var checkedMs = phaseClock.ElapsedMilliseconds;
+            phaseClock.Restart();
             File.Move(part, target, overwrite: true);
+            Logging.AppLogger.Info($"Download {fileName}: checked in {checkedMs} ms, moved into place in {phaseClock.ElapsedMilliseconds} ms");
         }
         catch
         {
