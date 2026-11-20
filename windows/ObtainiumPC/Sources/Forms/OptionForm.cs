@@ -114,7 +114,7 @@ public static class AppOptionFormSpec
             Choice("minimumUpdateAgeDays", "Minimum age for updates", minAgeOptions),
             Switch("exemptFromBackgroundUpdates", "Exempt from background updates (if enabled)"),
             Switch("skipUpdateNotifications", "Skip update notifications"),
-            Switch("refreshBeforeDownload", "Refresh app details before download"),
+            // "refreshBeforeDownload" is not offered: nothing reads it, so the switch did nothing.
         };
         update.RemoveAll(i => excluded.Contains(i.Key));
 
@@ -124,8 +124,8 @@ public static class AppOptionFormSpec
             Switch("trackOnly", "Track-only"),
             Text("appName", "App name"),
             Text("appAuthor", "Author"),
-            Switch("allowInsecure", "Allow insecure HTTP requests"),
-            Text("allowedSigningCertHashes", "Expected signing certificate hashes", hint: "AA:BB:CC:..."),
+            // "allowInsecure" and "allowedSigningCertHashes" are not offered: neither is enforced here, and a
+            // certificate-hash field that is not checked would give a false sense of security. Stored values are kept.
             Text("about", "About"),
         };
         app.RemoveAll(i => excluded.Contains(i.Key));
