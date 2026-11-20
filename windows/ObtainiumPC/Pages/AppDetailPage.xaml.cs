@@ -715,8 +715,52 @@ Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("No installed version 
             _app.InstalledVersion = null;
             _app.InstalledVersionSource = null;
             _app.OsMatchedName = null;
+            Services.Detection.ManualInstallLink.Clear(_app);
             await App.SaveAppsAsync();
             Render();
+        }
+
+        /// Manual link to an installed program: the user picks it, its uninstall key and version are recorded.
+        private async void LinkInstalled_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app == null) return;
+            var all = await Task.Run(() => { Services.Detection.InstalledAppsService.InvalidateCache(); return Services.Detection.InstalledAppsService.ListInstalledApps(); });
+            var filter = new TextBox { PlaceholderText = Services.Localization.Loc.T("Search installed programs"), Margin = new Thickness(0, 0, 0, 8) };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(filter, "Search installed programs");
+            var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 320 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(list, "Installed programs");
+            var dialog = new ThemedContentDialog
+            {
+                Title = Services.Localization.Loc.T("Link to installed program"),
+                PrimaryButtonText = Services.Localization.Loc.T("Link"),
+                CloseButtonText = Services.Localization.Loc.T("Cancel"),
+                IsPrimaryButtonEnabled = false,
+                XamlRoot = XamlRoot,
+            };
+            void Fill()
+            {
+                list.Items.Clear();
+                foreach (var p in Services.Detection.ManualInstallLink.Candidates(all, filter.Text))
+                    list.Items.Add(new ListViewItem { Content = p.DisplayName + (string.IsNullOrWhiteSpace(p.DisplayVersion) ? "" : "  " + p.DisplayVersion), Tag = p });
+            }
+            filter.TextChanged += (_, _) => Fill();
+            list.SelectionChanged += (_, _) => dialog.IsPrimaryButtonEnabled = list.SelectedItem is ListViewItem;
+            Fill();
+            var panel = new StackPanel { Width = 480 };
+            panel.Children.Add(filter);
+            panel.Children.Add(list);
+            dialog.Content = panel;
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (list.SelectedItem is not ListViewItem { Tag: Services.Detection.InstalledAppInfo program }) return;
+            if (!Services.Detection.ManualInstallLink.Apply(_app, program))
+            {
+                Show(InfoBarSeverity.Warning, Services.Localization.Loc.T("This program has no version recorded, so it cannot be linked."));
+                return;
+            }
+            await App.SaveAppsAsync();
+            Services.Updates.BackgroundUpdateService.Instance.NotifyAppsChanged();
+            Render();
+            Show(InfoBarSeverity.Success, string.Format(Services.Localization.Loc.T("Linked to {0}"), program.DisplayName));
         }
 
         private async void Track_Click(object sender, RoutedEventArgs e)

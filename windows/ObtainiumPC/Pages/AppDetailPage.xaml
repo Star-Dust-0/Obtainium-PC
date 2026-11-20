@@ -67,6 +67,10 @@
                                   ToolTipService.ToolTip="Open Windows Installed apps to manage this app">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
                     </AppBarButton>
+                    <AppBarButton x:Name="LinkInstalledButton" Label="Link to installed program" Click="LinkInstalled_Click"
+                                  ToolTipService.ToolTip="Pick the installed Windows program that is this app, so its version is read from it">
+                        <AppBarButton.Icon><FontIcon Glyph="&#xE71B;"/></AppBarButton.Icon>
+                    </AppBarButton>
                     <AppBarButton x:Name="ResetInstallButton" Label="Reset install status" Click="ResetInstall_Click"
                                   ToolTipService.ToolTip="Forget the recorded install so the app can be installed again">
                         <AppBarButton.Icon><FontIcon Glyph="&#xE777;"/></AppBarButton.Icon>
