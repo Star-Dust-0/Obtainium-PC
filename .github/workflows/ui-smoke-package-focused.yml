@@ -38,21 +38,21 @@ jobs:
         run: |
           actual=$(git rev-parse HEAD)
           echo "CHECKED-OUT SHA: $actual (ref input: '${{ inputs.ref }}')"
-          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44786249245' }} --jq .head_sha)
-          echo "BUILD RUN ${{ inputs.build_run_id || '44786249245' }} head_sha: $run_sha"
-          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44786249245' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
+          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44792151433' }} --jq .head_sha)
+          echo "BUILD RUN ${{ inputs.build_run_id || '44792151433' }} head_sha: $run_sha"
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44792151433' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
           if [ "$actual" != "$run_sha" ]; then echo "NOTE: harness commit differs from the build run commit (harness-only changes)"; fi
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-Setup-win-x64
           path: pkg/setup
-          run-id: ${{ inputs.build_run_id || '44786249245' }}
+          run-id: ${{ inputs.build_run_id || '44792151433' }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-win-x64
           path: pkg/portable
-          run-id: ${{ inputs.build_run_id || '44786249245' }}
+          run-id: ${{ inputs.build_run_id || '44792151433' }}
           github-token: ${{ github.token }}
       - name: Hash the candidate package and install it
         shell: pwsh
