@@ -38,21 +38,21 @@ jobs:
         run: |
           actual=$(git rev-parse HEAD)
           echo "CHECKED-OUT SHA: $actual (ref input: '${{ inputs.ref }}')"
-          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44792151433' }} --jq .head_sha)
-          echo "BUILD RUN ${{ inputs.build_run_id || '44792151433' }} head_sha: $run_sha"
-          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44792151433' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
+          run_sha=$(gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44803941997' }} --jq .head_sha)
+          echo "BUILD RUN ${{ inputs.build_run_id || '44803941997' }} head_sha: $run_sha"
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.build_run_id || '44803941997' }}/artifacts --jq '.artifacts[] | "artifact \(.id) \(.name) \(.size_in_bytes) bytes digest=\(.digest) created=\(.created_at)"'
           if [ "$actual" != "$run_sha" ]; then echo "NOTE: harness commit differs from the build run commit (harness-only changes)"; fi
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-Setup-win-x64
           path: pkg/setup
-          run-id: ${{ inputs.build_run_id || '44792151433' }}
+          run-id: ${{ inputs.build_run_id || '44803941997' }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: ObtainiumPC-win-x64
           path: pkg/portable
-          run-id: ${{ inputs.build_run_id || '44792151433' }}
+          run-id: ${{ inputs.build_run_id || '44803941997' }}
           github-token: ${{ github.token }}
       - name: Hash the candidate package and install it
         shell: pwsh
@@ -260,6 +260,20 @@ jobs:
             return $null
           }
           function LogTail { $lp = Join-Path $data 'logs.jsonl'; Get-ChildItem $data -Filter '*.jsonl' | ForEach-Object { "-- $($_.Name)"; Get-Content $_.FullName -Tail 25 | ForEach-Object { $_.Substring(0, [Math]::Min(240, $_.Length)) } } }
+
+          # ===== Session 0: a language saved by an earlier version (German) is no longer offered; the app must show English and keep the stored value =====
+          Seed $false $false
+          $sv = ReadSettings; $sv | Add-Member -NotePropertyName Language -NotePropertyValue 'de' -Force; ($sv | ConvertTo-Json) | Set-Content $setFile
+          StartApp
+          if ((FindNamed 'Settings' $win) -eq $null) { DumpNames $win 'lang-de'; Shot 's0-nav-not-english'; throw 'stored language de: the navigation is not English' }
+          if ((FindNamed 'Einstellungen' $win) -ne $null) { Shot 's0-german-shown'; throw 'stored language de: German is still shown' }
+          ShotWin 's0-stored-de-shows-english'
+          if ((ReadSettings).Language -ne 'de') { throw 'the stored language value was rewritten at start-up' }
+          ClickNamedIn 'Settings' $win
+          Start-Sleep 2
+          ShotWin 's0-settings'
+          Get-Process ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          'stored language de: English shown, stored value kept'
 
           # ===== Session 1: regex validation, deep-link URL change, serial bulk installers =====
           Seed $true $true
