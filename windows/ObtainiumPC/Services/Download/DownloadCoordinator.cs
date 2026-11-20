@@ -84,7 +84,8 @@ public static class DownloadCoordinator
         try
         {
             var proc = DownloadService.OpenInstaller(path);
-            if (!Updates.SelfUpdate.IsSelf(app)) _ = WatchInstallAsync(app, entry, proc);
+            // The queue waits on the process below, so it (not the watcher) disposes the handle.
+            if (!Updates.SelfUpdate.IsSelf(app)) _ = WatchInstallAsync(app, entry, proc, disposeProcess: false);
             if (proc != null)
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
@@ -94,7 +95,7 @@ public static class DownloadCoordinator
         finally { InstallerGate.Release(); }
     }
 
-    internal static async Task WatchInstallAsync(TrackedApp app, DownloadEntry entry, Process? proc, bool quick = false)
+    internal static async Task WatchInstallAsync(TrackedApp app, DownloadEntry entry, Process? proc, bool quick = false, bool disposeProcess = true)
     {
         var expected = app.LatestVersion; var previous = app.InstalledVersion;
         var deadline = DateTimeOffset.Now.AddMinutes(quick ? 0.4 : 15);
@@ -138,6 +139,7 @@ public static class DownloadCoordinator
             }
         }
         catch (Exception ex) { Logging.AppLogger.Warn("install check failed", ex); }
+        finally { if (disposeProcess) { try { proc?.Dispose(); } catch { } } }
         entry.SetState(DownloadState.InstallUnconfirmed, InstallCheck.UnconfirmedMessage(lastResult, lastDetected, exit, endedAt != null));
     }
 

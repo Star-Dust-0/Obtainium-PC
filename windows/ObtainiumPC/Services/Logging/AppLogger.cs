@@ -35,10 +35,24 @@ public static class AppLogger
             lock (Gate)
             {
                 Directory.CreateDirectory(AppSettings.DataDir);
+                RotateIfLarge();
                 File.AppendAllText(FilePath, JsonSerializer.Serialize(entry) + "\n");
             }
         }
         catch { /* logging never throws */ }
+    }
+
+    /// The log keeps growing for 7 days at most, but a noisy failure loop could fill the disk
+    /// first. Past the cap the current file becomes logs.previous.jsonl (replacing the older one).
+    internal static long MaxBytes { get; set; } = 10L * 1024 * 1024;
+    private static void RotateIfLarge()
+    {
+        try
+        {
+            var f = new FileInfo(FilePath);
+            if (f.Exists && f.Length > MaxBytes) File.Move(FilePath, Path.Combine(AppSettings.DataDir, "logs.previous.jsonl"), overwrite: true);
+        }
+        catch { /* rotation is best effort */ }
     }
 
     public static IReadOnlyList<LogEntry> GetLogs(DateTimeOffset? after = null)
