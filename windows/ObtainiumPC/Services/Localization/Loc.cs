@@ -146,7 +146,7 @@ public static class Loc
         ["Nothing to import"] = "لا يوجد ما يُستورد",
         ["Some sources failed: "] = "فشلت بعض المصادر: ",
         ["Starred repos added"] = "تمت إضافة المستودعات المميزة بنجمة",
-        ["That URL is not a supported source. Pick an override source above for other pages (for example HTML)"] = "هذا الرابط ليس مصدراً مدعوماً. اختر مصدراً بديلاً بالأعلى للصفحات الأخرى (مثل HTML)",
+        ["That URL is not a supported source. Pick an override source above for other pages (for example HTML)."] = "هذا الرابط ليس مصدراً مدعوماً. اختر مصدراً بديلاً بالأعلى للصفحات الأخرى (مثل HTML).",
         ["URLs loaded"] = "تم تحميل الروابط",
         ["Username required"] = "اسم المستخدم مطلوب",
         ["Update available: {0} {1}"] = "تحديث متاح: {0} {1}",
