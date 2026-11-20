@@ -21,6 +21,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
+      - name: Report and verify the checked-out commit
+        shell: bash
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "CHECKED-OUT SHA: $actual (dispatched on $GITHUB_REF_NAME at $GITHUB_SHA; ref input: '${{ inputs.ref }}')"
+          if [ -z "${{ inputs.ref }}" ] && [ "$actual" != "$GITHUB_SHA" ]; then echo "checked-out commit is not the dispatched commit"; exit 1; fi
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
