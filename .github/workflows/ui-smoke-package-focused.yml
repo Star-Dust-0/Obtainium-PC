@@ -328,7 +328,15 @@ jobs:
           ClickPartial 'appC' $win | Out-Null
           Start-Sleep 3
           $lk = FindNamed 'Link to installed program' $win
-          if ($lk -eq $null) { ClickNamedIn '...' $win; Start-Sleep 1; $lk = FindNamed 'Link to installed program' $root }
+          if ($lk -eq $null) {
+            ShotWin 's1-detail-default-width'
+            $ac = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, 'MoreButton')
+            $more = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $ac)
+            if ($more -eq $null) { $more = FindNamed 'More' $win }
+            if ($more -eq $null) { DumpNames $win 'detail-c-nomore'; Shot 's1-more-missing'; throw 'overflow button not found' }
+            try { $more.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { $more.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() }
+            Start-Sleep 1; $lk = FindNamed 'Link to installed program' $root
+          }
           if ($lk -eq $null) { DumpNames $win 'detail-c'; Shot 's1-link-button-missing'; throw 'Link to installed program button not found' }
           try { $lk.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { ClickNamedIn 'Link to installed program' $root }
           Start-Sleep 3
