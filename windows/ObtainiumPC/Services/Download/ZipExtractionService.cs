@@ -128,9 +128,9 @@ public static class ZipExtractionService
         catch (Exception ex) when (rootOverride == null
             && (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException))
         {
-            root = FallbackRoot();
-            Directory.CreateDirectory(root);
-            usedFallback = true;
+            // The chosen location is C:\Obtainium: never relocate silently.
+            throw new IOException("Could not create \"" + root + "\" (" + ex.Message + "). "
+                + "Create that folder yourself or run Obtainium-PC once as administrator, then try again.", ex);
         }
 
         var target = ChooseTarget(root, zipPath, ownerId, version);
@@ -189,7 +189,11 @@ public static class ZipExtractionService
             }
 
             MarkFromInternet(staging);
+            var targetIsNew = !Directory.Exists(target);
             Directory.CreateDirectory(target);
+            // Whatever the parent's inherited permissions are, a folder created here for one app is
+            // writable only by this user and administrators (others can read and run).
+            if (targetIsNew && rootOverride == null) RestrictRoot(target);
             MergeInto(staging, target, ct);
             if (ownerId != null)
             {

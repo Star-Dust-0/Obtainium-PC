@@ -469,6 +469,13 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
                     PostDownloadNote.Text = "";
                     DetectNowButton.Visibility = Visibility.Collapsed;
                 }
+                else if (Sources.AssetFilterService.IsZipArchive(asset.Key))
+                {
+                    Show(InfoBarSeverity.Informational, string.Format(
+                        Services.Localization.Loc.T("Downloaded {0} to your downloads folder. It is not a portable app (it contains an installer or no program), so it was not extracted and the app was not marked as installed."), asset.Key));
+                    PostDownloadNote.Text = "";
+                    DetectNowButton.Visibility = Visibility.Collapsed;
+                }
                 else
                 {
                     Show(InfoBarSeverity.Success, Sources.AssetFilterService.IsAndroidPackage(asset.Key)

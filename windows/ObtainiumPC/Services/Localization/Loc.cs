@@ -134,6 +134,7 @@ public static class Loc
     {
         // Portable (zip) apps
         ["Extracted"] = "تم فك الضغط",
+        ["Downloaded {0} to your downloads folder. It is not a portable app (it contains an installer or no program), so it was not extracted and the app was not marked as installed."] = "تم تنزيل {0} في مجلد التنزيلات. الملف ليس تطبيقًا محمولًا (يحتوي على مُثبّت أو لا يحتوي على برنامج)، لذلك لم يُفك ضغطه ولم يُسجَّل التطبيق كمثبّت.",
         ["{0} was extracted to:"] = "تم فك ضغط {0} في المسار:",
         ["Open folder"] = "فتح المجلد",
         ["Extracting..."] = "جارٍ فك الضغط...",
