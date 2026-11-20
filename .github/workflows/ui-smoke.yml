@@ -1088,7 +1088,7 @@ jobs:
           if ("$($wApp.latestVersion)" -notlike "*$($wAny.tag_name.TrimStart('v'))*") { throw "pre-release first check stored $($wApp.latestVersion), expected the newest release $($wAny.tag_name)" }
           if ("$($wApp.additionalSettings)" -notlike '*includePrereleases":true*') { throw 'pre-release switch was not stored with the app' }
           if ("$($wApp.additionalSettings)" -notlike '*apkFilterRegEx*msixbundle*') { throw 'asset filter was not stored with the app' }
-          $wNames = @(($wApp.apkUrls | ConvertFrom-Json) | ForEach-Object { $_[0] })
+          $wNames = @([regex]::Matches("$($wApp.apkUrls)", '\["([^"]+)","http') | ForEach-Object { $_.Groups[1].Value })
           if ($wNames.Count -lt 1 -or @($wNames | Where-Object { $_ -notmatch '8wekyb3d8bbwe\.msixbundle$' }).Count -gt 0) { throw "stored assets do not all match the filter: $($wNames -join ', ')" }
           'add-page first check verified (default stable pick, invalid regex refused, filter and pre-release applied)'
           ClickNamedIn 'Apps' $win2
