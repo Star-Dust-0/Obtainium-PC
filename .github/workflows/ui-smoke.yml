@@ -797,6 +797,28 @@ jobs:
           Start-Sleep 4
           AssertAlive 'shuck-detail'
           Shot '26-shuck-detail'
+          # Small window: the detail page must scroll so its last content is reachable.
+          $script:shotWin = $win2
+          $wr = $win2.Current.BoundingRectangle
+          "detail scroll check: window $([int]$wr.Width)x$([int]$wr.Height)"
+          $scroller = $null
+          foreach ($el in $win2.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+            $sp = $null
+            try { $sp = $el.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern) } catch {}
+            if ($sp -ne $null -and $sp.Current.VerticallyScrollable -and $el.Current.BoundingRectangle.Width -gt 300) { $scroller = $sp; break }
+          }
+          if ($scroller -eq $null) { "detail scroll check: nothing scrollable, the whole detail fits in the window"; Shot '26-shuck-detail-fits' }
+          else {
+            $scroller.SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 100)
+            Start-Sleep 1
+            $pct = $scroller.Current.VerticalScrollPercent
+            "detail scrolled to bottom: $pct%"
+            Shot '26-shuck-detail-scrolled-bottom'
+            if ($pct -lt 99) { throw "detail page did not scroll to its bottom in the small window (at $pct%)" }
+            $scroller.SetScrollPercent([System.Windows.Automation.ScrollPattern]::NoScroll, 0)
+            Start-Sleep 1
+            if ($scroller.Current.VerticalScrollPercent -gt 1) { throw 'detail page did not scroll back to the top' }
+          }
           # Outdated installed app, real registry evidence: v1.0.0 is installed (registry), the
           # latest release is v1.0.1. The detail must show both versions, offer Update, and the
           # update flow (download -> interactive installer -> detection) must end at 1.0.1.
