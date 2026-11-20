@@ -78,6 +78,7 @@ jobs:
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
           New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class DwmFrame { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; } [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size); public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9; }'
           Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class M { [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, int e); }'
           function Shot($name) {
             $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -219,11 +220,26 @@ jobs:
           $zipName = 'myapp-'
           $folder = 'C:\Obtainium\myapp'
           function ShotWin($name) {
-            $r = $win.Current.BoundingRectangle
-            $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
+            # Visible frame (DWM extended bounds), not the UIA rectangle that includes the invisible resize border.
+            $x = 0; $y = 0; $w = 0; $h = 0
+            $hwnd = [IntPtr]$win.Current.NativeWindowHandle
+            $fr = New-Object DwmFrame+RECT
+            if ($hwnd -ne [IntPtr]::Zero -and [DwmFrame]::DwmGetWindowAttribute($hwnd, [DwmFrame]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$fr, 16) -eq 0) {
+              $x = $fr.Left; $y = $fr.Top; $w = $fr.Right - $fr.Left; $h = $fr.Bottom - $fr.Top
+            } else {
+              $r = $win.Current.BoundingRectangle; $x = [int]$r.X; $y = [int]$r.Y; $w = [int]$r.Width; $h = [int]$r.Height
+            }
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
             $g = [System.Drawing.Graphics]::FromImage($bmp)
-            $g.CopyFromScreen((New-Object System.Drawing.Point ([int]$r.X), ([int]$r.Y)), [System.Drawing.Point]::Empty, (New-Object System.Drawing.Size ([int]$r.Width), ([int]$r.Height)))
+            $g.CopyFromScreen((New-Object System.Drawing.Point $x, $y), [System.Drawing.Point]::Empty, (New-Object System.Drawing.Size $w, $h))
             $bmp.Save("shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          function StripText {
+            $t = @()
+            foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+              if ($el.Current.AutomationId -like 'DownloadStrip*' -and $el.Current.Name) { $t += $el.Current.Name }
+            }
+            return ($t -join ' | ')
           }
           function Snap($tag) { "== $tag =="; Get-ChildItem $folder -Recurse -Force | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 250 }
           function Installed() { foreach ($el in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'Installed: *') { return $el.Current.Name } } }
@@ -258,6 +274,10 @@ jobs:
           try { PickAndDownload $zipName -ExpectFailure } finally { $lock.Dispose() }
           ShotWin 'v2-failed-upgrade-window'
           "after failed upgrade: installed=$(Installed)"
+          $strip = StripText
+          "download strip after failed upgrade: [$strip]"
+          if ($strip -like '*Saved - not a Windows installer*' -or $strip -like '*Installed - *') { throw "the download strip reports success after a failed upgrade: $strip" }
+          if ($strip -notlike '*Failed*') { throw "the download strip does not say the upgrade failed: [$strip]" }
           if ((Get-Content (Join-Path $folder 'run.txt') -Raw).Trim() -ne 'v1') { throw 'rollback: run.txt is not v1 after the failed upgrade' }
           if ((Get-Item (Join-Path $folder 'myapp.exe')).Length -ne $exeBefore) { throw 'rollback: myapp.exe changed after the failed upgrade' }
           if ((Get-Content (Join-Path $folder 'config.ini') -Raw) -ne $cfgBefore) { throw 'rollback: config.ini changed after the failed upgrade' }

@@ -493,6 +493,8 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             }
             catch (Exception ex)
             {
+                // The state set before a later step (extract, launch) must not survive that step failing.
+                outcome = Services.Download.DownloadState.Failed;
                 outcomeMessage = Services.Localization.SourceErrorText.Describe(ex, Services.Localization.Loc.T);
                 Show(InfoBarSeverity.Error, Services.Localization.Loc.T("Download failed: ") + outcomeMessage);
             }

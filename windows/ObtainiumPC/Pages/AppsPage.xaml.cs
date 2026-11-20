@@ -485,6 +485,7 @@ namespace ObtainiumPC.Pages
                 }
                 catch (Exception ex)
                 {
+                    outcome = Services.Download.DownloadState.Failed;
                     outcomeMessage = ex.Message;
                     throw;
                 }

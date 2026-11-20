@@ -172,7 +172,7 @@ public static class DownloadCoordinator
             else outcome = DownloadState.Saved;
         }
         catch (OperationCanceledException) when (entry.CancelRequested) { outcome = DownloadState.Cancelled; message = "Cancelled - partial file removed"; }
-        catch (Exception ex) { message = Localization.SourceErrorText.Describe(ex, Localization.Loc.T); Logging.AppLogger.Warn("retry failed", ex); }
+        catch (Exception ex) { outcome = DownloadState.Failed; message = Localization.SourceErrorText.Describe(ex, Localization.Loc.T); Logging.AppLogger.Warn("retry failed", ex); }
         finally { DownloadRegistry.End(entry, outcome, message); }
     }
 }
