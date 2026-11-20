@@ -280,4 +280,52 @@ public class V2InPlaceUpdateTests : IDisposable
         Assert.Equal("A", File.ReadAllText(Path.Combine(one.Folder, "tool.exe")));
         Assert.Equal("B", File.ReadAllText(Path.Combine(two.Folder, "tool.exe")));
     }
+
+    [Fact]
+    public void Kept_settings_stay_protected_on_the_next_update_and_new_copies_do_not_pile_up()
+    {
+        ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("config.ini", "d1")), Root, ownerId: "a", folderName: "Tool");
+        var f = Path.Combine(Root, "Tool");
+        File.WriteAllText(Path.Combine(f, "config.ini"), "mine");
+        ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("config.ini", "d2")), Root, ownerId: "a", folderName: "Tool");
+        ZipExtractionService.Extract(MakeZip("t3.zip", ("tool.exe", "v3"), ("config.ini", "d3")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("mine", File.ReadAllText(Path.Combine(f, "config.ini")));   // never mistaken for an untouched default
+        Assert.Equal("d3", File.ReadAllText(Path.Combine(f, "config.ini.new")));  // old .new replaced, not duplicated
+        Assert.False(File.Exists(Path.Combine(f, "config.ini.new2")));
+    }
+
+    [Fact]
+    public void A_file_the_user_created_with_a_new_name_is_never_overwritten()
+    {
+        ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("config.ini", "d1")), Root, ownerId: "a", folderName: "Tool");
+        var f = Path.Combine(Root, "Tool");
+        File.WriteAllText(Path.Combine(f, "config.ini"), "mine");
+        File.WriteAllText(Path.Combine(f, "config.ini.new"), "user's own file");
+        ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("config.ini", "d2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("user's own file", File.ReadAllText(Path.Combine(f, "config.ini.new")));
+        Assert.Equal("d2", File.ReadAllText(Path.Combine(f, "config.ini.new2")));
+    }
+
+    [Fact]
+    public void A_user_modified_library_is_replaced_but_the_original_is_saved()
+    {
+        ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("a.dll", "d1")), Root, ownerId: "a", folderName: "Tool");
+        var f = Path.Combine(Root, "Tool");
+        File.WriteAllText(Path.Combine(f, "a.dll"), "patched by user");
+        var r = ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2"), ("a.dll", "d2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("d2", File.ReadAllText(Path.Combine(f, "a.dll")));
+        Assert.Equal("patched by user", File.ReadAllText(Path.Combine(f, "a.dll.user-backup")));
+        Assert.Single(r.KeptUserFiles!);
+    }
+
+    [Fact]
+    public void A_user_modified_file_the_new_version_dropped_is_left_alone()
+    {
+        ZipExtractionService.Extract(MakeZip("t1.zip", ("tool.exe", "v1"), ("old.dll", "d1")), Root, ownerId: "a", folderName: "Tool");
+        var f = Path.Combine(Root, "Tool");
+        File.WriteAllText(Path.Combine(f, "old.dll"), "changed");
+        ZipExtractionService.Extract(MakeZip("t2.zip", ("tool.exe", "v2")), Root, ownerId: "a", folderName: "Tool");
+        Assert.Equal("changed", File.ReadAllText(Path.Combine(f, "old.dll")));
+    }
 }
+

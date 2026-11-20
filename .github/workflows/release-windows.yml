@@ -71,5 +71,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TITLE: ${{ inputs.title }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
-          gh release create $env:TAG dist\Obtainium-PC-$($env:TAG)-win-x64-Setup.exe dist\Obtainium-PC-$($env:TAG)-win-x64-portable.zip dist\SHA256SUMS.txt --title "${{ inputs.title }}" --notes-file RELEASE_NOTES.md --latest --target ${{ github.sha }}
+          gh release create $env:TAG dist\Obtainium-PC-$($env:TAG)-win-x64-Setup.exe dist\Obtainium-PC-$($env:TAG)-win-x64-portable.zip dist\SHA256SUMS.txt --title "$env:RELEASE_TITLE" --notes-file RELEASE_NOTES.md --latest --target $env:RELEASE_SHA

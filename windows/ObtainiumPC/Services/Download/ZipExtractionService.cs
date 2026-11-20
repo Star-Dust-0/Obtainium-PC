@@ -273,17 +273,36 @@ public static class ZipExtractionService
             // Plan: what is replaced, what is kept (as .new), what is stale.
             var plan = new List<(string Src, string Dest, string Rel, bool ReplaceExisting)>();
             var kept = new List<string>();
+            var originalCopies = new List<(string From, string To)>();
+            // A name is free for a generated ".new" copy if nothing is there, or what is there is a
+            // previous ".new" this app wrote and the user has not touched.
+            bool FreeForGenerated(string rel, string path) =>
+                !File.Exists(path) || (oldManifest.TryGetValue(Key(rel), out var h)
+                    && string.Equals(h, Sha256Of(path), StringComparison.OrdinalIgnoreCase));
             foreach (var src in files)
             {
                 var rel = Path.GetRelativePath(stagingFull, src);
                 var dest = Path.Combine(target, rel);
-                if (File.Exists(dest) && IsUserEditable(rel) && UserChanged(rel, dest)
-                    && !string.Equals(Sha256Of(dest), Sha256Of(src), StringComparison.OrdinalIgnoreCase))
+                var differs = File.Exists(dest) && !string.Equals(Sha256Of(dest), Sha256Of(src), StringComparison.OrdinalIgnoreCase);
+                if (differs && UserChanged(rel, dest))
                 {
-                    kept.Add(Key(rel));
-                    plan.Add((src, dest + ".new", rel + ".new", true));
+                    // Changed since install (or never installed by us). Extension alone never decides
+                    // that a file is disposable: edited settings stay, anything else keeps a copy.
+                    if (IsUserEditable(rel))
+                    {
+                        var suffix = ".new";
+                        for (var i = 2; !FreeForGenerated(rel + suffix, dest + suffix); i++) suffix = ".new" + i;
+                        kept.Add(Key(rel));
+                        newManifest[Key(rel) + suffix] = Sha256Of(src);
+                        plan.Add((src, dest + suffix, rel + suffix, true));
+                        continue;
+                    }
+                    var copy = dest + ".user-backup";
+                    for (var i = 2; File.Exists(copy); i++) copy = dest + ".user-backup" + i;
+                    originalCopies.Add((dest, copy));
+                    kept.Add(Key(rel) + " (original saved as " + Path.GetFileName(copy) + ")");
                 }
-                else plan.Add((src, dest, rel, true));
+                plan.Add((src, dest, rel, true));
             }
             var stale = new List<string>();
             foreach (var kv in oldManifest)
@@ -322,6 +341,7 @@ public static class ZipExtractionService
                     return 0;
                 }
                 foreach (var old in stale) { ct.ThrowIfCancellationRequested(); Backup(old); }
+                foreach (var (from, to) in originalCopies) { File.Copy(from, to); movedIn.Add(to); }
                 foreach (var (src, dest, _, _) in plan)
                 {
                     ct.ThrowIfCancellationRequested();

@@ -49,8 +49,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
         run: |
-          gh run download ${{ inputs.build_run_id }} -n ObtainiumPC-win-x64 -D appbin
+          gh run download $env:BUILD_RUN_ID -n ObtainiumPC-win-x64 -D appbin
           if (-not (Test-Path appbin\ObtainiumPC.exe)) { throw 'artifact reuse failed: ObtainiumPC.exe missing' }
       - name: Focused ar/en pane repro
         shell: pwsh
