@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
       - name: Test
-        run: dotnet test windows/ObtainiumPC.Tests/ObtainiumPC.Tests.csproj -c Release -p:Platform=x64
+        run: dotnet test windows/ObtainiumPC.Tests/ObtainiumPC.Tests.csproj -c Release -p:Platform=x64 --logger "console;verbosity=detailed"
       - name: Restore
         run: msbuild windows/ObtainiumPC.sln /t:Restore /p:Configuration=Release /p:Platform=x64
       - name: Build
