@@ -13,6 +13,17 @@ public sealed record DownloadResult(string Path, bool Installable, DownloadServi
 /// </summary>
 public static class DownloadCoordinator
 {
+    /// True only when the URL's real host is GitHub (never a lookalike such as github.com.evil.com
+    /// or a URL that merely contains the text in its query), so the PAT is not sent elsewhere.
+    public static bool IsGitHubHost(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
+        if (u.Scheme != Uri.UriSchemeHttps && u.Scheme != Uri.UriSchemeHttp) return false;
+        var h = u.Host.ToLowerInvariant();
+        return h == "github.com" || h.EndsWith(".github.com")
+            || h == "githubusercontent.com" || h.EndsWith(".githubusercontent.com");
+    }
+
     public static async Task<DownloadResult> FetchAsync(TrackedApp app, KeyValuePair<string, string> asset,
         DownloadEntry entry, IProgress<(long Received, long? Total)>? ui = null)
     {
@@ -21,7 +32,7 @@ public static class DownloadCoordinator
         SourceCatalog.TryResolve(app.Url, App.Settings, out var source);
         if (source != null) url = await source.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
         // The GitHub PAT is only attached to GitHub asset requests.
-        var pat = url.Contains("github.com") || url.Contains("githubusercontent.com") ? App.Settings.GitHubPersonalAccessToken : null;
+        var pat = IsGitHubHost(url) ? App.Settings.GitHubPersonalAccessToken : null;
         var headers = source?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
         var checksum = DownloadService.ChecksumStatus.NoChecksumPublished;
         // The release SHA-256 is checked on the .part file, before it can replace an earlier good download.

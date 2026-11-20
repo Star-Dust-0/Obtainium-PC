@@ -137,7 +137,7 @@ public sealed class AppUpdateService
             assetUrls = AssetFilterService.PreferWindowsArchives(assetUrls, CurrentArches());
         if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
 
-        if (SettingBool(settings, "autoApkFilterByArch"))
+        if (SettingBool(settings, "autoApkFilterByArch", fallback: true))
         {
             assetUrls = AssetFilterService.FilterAssetsByArch(assetUrls, CurrentArches());
             if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();

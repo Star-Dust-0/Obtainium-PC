@@ -90,7 +90,7 @@ namespace ObtainiumPC.Pages
                 var url = assetUrl;
                 if (SourceCatalog.TryResolve(app.Url, App.Settings, out var src) && src != null)
                     url = await src.AssetUrlPrefetchModifierAsync(url, app.Url, app.AdditionalSettings);
-                var pat = url.Contains("github.com") || url.Contains("githubusercontent.com") ? App.Settings.GitHubPersonalAccessToken : null;
+                var pat = Services.Download.DownloadCoordinator.IsGitHubHost(url) ? App.Settings.GitHubPersonalAccessToken : null;
                 var headers = src?.GetDownloadRequestHeaders(url, app.Url, app.AdditionalSettings);
                 var size = await Services.Download.DownloadService.ProbeSizeAsync(url, pat, headers);
                 // Ignore a result for a different release or app than the one now shown.

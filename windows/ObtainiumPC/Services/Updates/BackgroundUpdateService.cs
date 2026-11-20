@@ -33,7 +33,11 @@ public sealed class BackgroundUpdateService
     private BackgroundUpdateService()
     {
         _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
-        _timer.Tick += async (_, _) => await CheckAllAsync(manual: false);
+        _timer.Tick += async (_, _) =>
+        {
+            try { await CheckAllAsync(manual: false); }
+            catch (Exception ex) { Logging.AppLogger.Warn("periodic update check failed", ex); }
+        };
     }
 
     /// Starts the interval timer (and an immediate check when checkOnStart is set).

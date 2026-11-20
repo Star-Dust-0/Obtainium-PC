@@ -63,7 +63,8 @@ public static class InstalledAppsService
         try
         {
             using var key = root.OpenSubKey(path);
-            if (key == null) return false;
+            // A missing Uninstall key (e.g. no per-user installs under HKCU) is an empty list, not a failed read.
+            if (key == null) return true;
             foreach (var subName in key.GetSubKeyNames())
             {
                 try
