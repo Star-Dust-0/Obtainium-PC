@@ -864,10 +864,20 @@ jobs:
           }
           if (-not $shFile) { Shot 'shuck-update-no-download'; throw 'Shuck update download did not produce the 1.0.1 installer' }
           "shuck update downloaded: $($shFile.Name) ($($shFile.Length) bytes)"
-          Start-Sleep 4
-          $shInstalling = @(Get-Process | Where-Object { $_.Name -like 'Shuck*setup*' })
-          "interactive installer processes launched by the app: $($shInstalling.Count)"
-          if ($shInstalling.Count -eq 0) { Shot 'shuck-installer-not-launched'; throw 'the app did not launch the downloaded installer' }
+          # Poll for the installer process (up to 60 s) and record how long it took, so a slow launch
+          # (disk save, antivirus scan of the new exe) can be told apart from a launch that never happens.
+          $launchWatch = [System.Diagnostics.Stopwatch]::StartNew()
+          $shInstalling = @()
+          while ($launchWatch.Elapsed.TotalSeconds -lt 60) {
+            $shInstalling = @(Get-Process | Where-Object { $_.Name -like 'Shuck*setup*' })
+            if ($shInstalling.Count -gt 0) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          "interactive installer processes launched by the app: $($shInstalling.Count) (seen $([math]::Round($launchWatch.Elapsed.TotalSeconds,1)) s after the downloaded file was found; file timestamp age at that moment unknown)"
+          $appLog = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $appLog) { Get-Content $appLog -Tail 400 | Select-String 'apps saved in|opened for Shuck|Installer Shuck' | ForEach-Object { "app log: $($_.Line)" } }
+          if ($shInstalling.Count -eq 0) { Shot 'shuck-installer-not-launched'; throw 'the app did not launch the downloaded installer within 60 s of the file appearing' }
+          if ($launchWatch.Elapsed.TotalSeconds -gt 4) { "NOTE: installer launch took longer than the old 4 s window ($([math]::Round($launchWatch.Elapsed.TotalSeconds,1)) s)" }
           Get-Process | Where-Object { $_.Name -like 'Shuck*setup*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep 2
           $sp2 = Start-Process $shFile.FullName -ArgumentList '/S' -PassThru
@@ -1005,6 +1015,80 @@ jobs:
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
           'add anyway verified (dialog, placeholder stored, switch restored)'
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+
+          # First check through the Add page: pre-release choice and asset filter decide what the very first
+          # check stores. Expected values come from the GitHub API in this run (live data), not constants.
+          $gh = @{ 'User-Agent' = 'obtainium-pc-smoke'; Accept = 'application/vnd.github+json' }
+          if ($env:SMOKE_GH_TOKEN) { $gh['Authorization'] = "Bearer $($env:SMOKE_GH_TOKEN)" }
+          function WaitForApp($url) {
+            foreach ($i in 1..45) {
+              Start-Sleep 2
+              $all = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json
+              $m = @($all | Where-Object { $_.url -eq $url })[0]
+              if ($m -ne $null) { return $m }
+            }
+            return $null
+          }
+          # (a) defaults: pre-releases off. The first check must pick the newest stable release.
+          $tRel = Invoke-RestMethod -Uri 'https://api.github.com/repos/microsoft/terminal/releases?per_page=30' -Headers $gh
+          $tStable = ($tRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Select-Object -First 1).tag_name
+          $tAny = ($tRel | Where-Object { -not $_.draft } | Select-Object -First 1)
+          "add-page first check (a): newest stable tag $tStable; newest overall $($tAny.tag_name) (prerelease=$($tAny.prerelease)) - a prerelease newest means the check can tell the two apart"
+          $tUrl = 'https://github.com/microsoft/terminal'
+          Start-Process $exe -ArgumentList ('obtainium://add?url=' + [uri]::EscapeDataString($tUrl))
+          Start-Sleep 4
+          ClickNamedIn 'Add' $win2
+          $tApp = WaitForApp $tUrl
+          Shot '41-add-first-check-default'
+          if ($tApp -eq $null) { throw 'Add page: the default first check of microsoft/terminal stored no app' }
+          "add-page first check (a) stored: latest=$($tApp.latestVersion) settings=$($tApp.additionalSettings)"
+          if ("$($tApp.latestVersion)" -notlike "*$($tStable.TrimStart('v'))*") { throw "default first check stored $($tApp.latestVersion), expected the newest stable $tStable" }
+          if ("$($tApp.additionalSettings)" -like '*includePrereleases":true*') { throw 'default add stored includePrereleases=true' }
+          ClickNamedIn 'Apps' $win2
+          Start-Sleep 2
+          # (b) invalid regex is refused and nothing is added
+          $wUrl = 'https://github.com/microsoft/winget-cli'
+          Start-Process $exe -ArgumentList ('obtainium://add?url=' + [uri]::EscapeDataString($wUrl))
+          Start-Sleep 4
+          ClickNamedIn 'Advanced options' $win2
+          Start-Sleep 1
+          $fb = FindNamed 'Filter assets by regular expression (optional)' $win2
+          if ($fb -eq $null) { Shot '41b-filter-box-missing'; throw 'Add page: filter box not found' }
+          $fb.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('(')
+          Start-Sleep 1
+          ClickNamedIn 'Add' $win2
+          Start-Sleep 3
+          Shot '41b-add-invalid-regex'
+          $badBar = FindNamed 'Invalid regular expression; not saved.' $win2
+          $afterBad = Get-Content (Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json') -Raw | ConvertFrom-Json
+          if (@($afterBad | Where-Object { $_.url -eq $wUrl }).Count -gt 0) { throw 'an invalid filter regex still added the app' }
+          if ($badBar -eq $null) { "NOTE: invalid-regex message not found by name; no app was added" } else { 'invalid regex refused with the message; nothing added' }
+          # (c) valid filter + pre-releases on: the first check must use both.
+          $wRel = Invoke-RestMethod -Uri 'https://api.github.com/repos/microsoft/winget-cli/releases?per_page=30' -Headers $gh
+          $wAny = $wRel | Where-Object { -not $_.draft } | Select-Object -First 1
+          $wStable = ($wRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Select-Object -First 1).tag_name
+          "add-page first check (c): newest overall $($wAny.tag_name) (prerelease=$($wAny.prerelease)); newest stable $wStable"
+          $fb = FindNamed 'Filter assets by regular expression (optional)' $win2
+          $fb.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('8wekyb3d8bbwe\.msixbundle$')
+          $pb = FindNamed 'Include pre-releases' $win2
+          if ($pb -eq $null) { throw 'Add page: pre-release switch not found' }
+          $pbt = $pb.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+          if ($pbt.Current.ToggleState -ne 'On') { $pbt.Toggle() }
+          Start-Sleep 1
+          Shot '41c-add-filter-prerelease-set'
+          ClickNamedIn 'Add' $win2
+          $wApp = WaitForApp $wUrl
+          Shot '41d-add-first-check-filter-prerelease'
+          if ($wApp -eq $null) { throw 'Add page: filter + pre-release first check stored no app' }
+          "add-page first check (c) stored: latest=$($wApp.latestVersion) apkUrls=$($wApp.apkUrls) settings=$($wApp.additionalSettings)"
+          if ("$($wApp.latestVersion)" -notlike "*$($wAny.tag_name.TrimStart('v'))*") { throw "pre-release first check stored $($wApp.latestVersion), expected the newest release $($wAny.tag_name)" }
+          if ("$($wApp.additionalSettings)" -notlike '*includePrereleases":true*') { throw 'pre-release switch was not stored with the app' }
+          if ("$($wApp.additionalSettings)" -notlike '*apkFilterRegEx*msixbundle*') { throw 'asset filter was not stored with the app' }
+          $wNames = @(($wApp.apkUrls | ConvertFrom-Json) | ForEach-Object { $_[0] })
+          if ($wNames.Count -lt 1 -or @($wNames | Where-Object { $_ -notmatch '8wekyb3d8bbwe\.msixbundle$' }).Count -gt 0) { throw "stored assets do not all match the filter: $($wNames -join ', ')" }
+          'add-page first check verified (default stable pick, invalid regex refused, filter and pre-release applied)'
           ClickNamedIn 'Apps' $win2
           Start-Sleep 2
 
