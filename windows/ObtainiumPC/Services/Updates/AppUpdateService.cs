@@ -133,7 +133,7 @@ public sealed class AppUpdateService
             assetUrls, filterRegex, SettingBool(settings, "invertAPKFilter") ? true : (bool?)null);
         // Portable (zip-only) releases often ship one zip per OS/CPU: keep the Windows build for
         // this CPU as the default pick. Applied after the user's own filter, so that always wins.
-        if (assetUrls.Count > 1 && assetUrls.All(a => AssetFilterService.IsZipArchive(a.Key)))
+        if (assetUrls.Count > 1 && AssetFilterService.IsPortableArchiveRelease(assetUrls.Select(a => a.Key)))
             assetUrls = AssetFilterService.PreferWindowsArchives(assetUrls, CurrentArches());
         if (assetUrls.Count == 0 && !trackOnly) throw new NoAppAssetException();
 

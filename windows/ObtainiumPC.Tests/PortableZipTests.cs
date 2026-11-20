@@ -84,6 +84,22 @@ public class PortableZipTests : IDisposable
     }
 
     [Fact]
+    public void Msvc_build_is_the_default_among_same_cpu_windows_zips_in_a_mixed_release()
+    {
+        // Modelled on a real release: Windows zips for several toolchains and CPUs next to .deb and .tar.gz files.
+        var names = new[]
+        {
+            "fd_10.5.2_amd64.deb", "fd-v10.5.2-aarch64-apple-darwin.tar.gz", "fd-v10.5.2-aarch64-pc-windows-msvc.zip",
+            "fd-v10.5.2-x86_64-pc-windows-gnu.zip", "fd-v10.5.2-x86_64-pc-windows-msvc.zip", "fd-v10.5.2-x86_64-unknown-linux-musl.tar.gz",
+        };
+        Assert.True(AssetFilterService.IsPortableArchiveRelease(names));
+        var assets = names.Select(n => new KeyValuePair<string, string>(n, "u-" + n)).ToList();
+        var picked = AssetFilterService.PreferWindowsArchives(assets, new[] { "x64" });
+        Assert.Equal("fd-v10.5.2-x86_64-pc-windows-msvc.zip", picked[0].Key);
+        Assert.DoesNotContain(picked, a => a.Key.EndsWith(".deb") || a.Key.Contains("linux"));
+    }
+
+    [Fact]
     public void Darwin_is_not_mistaken_for_windows()
     {
         var assets = new List<KeyValuePair<string, string>> { new("tool-darwin-x64.zip", "u1"), new("tool-linux-x64.zip", "u2") };

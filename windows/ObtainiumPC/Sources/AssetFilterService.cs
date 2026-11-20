@@ -159,7 +159,8 @@ public static class AssetFilterService
         var windows = assets.Where(a => WindowsMarkerRegex.IsMatch(a.Key)).ToList();
         var pool = windows.Count > 0 ? windows : assets.Where(a => !OtherOsMarkerRegex.IsMatch(a.Key)).ToList();
         if (pool.Count == 0) pool = assets;
-        return FilterAssetsByArch(pool, arches);
+        // Same CPU, several toolchains (msvc, gnu, gnullvm): the MSVC build is the usual default.
+        return FilterAssetsByArch(pool, arches).OrderBy(a => Regex.IsMatch(a.Key, "(^|[^a-z])(gnu|gnullvm|mingw)([^a-z]|$)", RegexOptions.IgnoreCase) ? 1 : 0).ToList();
     }
 
     /// Non-canonical arch names commonly used in Windows installer filenames.

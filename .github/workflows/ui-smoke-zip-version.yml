@@ -57,7 +57,7 @@ jobs:
           $add = '{"customLinkFilterRegex":"myapp-.*\\.zip","versionExtractionRegEx":"(\\d+\\.\\d+\\.\\d+)","matchGroupToUse":"1"}'
           $apps = @(@{
             id = 'seed-myapp'; url = 'http://127.0.0.1:8099/'
-            author = 'local'; name = 'myapp'
+            author = 'local'; name = 'myapp'; overrideSource = 'HTML'
             apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0
             additionalSettings = $add; categories = @(); pinned = $false; disabled = $false
             installedVersion = '0.1.0'
