@@ -133,6 +133,8 @@ public static class Loc
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
         // Messages that had no upstream translation
+        ["...and {0} more"] = "...و{0} أخرى",
+        ["Your edited files were kept; the new versions were saved next to them:"] = "تم الإبقاء على الملفات التي عدّلتها؛ وحُفظت النسخ الجديدة بجانبها:",
         ["Applied {0} settings."] = "تم تطبيق {0} من الإعدادات.",
         ["Apply settings from this file?"] = "تطبيق الإعدادات من هذا الملف؟",
         ["Apply settings"] = "تطبيق الإعدادات",

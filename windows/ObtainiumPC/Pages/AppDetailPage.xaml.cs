@@ -509,7 +509,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
             if (extracted != null)
             {
                 Render();
-                await ExtractedFolderDialog.ShowAsync(this.XamlRoot, _app.FinalName, extracted.Folder, extracted.UsedFallbackRoot);
+                await ExtractedFolderDialog.ShowAsync(this.XamlRoot, _app.FinalName, extracted.Folder, extracted.UsedFallbackRoot, extracted.KeptUserFiles);
             }
         }
 
