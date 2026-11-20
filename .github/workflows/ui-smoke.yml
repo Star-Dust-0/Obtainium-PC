@@ -1033,7 +1033,8 @@ jobs:
           }
           # (a) defaults: pre-releases off. The first check must pick the newest stable release.
           $tRel = Invoke-RestMethod -Uri 'https://api.github.com/repos/microsoft/terminal/releases?per_page=30' -Headers $gh
-          $tStable = ($tRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Select-Object -First 1).tag_name
+          function VerKey($tag) { $m = [regex]::Match("$tag", '\d+(\.\d+)*'); if ($m.Success) { try { return [version]$m.Value } catch {} }; return [version]'0.0' }
+          $tStable = ($tRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Sort-Object { VerKey $_.tag_name } -Descending | Select-Object -First 1).tag_name
           $tAny = ($tRel | Where-Object { -not $_.draft } | Select-Object -First 1)
           "add-page first check (a): newest stable tag $tStable; newest overall $($tAny.tag_name) (prerelease=$($tAny.prerelease)) - a prerelease newest means the check can tell the two apart"
           $tUrl = 'https://github.com/microsoft/terminal'
@@ -1067,8 +1068,9 @@ jobs:
           if ($badBar -eq $null) { "NOTE: invalid-regex message not found by name; no app was added" } else { 'invalid regex refused with the message; nothing added' }
           # (c) valid filter + pre-releases on: the first check must use both.
           $wRel = Invoke-RestMethod -Uri 'https://api.github.com/repos/microsoft/winget-cli/releases?per_page=30' -Headers $gh
-          $wAny = $wRel | Where-Object { -not $_.draft } | Select-Object -First 1
-          $wStable = ($wRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Select-Object -First 1).tag_name
+          # The app orders releases by version (not by publish date), so the expected pick is the highest version tag.
+          $wAny = $wRel | Where-Object { -not $_.draft } | Sort-Object { VerKey $_.tag_name } -Descending | Select-Object -First 1
+          $wStable = ($wRel | Where-Object { -not $_.prerelease -and -not $_.draft } | Sort-Object { VerKey $_.tag_name } -Descending | Select-Object -First 1).tag_name
           "add-page first check (c): newest overall $($wAny.tag_name) (prerelease=$($wAny.prerelease)); newest stable $wStable"
           $fb = FindNamed 'Filter assets by regular expression (optional)' $win2
           $fb.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('8wekyb3d8bbwe\.msixbundle$')
