@@ -211,10 +211,13 @@ jobs:
             Shot $pg[1]
             if ($pg[0] -eq 'Add App') {
               # The Add page offers the options that decide the first check (asset filter, pre-releases).
-              if ((FindNamed 'Advanced options' $win) -eq $null) { DumpNames $win 'add-advanced'; throw 'Add page: Advanced options section not found' }
+              # (FindNamed is defined further down the script, so look the names up inline.)
+              $advCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Advanced options')
+              if ($win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $advCond) -eq $null) { Shot 'add-advanced-missing'; throw 'Add page: Advanced options section not found' }
               ClickNamed 'Advanced options'
               Start-Sleep 1
-              if ((FindNamed 'Include pre-releases' $win) -eq $null) { Shot 'add-advanced-not-expanded'; throw 'Add page: Advanced options did not expand to the pre-release switch' }
+              $preCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Include pre-releases')
+              if ($win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $preCond) -eq $null) { Shot 'add-advanced-not-expanded'; throw 'Add page: Advanced options did not expand to the pre-release switch' }
               Shot '03b-add-advanced'
             }
           }
