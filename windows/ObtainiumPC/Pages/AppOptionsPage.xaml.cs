@@ -238,7 +238,17 @@ namespace ObtainiumPC.Pages
             var entry = GetIntermediateLinkEntry(app.AdditionalSettings) ?? new Dictionary<string, JsonElement>();
             if (value == null) entry.Remove(field);
             else entry[field] = JsonSerializer.SerializeToElement(value);
-            app.SetSetting("intermediateLink", new List<Dictionary<string, JsonElement>> { entry });
+            // Only the first entry is edited here; further entries of an imported app are kept as they are.
+            var all = new List<JsonElement>();
+            var replaced = false;
+            if (app.AdditionalSettings.TryGetValue("intermediateLink", out var il) && il.ValueKind == JsonValueKind.Array)
+                foreach (var e in il.EnumerateArray())
+                {
+                    if (!replaced && e.ValueKind == JsonValueKind.Object) { all.Add(JsonSerializer.SerializeToElement(entry)); replaced = true; }
+                    else all.Add(e.Clone());
+                }
+            if (!replaced) all.Insert(0, JsonSerializer.SerializeToElement(entry));
+            app.SetSetting("intermediateLink", all);
         }
     }
 }

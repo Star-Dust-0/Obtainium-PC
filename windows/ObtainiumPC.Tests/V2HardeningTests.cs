@@ -341,3 +341,34 @@ public class V2ChecksumTests
     }
 }
 
+public class V2SmallFixTests
+{
+    [Theory]
+    [InlineData("..", "download.bin")]
+    [InlineData(".", "download.bin")]
+    [InlineData("setup.exe.", "setup.exe")]
+    [InlineData("CON", "_CON")]
+    [InlineData("nul.txt", "_nul.txt")]
+    [InlineData("a/b:c.exe", "a_b_c.exe")]
+    [InlineData("fine-1.2.exe", "fine-1.2.exe")]
+    public void Download_file_names_cannot_escape_or_name_devices(string input, string expected)
+        => Assert.Equal(expected, ObtainiumPC.Services.Download.DownloadService.Sanitize(input));
+
+    [Fact]
+    public void Very_long_numeric_runs_compare_without_throwing()
+    {
+        var a = "1.20260101123456789012345.7";
+        var b = "1.20260101123456789012346.7";
+        var r = ObtainiumPC.Services.Versioning.VersionService.CompareVersionsNumerically(a, b);
+        Assert.True(r is null or -1);
+    }
+
+    [Theory]
+    [InlineData("https://proxy.example/", "proxy.example")]
+    [InlineData("http://proxy.example/x//", "proxy.example/x")]
+    [InlineData("  ", null)]
+    [InlineData("proxy.example", "proxy.example")]
+    public void Proxy_prefix_is_stored_without_scheme_or_trailing_slash(string input, string? expected)
+        => Assert.Equal(expected, ObtainiumPC.Services.Settings.AppSettings.CleanPrefix(input));
+}
+

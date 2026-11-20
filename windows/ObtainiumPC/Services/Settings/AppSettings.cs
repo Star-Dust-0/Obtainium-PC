@@ -159,4 +159,15 @@ public sealed class AppSettings
     private static readonly object SaveLock = new();
 
     public static string DataDir => Dir;
+
+    /// A proxy prefix is stored as a bare host/path: no scheme, no trailing slash.
+    public static string? CleanPrefix(string? v)
+    {
+        var t = string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+        if (t == null) return null;
+        foreach (var scheme in new[] { "https://", "http://" })
+            if (t.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) { t = t.Substring(scheme.Length); break; }
+        t = t.TrimEnd('/');
+        return t.Length == 0 ? null : t;
+    }
 }

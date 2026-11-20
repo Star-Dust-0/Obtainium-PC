@@ -194,6 +194,7 @@ namespace ObtainiumPC.Pages
             if (_loading || UpdateIntervalCombo.SelectedItem is not ComboBoxItem item) return;
             App.Settings.UpdateIntervalMinutes = (int)item.Tag;
             Save();
+            Services.Updates.BackgroundUpdateService.Instance.ApplyInterval();
         }
 
         private void MinAgeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -292,7 +293,7 @@ namespace ObtainiumPC.Pages
         private void GlobalMatchGroupBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GlobalMatchGroupToUse = EmptyToNull(GlobalMatchGroupBox.Text); Save(); }
         private void GlobalAssetFilterBox_LostFocus(object sender, RoutedEventArgs e) { if (!ValidRegex(GlobalAssetFilterBox.Text, GlobalAssetFilterBox)) return; App.Settings.GlobalAssetFilterRegEx = EmptyToNull(GlobalAssetFilterBox.Text); Save(); }
         private void GitHubPatBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GitHubPersonalAccessToken = EmptyToNull(GitHubPatBox.Password); Save(); }
-        private void GhReqPrefixBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GitHubReqPrefix = EmptyToNull(GhReqPrefixBox.Text); Save(); }
+        private void GhReqPrefixBox_LostFocus(object sender, RoutedEventArgs e) { App.Settings.GitHubReqPrefix = Services.Settings.AppSettings.CleanPrefix(GhReqPrefixBox.Text); GhReqPrefixBox.Text = App.Settings.GitHubReqPrefix ?? ""; Save(); }
 
         private static string? EmptyToNull(string v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
     }

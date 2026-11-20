@@ -51,6 +51,15 @@ public sealed class BackgroundUpdateService
         if (App.Settings.CheckOnStart) _ = CheckAllAsync(manual: false);
     }
 
+    /// Applies a changed check interval right away instead of at the next start.
+    public void ApplyInterval()
+    {
+        if (!_started) return;
+        _timer.Stop();
+        _timer.Interval = TimeSpan.FromMinutes(Math.Clamp(App.Settings.UpdateIntervalMinutes, 15, 10080));
+        _timer.Start();
+    }
+
     private static bool? DetectMetered()
     {
         try

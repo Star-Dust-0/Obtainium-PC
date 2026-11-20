@@ -56,8 +56,7 @@ public static class VersionService
         foreach (Match numberMatch in numbers)
         {
             var number = numberMatch.Value;
-            var groupIndex = int.Parse(number.Substring(1));
-            var matchGroup = groupIndex < match.Groups.Count ? match.Groups[groupIndex].Value : "";
+            var matchGroup = int.TryParse(number.Substring(1), out var groupIndex) && groupIndex < match.Groups.Count ? match.Groups[groupIndex].Value : "";
             var isEscaped = outputString.Contains("\\" + number);
             if (!isEscaped) outputString = outputString.Replace(number, matchGroup);
             else outputString = outputString.Replace("\\" + number, number);
@@ -163,12 +162,12 @@ public static class VersionService
             }
         }
         var mostSpecificRegExp = new Regex(mostSpecific);
-        List<long> ExtractNumericRuns(string version) =>
+        List<System.Numerics.BigInteger> ExtractNumericRuns(string version) =>
             digitRunRegex.Matches(mostSpecificRegExp.Match(version).Value)
-                .Select(m => long.Parse(m.Value)).ToList();
+                .Select(m => System.Numerics.BigInteger.Parse(m.Value)).ToList();
         var runs1 = ExtractNumericRuns(version1);
         var runs2 = ExtractNumericRuns(version2);
-        for (var i = 0; i < runs1.Count; i++)
+        for (var i = 0; i < runs1.Count && i < runs2.Count; i++)
         {
             if (runs1[i] != runs2[i]) return runs1[i] > runs2[i] ? 1 : -1;
         }

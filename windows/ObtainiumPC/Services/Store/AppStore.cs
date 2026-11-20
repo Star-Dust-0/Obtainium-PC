@@ -202,7 +202,8 @@ public sealed class AppStore
                     settings = s.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone());
             }
             imported = appsElement.EnumerateArray()
-                .Select(e => e.Deserialize<TrackedApp>() ?? new TrackedApp())
+                .Select(e => e.ValueKind == JsonValueKind.Object ? e.Deserialize<TrackedApp>() : null)
+                .Where(a => a != null).Select(a => a!)
                 .ToList();
         }
         catch (Exception e) { throw new ObtainiumImportException("Failed to import: " + e.Message); }

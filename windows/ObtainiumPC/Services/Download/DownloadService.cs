@@ -340,11 +340,18 @@ public sealed class DownloadService
         return expected != null && !expected.Equals(Sha256Of(path), StringComparison.Ordinal);
     }
 
-    private static string Sanitize(string fileName)
+    internal static string Sanitize(string fileName)
     {
         foreach (var c in Path.GetInvalidFileNameChars())
             fileName = fileName.Replace(c, '_');
-        return fileName.Length > 0 ? fileName : "download.bin";
+        // "." and ".." would point at the folder itself or its parent; a trailing dot or space is
+        // dropped by Windows; device names (CON, NUL, COM1...) cannot be files.
+        fileName = fileName.TrimEnd('.', ' ');
+        if (fileName.Length == 0) return "download.bin";
+        var stem = fileName.Split('.')[0].ToUpperInvariant();
+        if (stem is "CON" or "PRN" or "AUX" or "NUL" || (stem.Length == 4 && (stem.StartsWith("COM") || stem.StartsWith("LPT")) && char.IsDigit(stem[3])))
+            fileName = "_" + fileName;
+        return fileName;
     }
 
     /// Opens the downloaded installer for the user. .msi goes through msiexec;
