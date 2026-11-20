@@ -129,6 +129,9 @@ public sealed class AppStore
     /// </summary>
     public static string Export(IEnumerable<TrackedApp> apps, Dictionary<string, object?>? settings, int exportLevel, string appVersion)
     {
+        // Owner decision (2026-11-20): an export is always complete and restorable, including credentials,
+        // tokens and request headers; the level argument is kept for callers but no longer removes anything.
+        exportLevel = 2;
         var appList = new List<Dictionary<string, JsonElement>>();
         foreach (var app in apps)
         {

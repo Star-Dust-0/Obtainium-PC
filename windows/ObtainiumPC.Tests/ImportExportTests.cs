@@ -74,46 +74,24 @@ public class ImportExportTests
     }
 
     [Fact]
-    public void Credentials_are_stripped_unless_secrets_included()
+    public void Export_is_complete_at_every_level_with_synthetic_credentials_and_roundtrips()
     {
-        var stripped = AppStore.Export(new[] { SampleApp() }, null, 0, "1.0.0-test");
-        var (noCreds, _, _) = AppStore.Import(stripped);
-        Assert.Null(noCreds[0].GetSettingString("github-creds"));
-        Assert.True(noCreds[0].AdditionalSettings.ContainsKey("trackOnly"));
-
-        var withSecrets = AppStore.Export(new[] { SampleApp() }, null, 2, "1.0.0-test");
-        var (withCreds, _, _) = AppStore.Import(withSecrets);
-        Assert.Equal("user:secret", withCreds[0].GetSettingString("github-creds"));
-    }
-
-    [Fact]
-    public void Settings_level_secrets_are_stripped_unless_secrets_included()
-    {
-        // The port stores source PATs as typed *PersonalAccessToken settings;
-        // upstream's "-creds" suffix strip must cover them so GitLab/Forgejo
-        // PATs never leak into a "credentials stripped" export.
         var settings = new Dictionary<string, object?>
         {
-            ["GitHubPersonalAccessToken"] = "gh-secret",
-            ["GitLabPersonalAccessToken"] = "gl-secret",
-            ["ForgejoPersonalAccessToken"] = "fj-secret",
+            ["GitHubPersonalAccessToken"] = "synthetic-gh-token",
+            ["GitLabPersonalAccessToken"] = "synthetic-gl-token",
             ["Theme"] = 2,
         };
-        var stripped = AppStore.Export(new[] { SampleApp() }, settings, 1, "1.0.0-test");
-        Assert.DoesNotContain("gh-secret", stripped);
-        Assert.DoesNotContain("gl-secret", stripped);
-        Assert.DoesNotContain("fj-secret", stripped);
-        Assert.Contains("\"Theme\"", stripped);
-        // Per-app source-option secrets must be absent from the raw emitted
-        // document too - not only after a re-import (SampleApp carries
-        // github-creds = user:secret in its additionalSettings).
-        Assert.DoesNotContain("user:secret", stripped);
-        Assert.DoesNotContain("github-creds", stripped);
-
-        var withSecrets = AppStore.Export(new[] { SampleApp() }, settings, 2, "1.0.0-test");
-        Assert.Contains("gh-secret", withSecrets);
-        Assert.Contains("gl-secret", withSecrets);
-        Assert.Contains("fj-secret", withSecrets);
+        foreach (var level in new[] { 0, 1, 2 })
+        {
+            var json = AppStore.Export(new[] { SampleApp() }, settings, level, "1.0.0-test");
+            Assert.Contains("synthetic-gh-token", json);
+            Assert.Contains("synthetic-gl-token", json);
+            var (apps, hasSettings, imported) = AppStore.Import(json);
+            Assert.True(hasSettings);
+            Assert.Equal("user:secret", apps[0].GetSettingString("github-creds"));
+            Assert.Equal("synthetic-gh-token", imported!["GitHubPersonalAccessToken"].GetString());
+        }
     }
 
     [Fact]
