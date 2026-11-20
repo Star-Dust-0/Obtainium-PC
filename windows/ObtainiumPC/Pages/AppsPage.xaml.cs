@@ -160,8 +160,14 @@ namespace ObtainiumPC.Pages
                 catch (Exception ex) { Services.Logging.AppLogger.Error("Apps list refresh failed", ex); }
             }
             if (DispatcherQueue.HasThreadAccess) Safe();
-            else DispatcherQueue.TryEnqueue(Safe);
+            else
+            {
+                // A burst of background updates (one per app) rebuilds the list once, not per event.
+                if (System.Threading.Interlocked.Exchange(ref _reloadQueued, 1) == 1) return;
+                DispatcherQueue.TryEnqueue(() => { System.Threading.Interlocked.Exchange(ref _reloadQueued, 0); Safe(); });
+            }
         }
+        private int _reloadQueued;
 
         // lib/components/app_list_tile.dart AppsFilter (the filter dialog model).
         private readonly Services.Store.AppsFilter _filter = new();

@@ -122,13 +122,23 @@ public sealed class TrackedApp
     [JsonIgnore]
     public Dictionary<string, string> LockedSecrets { get; } = new();
 
+    private string? _parsedFrom;
+    private Dictionary<string, JsonElement>? _parsed;
+
     [JsonIgnore]
     public Dictionary<string, JsonElement> AdditionalSettings
     {
         get
         {
-            try { return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(AdditionalSettingsJson) ?? new(); }
-            catch { return new(); }
+            // Parsed once per distinct JSON text; callers get their own copy so edits never leak back.
+            var json = AdditionalSettingsJson;
+            if (!ReferenceEquals(json, _parsedFrom) || _parsed == null)
+            {
+                try { _parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ?? new(); }
+                catch { _parsed = new(); }
+                _parsedFrom = json;
+            }
+            return new Dictionary<string, JsonElement>(_parsed);
         }
         set => AdditionalSettingsJson = JsonSerializer.Serialize(value);
     }
