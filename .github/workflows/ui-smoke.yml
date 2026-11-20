@@ -967,6 +967,14 @@ jobs:
           $exportFile = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
           if (-not (Test-Path $exportFile)) { Shot 'auto-export-missing'; throw 'auto-export file missing after the deep-link import' }
           if ((Get-Content $exportFile -Raw) -notlike '*deeplink-smoke-1*') { Shot 'auto-export-content'; throw 'auto-export file does not contain the imported app' }
+          # Owner decision 2026-11-20: automatic export is complete, credentials included. The seeded token is the
+          # runner's throwaway job token; only the boolean is printed, never the value.
+          $tokCheck = $env:SMOKE_GH_TOKEN
+          if ($tokCheck) {
+            $hasTok = (Get-Content $exportFile -Raw).Contains($tokCheck)
+            "auto-export contains the stored token (complete export): $hasTok"
+            if (-not $hasTok) { throw 'automatic export does not include the stored token' }
+          }
           'auto-export round-trip verified'
 
           # 4) malformed payload: error dialog, never an import.
