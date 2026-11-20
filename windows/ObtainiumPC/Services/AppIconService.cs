@@ -37,7 +37,7 @@ public static class AppIconService
     public static string? InstalledIconPath(TrackedApp app)
     {
         if (app.InstalledVersion == null) return null;
-        var m = ObtainiumPC.Services.Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author, Installed());
+        var m = ObtainiumPC.Services.Detection.InstalledAppsService.FindMatchFor(app, Installed());
         if (m == null || m.Confidence < ObtainiumPC.Services.Detection.InstalledAppsService.MatchConfidence.Strong) return null;
         var icon = m.Info.DisplayIcon?.Trim().Trim('"');
         if (!string.IsNullOrEmpty(icon))

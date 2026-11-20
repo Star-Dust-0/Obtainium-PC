@@ -148,6 +148,29 @@ public static class InstalledAppsService
     public static InstalledAppInfo? FindBestMatch(string appName, string? publisherHint = null, IReadOnlyList<InstalledAppInfo>? installed = null)
         => FindMatch(appName, publisherHint, installed)?.Info;
 
+    /// <summary>Settings key under which the uninstall key of a confirmed install is remembered.</summary>
+    public const string InstalledKeySetting = "installedKeyName";
+
+    /// <summary>Match for a tracked app: its remembered uninstall key first (exact, survives renamed DisplayNames), then the name rules.</summary>
+    public static MatchResult? FindMatchFor(Models.TrackedApp app, IReadOnlyList<InstalledAppInfo>? installed = null)
+    {
+        installed ??= ListInstalledApps();
+        var key = app.GetSettingString(InstalledKeySetting);
+        if (!string.IsNullOrEmpty(key))
+        {
+            var byKey = installed.Where(a => string.Equals(a.KeyName, key, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (byKey.Count >= 1) return new MatchResult(byKey[0], MatchConfidence.Exact);
+        }
+        return FindMatch(app.FinalName, app.Author, installed);
+    }
+
+    /// "Notepad" must not prefix-match "Notepad++": Normalize turns + into "plus".
+    private static bool PlusSuffixMismatch(string hay, string needle)
+    {
+        var (shorter, longer) = hay.Length <= needle.Length ? (hay, needle) : (needle, hay);
+        return !shorter.EndsWith("plus") && longer.StartsWith(shorter + "plus");
+    }
+
     public static MatchResult? FindMatch(string appName, string? publisherHint = null, IReadOnlyList<InstalledAppInfo>? installed = null)
     {
         installed ??= ListInstalledApps();
@@ -205,7 +228,7 @@ public static class InstalledAppsService
             .Where(a =>
             {
                 var hay = Normalize(a.DisplayName);
-                return hay.Length >= 4 && (hay.StartsWith(needle) || needle.StartsWith(hay));
+                return hay.Length >= 4 && (hay.StartsWith(needle) || needle.StartsWith(hay)) && !PlusSuffixMismatch(hay, needle);
             })
             .ToList();
         var prefixMatch = Disambiguate(prefix);

@@ -181,7 +181,7 @@ namespace ObtainiumPC
                 // stay tied after publisher disambiguation.
                 string? FindCurrentMatch(Models.TrackedApp app)
                 {
-                    var m = Services.Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author, probe.Apps);
+                    var m = Services.Detection.InstalledAppsService.FindMatchFor(app, probe.Apps);
                     if (m == null) return null;
                     if (!string.IsNullOrWhiteSpace(app.Author))
                     {

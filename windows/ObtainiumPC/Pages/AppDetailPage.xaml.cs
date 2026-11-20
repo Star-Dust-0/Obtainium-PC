@@ -557,7 +557,7 @@ PostDownloadNote.Text = Services.Localization.Loc.T("Automatic installed-version
         private async Task<bool> TryDetectInstalledAsync()
         {
             if (_app == null || !CanDetectInstalled()) return false;
-            var match = Services.Detection.InstalledAppsService.FindMatch(_app.FinalName, _app.Author);
+            var match = Services.Detection.InstalledAppsService.FindMatchFor(_app);
             if (match is not { Confidence: >= Services.Detection.InstalledAppsService.MatchConfidence.Strong })
                 return false;
             if (string.IsNullOrEmpty(match.Info.DisplayVersion)) return false;

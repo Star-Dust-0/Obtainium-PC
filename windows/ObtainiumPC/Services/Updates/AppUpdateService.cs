@@ -158,7 +158,7 @@ public sealed class AppUpdateService
         if (!trackOnly && !source.VersionDetectionDisallowed
             && SettingBool(settings, "versionDetection", fallback: true))
         {
-            var detected = Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author);
+            var detected = Detection.InstalledAppsService.FindMatchFor(app);
             var realInstalled = detected is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }
                 && detected.Info.DisplayVersion is { Length: > 0 } dv ? dv : null;
             // lib/providers/apps_provider_lifecycle.dart reconcileInstallStatus:

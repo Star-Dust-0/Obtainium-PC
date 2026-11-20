@@ -149,4 +149,23 @@ public class InstalledAppsServiceTests
         // Two different versions of the same name stay separate (genuinely ambiguous).
         Assert.Equal(2, InstalledAppsService.Dedupe(new[] { Entry("Shuck", "Acme", "1.0"), Entry("Shuck", "Acme", "2.0") }).Count);
     }
+
+    [Fact]
+    public void Notepad_does_not_match_Notepad_plus_plus()
+    {
+        var installed = new[] { Entry("Notepad++ (64-bit x64)", "Notepad++ Team", "8.9.8.1"), Entry("Other App") };
+        Assert.Null(InstalledAppsService.FindMatch("Notepad", null, installed));
+        Assert.NotNull(InstalledAppsService.FindMatch("Notepad++", null, installed));
+    }
+
+    [Fact]
+    public void A_remembered_uninstall_key_wins_over_a_renamed_display_name()
+    {
+        var app = new ObtainiumPC.Models.TrackedApp { Name = "Tool", Author = "x" };
+        app.SetSetting(InstalledAppsService.InstalledKeySetting, "ToolKey_1");
+        var installed = new[] { new InstalledAppInfo("Completely Renamed Product", "2.0", null, null, "ToolKey_1"), Entry("Other") };
+        var m = InstalledAppsService.FindMatchFor(app, installed);
+        Assert.Equal(InstalledAppsService.MatchConfidence.Exact, m!.Confidence);
+        Assert.Equal("2.0", m.Info.DisplayVersion);
+    }
 }

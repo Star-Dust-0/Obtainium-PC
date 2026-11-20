@@ -110,12 +110,12 @@ public static class DownloadCoordinator
                 {
                     try { if (proc.HasExited) { endedAt = DateTimeOffset.Now; exit = proc.ExitCode; } } catch { endedAt = DateTimeOffset.Now; }
                 }
-                string? detected = null;
+                string? detected = null; string? matchedKey = null;
                 try
                 {
                     Detection.InstalledAppsService.InvalidateCache();
-                    var match = Detection.InstalledAppsService.FindMatch(app.FinalName, app.Author);
-                    if (match is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }) detected = match.Info.DisplayVersion;
+                    var match = Detection.InstalledAppsService.FindMatchFor(app);
+                    if (match is { Confidence: >= Detection.InstalledAppsService.MatchConfidence.Strong }) { detected = match.Info.DisplayVersion; matchedKey = match.Info.KeyName; }
                 }
                 catch { /* registry read failed: treated as not detected */ }
                 lastDetected = detected;
@@ -124,6 +124,7 @@ public static class DownloadCoordinator
                 if (lastResult == InstallCheckResult.Confirmed)
                 {
                     app.InstalledVersionSource = "os";
+                    if (!string.IsNullOrEmpty(matchedKey)) app.SetSetting(Detection.InstalledAppsService.InstalledKeySetting, matchedKey);
                     // Confirmed means the detected version equals the release modulo cosmetics ("1.0.1" vs "v1.0.1"). Store the
                     // release's own string so installed == latest exactly (the update button compares strings); writing the raw
                     // detected value here could overwrite a reconciled "v1.0.1" with "1.0.1" and re-enable Update (ui-smoke 40614475940).
