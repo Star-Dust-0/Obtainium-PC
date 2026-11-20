@@ -167,7 +167,7 @@ jobs:
             }
           }
           function AssertAlive($tag) { $p.Refresh(); if ($p.HasExited) { Shot "exited-$tag"; throw "app exited at $tag (code $($p.ExitCode))" } }
-          function PickAndDownload($zipName, [switch]$ExpectFailure) {
+          function PickAndDownload($zipName, [switch]$ExpectFailure, [switch]$WatchPhases) {
             ClickNamedIn 'Update' $win
             Start-Sleep 3
             $dlg = FindNamed 'Choose a file' $root
@@ -186,6 +186,22 @@ jobs:
             Shot 'z1-picker'
             Start-Sleep 1
             ClickNamedIn 'Download' $root
+            if ($WatchPhases) {
+              # The app was started with OBTAINIUM_PC_PHASE_HOLD_MS, so every phase after the last byte stays on screen for a few seconds.
+              $script:phasesSeen = [ordered]@{}
+              foreach ($i in 1..80) {
+                Start-Sleep -Milliseconds 400
+                $st = StripText
+                foreach ($ph in 'Checking the file...', 'Saving...', 'Opening the installer...') {
+                  if ($st -like "*$ph*" -and -not $script:phasesSeen.Contains($ph)) {
+                    $script:phasesSeen[$ph] = $st
+                    ShotWin ('phase-' + ($ph -replace '[^A-Za-z]', '').ToLower())
+                    "phase strip: [$st]"
+                  }
+                }
+                if ((FindNamed 'Extracted' $root) -ne $null) { break }
+              }
+            }
             if ($ExpectFailure) {
               # The merge cannot replace a locked file: no 'Extracted' dialog may appear.
               foreach ($i in 1..10) { Start-Sleep 3; if ((FindNamed 'Extracted' $root) -ne $null) { Shot 'failed-upgrade-reported-success'; throw 'a failed upgrade was reported as extracted' } }
@@ -259,6 +275,7 @@ jobs:
           Start-Sleep 3
 
           # ---- 2. publish 2.0.0 and upgrade through the UI ----
+          $env:OBTAINIUM_PC_PHASE_HOLD_MS = '4000'   # test seam: hold each post-transfer phase 4 s so the strip text can be observed
           Set-Content 'C:\srv\index.html' '<html><body><a href="http://127.0.0.1:8099/myapp-2.0.0.zip">myapp-2.0.0.zip</a></body></html>'
           StartApp
           ClickPartial 'myapp' $win | Out-Null
@@ -288,7 +305,11 @@ jobs:
           if ($leftovers.Count -ne 0) { throw "rollback: staging folder left behind: $($leftovers.Name -join ', ')" }
           'failed upgrade rolled back to 1.0.0 intact'
           # ---- 2b. the same upgrade without the lock succeeds ----
-          PickAndDownload $zipName
+          PickAndDownload $zipName -WatchPhases
+          if (-not $script:phasesSeen.Contains('Checking the file...')) { throw 'the strip never showed "Checking the file..." after the last byte' }
+          if (-not $script:phasesSeen.Contains('Saving...')) { throw 'the strip never showed "Saving..." after the last byte' }
+          foreach ($k in $script:phasesSeen.Keys) { if ($script:phasesSeen[$k] -like '*MB of*') { throw "phase '$k' still showed the byte counter: $($script:phasesSeen[$k])" } }
+          'post-transfer phases shown on the strip: ' + ($script:phasesSeen.Keys -join ', ')
           if ($script:dialogText -notlike '*config.ini*' -or $script:dialogText -notlike '*kept*') { throw "the extraction dialog did not list the kept user-edited config.ini (text: $script:dialogText)" }
           'kept-files list shown in the dialog'
           Snap 'after 2.0.0'

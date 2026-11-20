@@ -17,6 +17,11 @@ public static class DownloadCoordinator
     /// or a URL that merely contains the text in its query), so the PAT is not sent elsewhere.
     public static bool IsGitHubHost(string url) => DownloadService.IsGitHubHost(url);
 
+    /// Test seam for the UI smoke runs only: when OBTAINIUM_PC_PHASE_HOLD_MS is set (capped at 10 s), each
+    /// post-transfer phase is held that long so its status can be observed. Unset in normal use.
+    private static readonly int PhaseHoldMs = int.TryParse(Environment.GetEnvironmentVariable("OBTAINIUM_PC_PHASE_HOLD_MS"), out var ms) ? Math.Clamp(ms, 0, 10000) : 0;
+    private static Task HoldPhaseForTest() => PhaseHoldMs > 0 ? Task.Delay(PhaseHoldMs) : Task.CompletedTask;
+
     public static async Task<DownloadResult> FetchAsync(TrackedApp app, KeyValuePair<string, string> asset,
         DownloadEntry entry, IProgress<(long Received, long? Total)>? ui = null)
     {
@@ -32,6 +37,7 @@ public static class DownloadCoordinator
         Func<string, Task> checksumCheck = async part =>
         {
             entry.SetPhase("Checking the file...");
+            await HoldPhaseForTest();
             checksum = await DownloadService.VerifyAgainstReleaseChecksumAsync(part, asset.Key, app.AssetUrls.Concat(app.OtherAssetUrls));
         };
         var progress = new Progress<(long Received, long? Total)>(p =>
@@ -43,12 +49,13 @@ public static class DownloadCoordinator
         var finalSize = new FileInfo(path).Length;
         entry.ReportFinal(finalSize, finalSize);
         entry.SetPhase("Saving...");
+        await HoldPhaseForTest();
         Logging.AppLogger.Info($"Download {asset.Key} for {app.FinalName}: SHA-256 {(checksum == DownloadService.ChecksumStatus.Verified ? "verified against the release checksum" : "NOT verified (" + checksum + ")")}");
         app.RecordAssetSize(new FileInfo(path).Length, asset.Value);
         var saveClock = System.Diagnostics.Stopwatch.StartNew();
         await App.SaveAppsAsync();
         Logging.AppLogger.Info($"Download of {asset.Key}: apps saved in {saveClock.ElapsedMilliseconds} ms");
-        if (BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key)) entry.SetPhase("Opening the installer...");
+        if (BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key)) { entry.SetPhase("Opening the installer..."); await HoldPhaseForTest(); }
         return new DownloadResult(path, BatchDownloadPlanner.ShouldLaunchInstaller(source?.SupportsInstall, asset.Key), checksum, source,
             Extractable: BatchDownloadPlanner.ShouldExtractArchive(source?.SupportsInstall, asset.Key)
                 && AssetFilterService.HasNoInstallerAsset(app.AssetUrls.Concat(app.OtherAssetUrls).Select(a => a.Key))
@@ -59,6 +66,7 @@ public static class DownloadCoordinator
     /// There is no installer to watch, so the app is marked installed directly (source "manual", like Mark as updated).
     public static async Task<ExtractionResult> ExtractAsync(TrackedApp app, DownloadEntry entry, string zipPath)
     {
+        entry.SetPhase("Extracting...");
         var result = await ZipExtractionService.ExtractAsync(zipPath, ct: entry.Token, ownerId: app.Id, folderName: app.FinalName);
         app.ExtractedPath = result.Folder;
         if (!string.IsNullOrEmpty(app.LatestVersion)) app.InstalledVersion = app.LatestVersion;
