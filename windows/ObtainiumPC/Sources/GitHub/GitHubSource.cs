@@ -140,7 +140,38 @@ public sealed class GitHubSource : AppSourceBase
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         var token = GetBool(additionalSettings, "skipAuth") ? null : GetTokenIfAny(additionalSettings);
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Authorization", "Token " + token);
+        if (_etagCache.TryGetValue(EtagKey(url, token), out var cached))
+            req.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
         return req;
+    }
+
+    // Conditional requests: a 304 does not count against the GitHub rate limit and lets an
+    // unchanged repository be re-checked without downloading the release list again.
+    // The key includes the token so a private repository's body is never served to another identity.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string ETag, string Body)> _etagCache = new();
+
+    internal static string EtagKey(string url, string? token) =>
+        url + "|" + (string.IsNullOrEmpty(token) ? "" : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))));
+
+    internal static bool IsRateLimited(HttpStatusCode code, string? remaining) =>
+        code == HttpStatusCode.TooManyRequests || (code == HttpStatusCode.Forbidden && remaining == "0");
+
+    /// Reads the body of a response, serving 304 from the cache and storing new ETags.
+    private async Task<string> ReadBodyCached(HttpResponseMessage res, string url, IReadOnlyDictionary<string, JsonElement> additionalSettings, CancellationToken ct)
+    {
+        var token = GetBool(additionalSettings, "skipAuth") ? null : GetTokenIfAny(additionalSettings);
+        var key = EtagKey(url, token);
+        if (res.StatusCode == HttpStatusCode.NotModified && _etagCache.TryGetValue(key, out var hit)) return hit.Body;
+        var body = await res.Content.ReadAsStringAsync(ct);
+        if (res.IsSuccessStatusCode && res.Headers.ETag?.Tag is { } tag) _etagCache[key] = (tag, body);
+        return body;
+    }
+
+    private static Exception RateLimitError(HttpResponseMessage res, string url)
+    {
+        var reset = res.Headers.TryGetValues("X-RateLimit-Reset", out var v) && long.TryParse(v.FirstOrDefault(), out var epoch)
+            ? DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime().ToString("t") : null;
+        return new InvalidOperationException("GitHub rate limit reached" + (reset != null ? ", resets at " + reset : "") + ". Add a personal access token in Settings to raise the limit.");
     }
 
     /// Sends the request; on 401/403 with a token configured, retries once
@@ -525,9 +556,11 @@ public sealed class GitHubSource : AppSourceBase
         }
 
         var res = await SourceRequestWithAuthFallback(requestUrl, additionalSettings, ct);
-        if ((int)res.StatusCode != 200) throw new ObtainiumHttpException((int)res.StatusCode, requestUrl);
+        if (IsRateLimited(res.StatusCode, res.Headers.TryGetValues("X-RateLimit-Remaining", out var rl) ? rl.FirstOrDefault() : null))
+            throw RateLimitError(res, requestUrl);
+        if ((int)res.StatusCode != 200 && res.StatusCode != HttpStatusCode.NotModified) throw new ObtainiumHttpException((int)res.StatusCode, requestUrl);
 
-        var decoded = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
+        var decoded = JsonNode.Parse(await ReadBodyCached(res, requestUrl, additionalSettings, ct));
         if (decoded is not JsonArray decodedArray) throw new NoReleasesException();
         var releases = decodedArray.ToList();
 
