@@ -133,6 +133,7 @@ public static class Loc
     private static readonly Dictionary<string, string> ArOverlay = new()
     {
         // Messages that had no upstream translation
+        ["This app is already downloading."] = "هذا التطبيق قيد التنزيل بالفعل.",
         ["App already added: "] = "التطبيق مضاف بالفعل: ",
         ["Could not fetch starred repos"] = "تعذّر جلب المستودعات المميزة بنجمة",
         ["Enter a source URL first."] = "أدخل رابط المصدر أولاً.",
