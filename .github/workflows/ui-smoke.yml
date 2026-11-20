@@ -1260,6 +1260,9 @@ jobs:
           # version transition must record installedVersion = latestVersion
           # with no download and no installer launch.
           $procsBefore = @(Get-Process | Where-Object { $_.Name -match 'setup|installer|msiexec' }).Count
+          # The extraction result dialog ("Extracted ... Open folder / OK") is modal by design; dismiss it.
+          $okBtn = FindNamed 'OK' $root
+          if ($okBtn -ne $null) { try { $okBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {}; Start-Sleep 2; 'extraction dialog dismissed' }
           # Since portable-zip support, a zip with a real program is extracted and recorded as
           # installed by the download itself; the manual Mark installed bookkeeping is then not offered.
           if ((FindNamed 'Mark installed' $win3) -ne $null) { ClickNamedIn 'Mark installed' $win3 }
