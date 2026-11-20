@@ -1246,7 +1246,11 @@ jobs:
           # version transition must record installedVersion = latestVersion
           # with no download and no installer launch.
           $procsBefore = @(Get-Process | Where-Object { $_.Name -match 'setup|installer|msiexec' }).Count
-          ClickNamedIn 'Mark installed' $win3
+          # Since portable-zip support, a zip with a real program is extracted and recorded as
+          # installed by the download itself; the manual Mark installed bookkeeping is then not offered.
+          if ((FindNamed 'Mark installed' $win3) -ne $null) { ClickNamedIn 'Mark installed' $win3 }
+          elseif (-not (Test-Path 'C:\Obtainium\bat\bat.exe')) { Shot 'track-only-not-extracted'; throw 'zip was neither extracted to C:\Obtainium\bat nor markable as installed' }
+          else { 'track-only zip extracted by the download: C:\Obtainium\bat\bat.exe present' }
           Start-Sleep 3
           $apps2 = Get-Content $appsPath -Raw | ConvertFrom-Json
           $obt2 = $apps2 | Where-Object { $_.id -eq 'deeplink-smoke-1' }
