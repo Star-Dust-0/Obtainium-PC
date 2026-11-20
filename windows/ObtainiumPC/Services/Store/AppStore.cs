@@ -33,15 +33,43 @@ public sealed class AppStore
     /// <summary>Backup copy of the unreadable store, when one could be made.</summary>
     public string? LastLoadBackupPath { get; private set; }
 
+    public int LastSkippedRecords { get; private set; }
+    public string? LastSkippedRecordsPath { get; private set; }
+
+    /// Reads each array element on its own. A file that is not an array at all still throws (whole-file corruption path).
+    internal static List<TrackedApp> ParseRecords(string json, out List<string> badRecords)
+    {
+        badRecords = new List<string>();
+        var arr = System.Text.Json.Nodes.JsonNode.Parse(json) as System.Text.Json.Nodes.JsonArray
+                  ?? throw new JsonException("apps.json is not an array");
+        var apps = new List<TrackedApp>();
+        foreach (var node in arr)
+        {
+            try { apps.Add(node.Deserialize<TrackedApp>() ?? throw new JsonException("null record")); }
+            catch (Exception) { badRecords.Add(node?.ToJsonString() ?? "null"); }
+        }
+        return apps;
+    }
+
     public async Task<List<TrackedApp>> LoadAsync()
     {
         LastLoadFailed = false;
         LastLoadBackupPath = null;
+        LastSkippedRecords = 0; LastSkippedRecordsPath = null;
         try
         {
             if (!File.Exists(FilePath)) return new List<TrackedApp>();
             var json = await File.ReadAllTextAsync(FilePath);
-            var loaded = JsonSerializer.Deserialize<List<TrackedApp>>(json) ?? new List<TrackedApp>();
+            var loaded = ParseRecords(json, out var badRecords);
+            if (badRecords.Count > 0)
+            {
+                // One malformed record must not take the other apps down. The unreadable records
+                // are kept verbatim next to the store before anything is saved.
+                var side = FilePath + ".bad-records-" + DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss") + ".json";
+                try { File.WriteAllText(side, "[" + string.Join(",\n", badRecords) + "]"); } catch (Exception ce) { Logging.AppLogger.Error("could not keep the unreadable app records", ce); }
+                Logging.AppLogger.Warn($"apps.json: {badRecords.Count} record(s) could not be read and were kept in {side}; the other apps loaded");
+                LastSkippedRecords = badRecords.Count; LastSkippedRecordsPath = side;
+            }
             foreach (var a in loaded) OpenCredentials(a);
             return loaded;
         }

@@ -36,3 +36,20 @@ public class SettingsImportTests
         Assert.False(s.ParallelDownloads);
     }
 }
+
+public class AppsRecordRecoveryTests
+{
+    [Fact]
+    public void One_malformed_record_does_not_drop_the_other_apps_and_is_kept_verbatim()
+    {
+        var json = "[{\"id\":\"a\",\"url\":\"https://github.com/o/a\",\"name\":\"A\"},{\"id\":123,\"url\":[1]},{\"id\":\"b\",\"url\":\"https://github.com/o/b\",\"name\":\"B\"}]";
+        var apps = AppStore.ParseRecords(json, out var bad);
+        Assert.Equal(new[] { "a", "b" }, apps.Select(a => a.Id).ToArray());
+        var one = Assert.Single(bad);
+        Assert.Contains("123", one);
+    }
+
+    [Fact]
+    public void A_file_that_is_not_an_array_still_counts_as_whole_file_corruption()
+        => Assert.ThrowsAny<Exception>(() => AppStore.ParseRecords("{\"x\":1}", out _));
+}
