@@ -279,15 +279,21 @@ namespace ObtainiumPC.Pages
             }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             var total = App.TrackedApps.Count;
-            // Classify every visible app: a failed last check or a never-
-            // completed check means the app's true state is unknown, so the
-            // summary names those apps instead of calling everything current.
+            // Classify every visible app: failed, never-checked, unknown-version,
+            // track-only and disabled rows are named or keep the summary neutral;
+            // only rows that are checked-current AND installed can create an
+            // "all up to date" claim.
             var states = filtered.Select(r => Services.Updates.AppsSummaryText.Classify(r.App, r.HasUpdate)).ToList();
             var updates = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.UpdateAvailable);
             var failedChecks = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.FailedCheck);
             var notCheckedYet = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.NotCheckedYet);
+            var unknownVersion = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.UnknownVersion);
+            var claimUpToDate = filtered.Count > 0 && filtered.All(r =>
+                Services.Updates.AppsSummaryText.IsClaimable(
+                    Services.Updates.AppsSummaryText.Classify(r.App, r.HasUpdate),
+                    r.App.InstalledVersion != null));
             SubtitleText.Visibility = total == 0 ? Visibility.Collapsed : Visibility.Visible;
-            SubtitleText.Text = Services.Updates.AppsSummaryText.Format(total, updates, failedChecks, notCheckedYet, Services.Localization.Loc.T);
+            SubtitleText.Text = Services.Updates.AppsSummaryText.Format(total, updates, failedChecks, notCheckedYet, unknownVersion, claimUpToDate, Services.Localization.Loc.T);
         }
 
         private void SearchBox_TextChanged(object sender, AutoSuggestBoxTextChangedEventArgs e)

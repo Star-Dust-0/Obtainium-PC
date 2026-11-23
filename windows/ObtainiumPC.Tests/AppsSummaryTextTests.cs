@@ -40,9 +40,17 @@ public class AppsSummaryTextTests
     }
 
     [Fact]
+    public void Successful_check_with_suppressed_release_is_unknown_not_current()
+    {
+        // minimumUpdateAgeDays path: the check SUCCEEDS (time recorded,
+        // counter reset) but LatestVersion deliberately stays null. This must
+        // be called neither current nor never-checked.
+        Assert.Equal(CheckState.UnknownVersion, Classify(App(latest: null, lastCheckUs: 1700000000_000_000L), hasUpdate: false));
+    }
+
+    [Fact]
     public void Disabled_app_with_stale_failure_is_disabled_not_failed()
     {
-        // A disabled app keeps its stale counter; it must not alarm the summary.
         Assert.Equal(CheckState.Disabled, Classify(App(disabled: true, failedChecks: 5), hasUpdate: false));
     }
 
@@ -72,16 +80,18 @@ public class AppsSummaryTextTests
     }
 
     [Fact]
-    public void Not_installed_but_successfully_checked_is_current()
+    public void Not_installed_but_successfully_checked_is_current_state()
     {
-        // Track-only app: nothing installed, latest known, check succeeded.
+        // Track-only app: check succeeded, latest known - but with nothing
+        // installed it can never create an "all up to date" claim (below).
         Assert.Equal(CheckState.Current, Classify(App(installed: null, latest: "2.0.0"), hasUpdate: false));
     }
 
     [Fact]
-    public void Stale_successful_check_stays_current()
+    public void Stale_successful_check_stays_current_as_of_last_check()
     {
-        // Periodic model: "current" means as of the last successful check.
+        // Periodic model: "current" means as of the last successful check,
+        // never a proof of live currency.
         Assert.Equal(CheckState.Current, Classify(App(lastCheckUs: 1_600_000_000_000_000L), hasUpdate: false));
     }
 
@@ -100,89 +110,95 @@ public class AppsSummaryTextTests
     [Fact]
     public void Failed_check_wins_over_update_available()
     {
-        // Latest known version is stale when the newest check failed.
         Assert.Equal(CheckState.FailedCheck, Classify(App(failedChecks: 1, latest: "2.0.0"), hasUpdate: true));
     }
 
-    // --- Format: every variant, including that unknown is never "current" ---
+    // --- Claim rule: only checked-current AND installed rows create it ---
+
+    [Fact]
+    public void Claim_rule_matrix()
+    {
+        Assert.True(IsClaimable(CheckState.Current, hasInstalledVersion: true));
+        Assert.False(IsClaimable(CheckState.Current, hasInstalledVersion: false)); // track-only
+        Assert.False(IsClaimable(CheckState.Disabled, hasInstalledVersion: true));
+        Assert.False(IsClaimable(CheckState.Disabled, hasInstalledVersion: false));
+        Assert.False(IsClaimable(CheckState.FailedCheck, hasInstalledVersion: true));
+        Assert.False(IsClaimable(CheckState.NotCheckedYet, hasInstalledVersion: false));
+        Assert.False(IsClaimable(CheckState.UnknownVersion, hasInstalledVersion: true));
+        Assert.False(IsClaimable(CheckState.UpdateAvailable, hasInstalledVersion: true));
+    }
+
+    // --- Format: variants and honest fallbacks ---
 
     [Fact]
     public void No_apps_is_empty()
     {
-        Assert.Equal("", Format(0, 0, 0, 0, Id));
+        Assert.Equal("", Format(0, 0, 0, 0, 0, false, Id));
     }
 
     [Fact]
-    public void All_current_claims_all_up_to_date()
+    public void All_current_and_installed_claims_all_up_to_date()
     {
-        Assert.Equal("3 apps, all up to date", Format(3, 0, 0, 0, Id));
+        Assert.Equal("3 apps, all up to date", Format(3, 0, 0, 0, 0, true, Id));
     }
 
     [Fact]
-    public void Updates_only()
+    public void No_problems_but_not_claimable_stays_neutral()
     {
-        Assert.Equal("3 apps, 1 with updates", Format(3, 1, 0, 0, Id));
+        // e.g. only track-only or disabled rows visible: no blanket claim.
+        Assert.Equal("2 apps", Format(2, 0, 0, 0, 0, false, Id));
+    }
+
+    [Fact]
+    public void Updates_only_keeps_the_established_key()
+    {
+        Assert.Equal("3 apps, 1 with updates", Format(3, 1, 0, 0, 0, false, Id));
     }
 
     [Fact]
     public void Failed_checks_are_named_not_counted_as_current()
     {
-        Assert.Equal("2 apps, 1 with failed checks", Format(2, 0, 1, 0, Id));
+        Assert.Equal("2 apps: 1 with failed checks", Format(2, 0, 1, 0, 0, false, Id));
     }
 
     [Fact]
     public void Never_checked_apps_are_named_not_counted_as_current()
     {
-        Assert.Equal("2 apps, 1 not checked yet", Format(2, 0, 0, 1, Id));
+        Assert.Equal("2 apps: 1 not checked yet", Format(2, 0, 0, 1, 0, false, Id));
     }
 
     [Fact]
-    public void Updates_and_failed_checks_are_both_named()
+    public void Unknown_version_is_named_as_unknown()
     {
-        Assert.Equal("4 apps, 1 with updates, 2 with failed checks", Format(4, 1, 2, 0, Id));
+        Assert.Equal("2 apps: 1 with unknown status", Format(2, 0, 0, 0, 1, false, Id));
     }
 
     [Fact]
-    public void Updates_and_not_checked_are_both_named()
+    public void Mixed_states_are_all_named()
     {
-        Assert.Equal("4 apps, 1 with updates, 2 not checked yet", Format(4, 1, 0, 2, Id));
+        Assert.Equal("7 apps: 1 with updates, 2 with failed checks, 3 not checked yet, 1 with unknown status",
+            Format(7, 1, 2, 3, 1, false, Id));
     }
 
     [Fact]
-    public void Failed_checks_and_not_checked_are_both_named()
-    {
-        Assert.Equal("4 apps, 1 with failed checks, 2 not checked yet", Format(4, 0, 1, 2, Id));
-    }
-
-    [Fact]
-    public void All_three_states_are_all_named()
-    {
-        Assert.Equal("6 apps, 1 with updates, 2 with failed checks, 3 not checked yet", Format(6, 1, 2, 3, Id));
-    }
-
-    [Fact]
-    public void Translate_is_used_for_every_variant()
+    public void Translate_is_used_for_every_piece()
     {
         var seen = new List<string>();
         string T(string s) { seen.Add(s); return s; }
-        Format(6, 1, 2, 3, T);
-        Format(4, 1, 2, 0, T);
-        Format(4, 1, 0, 2, T);
-        Format(4, 0, 1, 2, T);
-        Format(3, 1, 0, 0, T);
-        Format(2, 0, 1, 0, T);
-        Format(2, 0, 0, 1, T);
-        Format(1, 0, 0, 0, T);
+        Format(1, 0, 0, 0, 0, true, T);       // all up to date
+        Format(3, 1, 0, 0, 0, false, T);      // established updates key
+        Format(2, 0, 0, 0, 0, false, T);      // neutral
+        Format(7, 1, 2, 3, 1, false, T);      // composed
         Assert.Equal(new[]
         {
-            "{0} apps, {1} with updates, {2} with failed checks, {3} not checked yet",
-            "{0} apps, {1} with updates, {2} with failed checks",
-            "{0} apps, {1} with updates, {2} not checked yet",
-            "{0} apps, {1} with failed checks, {2} not checked yet",
-            "{0} apps, {1} with updates",
-            "{0} apps, {1} with failed checks",
-            "{0} apps, {1} not checked yet",
             "{0} apps, all up to date",
+            "{0} apps, {1} with updates",
+            "{0} apps",
+            "{0} with updates",
+            "{0} with failed checks",
+            "{0} not checked yet",
+            "{0} with unknown status",
+            "{0} apps: {1}",
         }, seen);
     }
 }
