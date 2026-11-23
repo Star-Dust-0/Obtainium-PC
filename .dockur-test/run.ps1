@@ -69,3 +69,29 @@ if ($tag) {
 Shot 'app'
 Start-Sleep 45
 Shot 'app2'
+# ---- repeat-launch + bounded soak (only when the app actually runs) ----
+function Beat($m){ try { Add-Content '\\host.lan\Data\result.txt' ("{0} {1}" -f (Get-Date -Format o), $m) } catch { "WARN heartbeat write failed: $($_.Exception.Message)" } }
+$procs = Get-Process | ? { $_.Name -match $ExeMatch }
+if ($procs) {
+  "soak: app running ($($procs.Count) proc); starting relaunch + bounded soak"
+  Beat 'launch-observed'
+  $procs | % { $_.CloseMainWindow() | Out-Null }
+  Start-Sleep 10
+  $still = Get-Process | ? { $_.Name -match $ExeMatch }
+  if ($still) { "relaunch: still running after close; force stopping"; $still | Stop-Process -Force; Start-Sleep 5 }
+  Start-Process $exe.FullName
+  "relaunch: second instance started at $(Get-Date -Format o)"
+  Start-Sleep 30
+  $ok = $true
+  foreach ($m in 1..5) {
+    $p = Get-Process | ? { $_.Name -match $ExeMatch }
+    if ($p) { $mb = [math]::Round((($p | Measure-Object WorkingSet64 -Sum).Sum)/1MB); "soak t+${m}min: alive ${mb}MB"; Beat "soak-t${m}" }
+    else { "soak t+${m}min: PROCESS GONE"; Beat "soak-gone-t${m}"; $ok = $false; break }
+    Start-Sleep 60
+  }
+  Shot 'soak'
+  if ($ok) { "soak: PASS (5 min stable after relaunch)" } else { "ERROR: app died during soak" }
+} else {
+  "WARN: no app process after launch; skipping relaunch/soak (blocked pre-execution or immediate crash)"
+  Beat 'no-process-after-launch'
+}
