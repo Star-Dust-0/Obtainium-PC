@@ -39,6 +39,10 @@ on:
         description: 'Release tag to test (empty = latest stable release)'
         required: false
         default: ''
+      artifact_run_id:
+        description: 'Build Windows run id; when set with target=runner, run the candidate preview job instead of the release verify job'
+        required: false
+        default: ''
       target:
         description: 'vm = dockur Windows 11 VM; runner = standard Windows runner (no VM)'
         required: true
@@ -140,7 +144,7 @@ jobs:
   # silent install/uninstall) fails the job. Runner is disposable; all
   # installs/uninstalls happen only on it.
   verify:
-    if: inputs.target == 'runner'
+    if: inputs.target == 'runner' && inputs.artifact_run_id == ''
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -289,4 +293,120 @@ jobs:
         with:
           name: windows-runner-test-out
           path: '*.png'
+          if-no-files-found: warn
+
+  # One-off visual PREVIEW of candidate (unreleased) code. Downloads the
+  # build artifact from a given Build Windows run, seeds a disposable
+  # apps.json with one SYNTHETIC failure fixture (pre-seeded state, exempt
+  # from the background check so the seeded line survives the relaunch) and
+  # one LIVE probe entry (really checked against GitHub on startup), then
+  # screenshots the Apps page. Evidence only: nothing here publishes,
+  # merges, or changes a release. All fixtures live only on the ephemeral
+  # runner and vanish with it.
+  preview:
+    if: inputs.target == 'runner' && inputs.artifact_run_id != ''
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      REPO: Star-Dust-0/Obtainium-PC
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Record artifact run provenance (fail closed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:ARTIFACT_RUN_ID.Trim()) { throw 'artifact_run_id is empty' }
+          $info = gh run view $env:ARTIFACT_RUN_ID -R $env:REPO --json status,conclusion,headSha,headBranch,displayTitle | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "could not read run $env:ARTIFACT_RUN_ID" }
+          "artifact source run: $($info.displayTitle) status=$($info.status) conclusion=$($info.conclusion)"
+          "artifact source commit: $($info.headSha) (branch: $($info.headBranch))"
+          if ($info.conclusion -ne 'success') { throw 'source run is not green; refusing to preview its artifact' }
+      - name: Download build artifact from that run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
+          if ($LASTEXITCODE -ne 0) { throw 'artifact download failed' }
+          $exe = Get-ChildItem artifact -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          if (-not $exe) { throw 'ObtainiumPC.exe not found in artifact' }
+          "exe: $($exe.FullName)"
+          "exe version: $((Get-Item $exe.FullName).VersionInfo.FileVersion)"
+          "EXE_PATH=$($exe.FullName)" | Out-File $env:GITHUB_ENV -Append
+      - name: First launch to create the data store, then close
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "first launch pid $($p.Id)"
+          Start-Sleep 20
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'process exited during first launch' }
+          $alive.CloseMainWindow() | Out-Null
+          Start-Sleep 8
+          $still = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if ($still) { $still | Stop-Process -Force; Start-Sleep 5 }
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          if (-not (Test-Path $store)) { throw "apps.json not created at $store" }
+          "store: $store"
+      - name: Seed disposable apps.json (SYNTHETIC fixture + LIVE probe)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $apps = @(
+            [ordered]@{
+              id = '11111111-1111-1111-1111-111111111111'
+              url = 'https://github.com/Star-Dust-0/Obtainium-PC'
+              author = 'Star-Dust-0'
+              name = 'Synthetic-Failure-Demo'
+              installedVersion = '2.0.0'
+              latestVersion = '2.0.0'
+              consecutiveFailedChecks = 3
+              lastCheckError = 'http_404'
+              additionalSettings = '{"exemptFromBackgroundUpdates":true}'
+            },
+            [ordered]@{
+              id = '22222222-2222-2222-2222-222222222222'
+              url = 'https://github.com/MohamedElnaggar00/Obtainium-PC'
+              author = 'MohamedElnaggar00'
+              name = 'Live-OldRepo-Probe'
+            }
+          )
+          ($apps | ConvertTo-Json -Depth 5) | Set-Content $store -Encoding UTF8
+          Get-Content $store
+          'seeded: 1 SYNTHETIC fixture (pre-seeded failure state, background-check exempt) + 1 LIVE probe entry'
+      - name: Relaunch, wait for the startup check, screenshot the Apps page
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "relaunch pid $($p.Id)"
+          Start-Sleep 60
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'relaunched process exited within 60s' }
+          "alive after 60s, ws=$([math]::Round($alive.WorkingSet64/1MB))MB"
+          try {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bm=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bm)
+            $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size)
+            $bm.Save('preview-apps.png'); "shot preview-apps $($b.Width)x$($b.Height)"
+          } catch { throw "screenshot failed: $($_.Exception.Message)" }
+          $alive | Stop-Process -Force
+      - name: LIVE probe - record the old repo API status verbatim
+        shell: pwsh
+        run: |
+          $code = curl.exe -sS -o NUL -w '%{http_code}' https://api.github.com/repos/MohamedElnaggar00/Obtainium-PC/releases
+          "LIVE-PROBE api.github.com/repos/MohamedElnaggar00/Obtainium-PC/releases -> HTTP $code"
+          "LIVE-PROBE api.github.com/repos/MohamedElnaggar00/Obtainium-PC/releases -> HTTP $code" | Out-File live-probe.txt
+      - name: Upload preview screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-preview-out
+          path: |
+            *.png
+            live-probe.txt
           if-no-files-found: warn
