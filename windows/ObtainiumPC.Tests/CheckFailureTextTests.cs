@@ -28,6 +28,21 @@ public class CheckFailureTextTests
     [Fact] public void Newlines_AreFlattened() =>
         Assert.Equal("Last check failed (1x): a b", CheckFailureText.Format(1, " a\r\nb "));
 
+    [Fact] public void Sanitize_StripsQueryUserinfoFragment_KeepsHostAndPath() =>
+        Assert.Equal("moved: https://github.com/old/repo -> https://github.com/new/repo",
+            CheckFailureText.Sanitize("moved: https://user:secret@github.com/old/repo?token=abc123#frag -> https://github.com/new/repo?x=1"));
+
+    [Fact] public void Sanitize_RedactsCredentialKeyValues() =>
+        Assert.Equal("auth failed token=[redacted] next",
+            CheckFailureText.Sanitize("auth failed token=abc123XYZ next"));
+
+    [Fact] public void Sanitize_LeavesPlainTextUnchanged() =>
+        Assert.Equal("Server request failed (HTTP 404)",
+            CheckFailureText.Sanitize("Server request failed (HTTP 404)"));
+
+    [Fact] public void Sanitize_NullBecomesEmpty() =>
+        Assert.Equal("", CheckFailureText.Sanitize(null));
+
     [Fact] public void LastCheckError_RoundTripsThroughJson()
     {
         var app = new TrackedApp { Id = "a", Url = "https://github.com/x/y", ConsecutiveFailedChecks = 2, LastCheckError = "Server request failed (HTTP 404)" };

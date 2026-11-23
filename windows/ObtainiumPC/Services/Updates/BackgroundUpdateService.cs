@@ -140,7 +140,7 @@ public sealed class BackgroundUpdateService
                     app.ConsecutiveFailedChecks++;
                     // Keep the short localized reason with the counter so the Apps
                     // page can say WHY the check failed, not just that it did.
-                    app.LastCheckError = SourceErrorText.Describe(e, Loc.T);
+                    app.LastCheckError = CheckFailureText.Sanitize(SourceErrorText.Describe(e, Loc.T));
                     Logging.AppLogger.Warn($"Update check failed for {app.FinalName} ({app.Url})", e);
                 }
             }
