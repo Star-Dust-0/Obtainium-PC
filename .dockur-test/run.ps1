@@ -11,7 +11,7 @@ Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 function Shot($n){ $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bm=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bm); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bm.Save("\\host.lan\Data\$n.png"); "shot $n $($b.Width)x$($b.Height)" }
 Shot 'desktop'
 $tag = ''
-if (Test-Path '\host.lan\Data\release-tag.txt') { $tag = (Get-Content '\host.lan\Data\release-tag.txt' -Raw).Trim() }
+if (Test-Path '\\host.lan\Data\release-tag.txt') { $tag = (Get-Content '\\host.lan\Data\release-tag.txt' -Raw).Trim() }
 if ($tag) { $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/tags/$tag" }
 else { $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest" }
 "release: $($rel.tag_name) (requested tag: '$tag')"; $rel.assets | % { "asset: $($_.name) $($_.size)" }
