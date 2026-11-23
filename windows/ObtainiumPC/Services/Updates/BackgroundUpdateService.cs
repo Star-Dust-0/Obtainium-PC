@@ -2,7 +2,6 @@ using Microsoft.UI.Dispatching;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using ObtainiumPC.Models;
-using ObtainiumPC.Services.Localization;
 
 namespace ObtainiumPC.Services.Updates;
 
@@ -138,9 +137,9 @@ public sealed class BackgroundUpdateService
                 catch (Exception e)
                 {
                     app.ConsecutiveFailedChecks++;
-                    // Keep the short localized reason with the counter so the Apps
-                    // page can say WHY the check failed, not just that it did.
-                    app.LastCheckError = CheckFailureText.Sanitize(SourceErrorText.Describe(e, Loc.T));
+                    // Persist ONLY an allowlisted category - never raw message text. The Apps
+                    // page renders the localized reason from the category.
+                    app.LastCheckError = CheckFailureText.CategoryFor(e);
                     Logging.AppLogger.Warn($"Update check failed for {app.FinalName} ({app.Url})", e);
                 }
             }
