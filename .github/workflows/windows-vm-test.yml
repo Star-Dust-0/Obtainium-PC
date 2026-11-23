@@ -51,6 +51,10 @@ on:
         description: 'runner target only: run the icon render verification job instead of the standard candidate preview'
         required: false
         default: 'false'
+      feat_check:
+        description: 'runner target only: run the tray/download/notification verification job instead of the standard candidate preview'
+        required: false
+        default: 'false'
 
 concurrency:
   group: windows-vm-test
@@ -308,7 +312,7 @@ jobs:
   # merges, or changes a release. All fixtures live only on the ephemeral
   # runner and vanish with it.
   preview:
-    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true'
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true' && inputs.feat_check != 'true'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -427,7 +431,7 @@ jobs:
   # a 150% capture is produced only when that API confirms 144 DPI, never
   # resized imagery. All fixtures live only on the disposable runner.
   iconpreview:
-    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check == 'true'
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check == 'true' && inputs.feat_check != 'true'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -626,4 +630,201 @@ jobs:
         with:
           name: icon-preview-log
           path: app-log.jsonl
+          if-no-files-found: warn
+
+  # Tray / download-progress / notification verification for candidate code.
+  # Same binding as the other preview jobs: the exact Build Windows artifact,
+  # never a rebuild. A runner-local throttled HTTP fixture drives one real
+  # download of a non-executable payload (.bin, cancelled in-app before
+  # completion: the payload is never executed or installed). Toasts are
+  # evidenced at the LOG level only (requests + update results); this runner
+  # reports AppNotificationManager.IsSupported=False, so displayed-toast
+  # pixels are an expected platform gap, not a claim. Taskbar progress is
+  # claimed only from screenshots that actually show the overlay.
+  featpreview:
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.feat_check == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      REPO: Star-Dust-0/Obtainium-PC
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Record artifact run provenance (fail closed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:ARTIFACT_RUN_ID.Trim()) { throw 'artifact_run_id is empty' }
+          $info = gh run view $env:ARTIFACT_RUN_ID -R $env:REPO --json status,conclusion,headSha,headBranch,displayTitle | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "could not read run $env:ARTIFACT_RUN_ID" }
+          "artifact source run: $($info.displayTitle) status=$($info.status) conclusion=$($info.conclusion)"
+          "artifact source commit: $($info.headSha) (branch: $($info.headBranch))"
+          if ($info.conclusion -ne 'success') { throw 'source run is not green; refusing to preview its artifact' }
+      - name: Download build artifact from that run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
+          if ($LASTEXITCODE -ne 0) { throw 'artifact download failed' }
+          $exe = Get-ChildItem artifact -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          if (-not $exe) { throw 'ObtainiumPC.exe not found in artifact' }
+          "exe: $($exe.FullName)"
+          "exe version: $((Get-Item $exe.FullName).VersionInfo.FileVersion)"
+          "EXE_PATH=$($exe.FullName)" | Out-File $env:GITHUB_ENV -Append
+      - name: First launch to create the store, then close
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Start-Process $env:EXE_PATH -PassThru
+          Start-Sleep 20
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'process exited during first launch' }
+          $alive.CloseMainWindow() | Out-Null
+          Start-Sleep 8
+          $still = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if ($still) { $still | Stop-Process -Force; Start-Sleep 5 }
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          if (-not (Test-Path $store)) { throw "apps.json not created at $store" }
+          "store: $store"
+      - name: Seed fixture rows (runner-local store only)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
+          $new = @(
+            [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1' }
+          )
+          ($doc + $new | ConvertTo-Json -Depth 6) | Set-Content $store -Encoding UTF8
+          'seeded: DirectLink fixture (background-exempt) + live update-available sample (installedVersion 0.1)'
+      - name: Start throttled HTTP fixture (20MB at ~200KB/s, non-executable .bin)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [IO.File]::WriteAllBytes('C:\fixture-server.ps1', [Convert]::FromBase64String('JGxpc3RlbmVyID0gTmV3LU9iamVjdCBTeXN0ZW0uTmV0Lkh0dHBMaXN0ZW5lcgokbGlzdGVuZXIuUHJlZml4ZXMuQWRkKCdodHRwOi8vbG9jYWxob3N0OjgwODUvJykKJGxpc3RlbmVyLlN0YXJ0KCkKJHBheWxvYWQgPSBOZXctT2JqZWN0IGJ5dGVbXSAoMjBNQikKKE5ldy1PYmplY3QgUmFuZG9tIDQyKS5OZXh0Qnl0ZXMoJHBheWxvYWQpCndoaWxlICgkbGlzdGVuZXIuSXNMaXN0ZW5pbmcpIHsKICB0cnkgewogICAgJGN0eCA9ICRsaXN0ZW5lci5HZXRDb250ZXh0KCkKICAgICRyZXMgPSAkY3R4LlJlc3BvbnNlCiAgICAkcmVzLkhlYWRlcnMuQWRkKCdDb250ZW50LVR5cGUnLCdhcHBsaWNhdGlvbi9vY3RldC1zdHJlYW0nKQogICAgJHJlcy5Db250ZW50TGVuZ3RoNjQgPSAkcGF5bG9hZC5MZW5ndGgKICAgICRyZXMuU3RhdHVzQ29kZSA9IDIwMAogICAgaWYgKCRjdHguUmVxdWVzdC5IdHRwTWV0aG9kIC1lcSAnSEVBRCcpIHsKICAgICAgJHJlcy5PdXRwdXRTdHJlYW0uQ2xvc2UoKQogICAgICBjb250aW51ZQogICAgfQogICAgJGNodW5rID0gNDA5NjAKICAgIGZvciAoJG9mZiA9IDA7ICRvZmYgLWx0ICRwYXlsb2FkLkxlbmd0aDsgJG9mZiArPSAkY2h1bmspIHsKICAgICAgJG4gPSBbTWF0aF06Ok1pbigkY2h1bmssICRwYXlsb2FkLkxlbmd0aCAtICRvZmYpCiAgICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLldyaXRlKCRwYXlsb2FkLCAkb2ZmLCAkbik7ICRyZXMuT3V0cHV0U3RyZWFtLkZsdXNoKCkgfSBjYXRjaCB7IGJyZWFrIH0KICAgICAgU3RhcnQtU2xlZXAgLU1pbGxpc2Vjb25kcyAyMDAKICAgIH0KICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLkNsb3NlKCkgfSBjYXRjaCB7fQogIH0gY2F0Y2ggeyBTdGFydC1TbGVlcCAtTWlsbGlzZWNvbmRzIDUwMCB9Cn0K'))
+          Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:\fixture-server.ps1'
+          Start-Sleep 3
+          $code = curl.exe -sS -o NUL -w '%{http_code}' -I http://localhost:8085/payload.bin
+          if ($code -ne '200') { throw "fixture server not serving (HEAD -> $code)" }
+          "fixture server up: HEAD -> $code, 20MB throttled ~200KB/s, payload.bin never executed"
+      - name: Relaunch, verify update-available state (UI + toast-request log)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "relaunch pid $($p.Id)"
+          Start-Sleep 75
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'relaunched process exited within 75s' }
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bm)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bm.Save('feat-s0-update-state.png'); "shot s0 $($b.Width)x$($b.Height)"
+          $log = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          $hits = Select-String -Path $log -Pattern 'update available' -SimpleMatch | Measure-Object
+          "log lines requesting 'update available' notification: $($hits.Count)"
+          $reg = Select-String -Path $log -Pattern 'Notifications registered' -SimpleMatch | Select-Object -Last 1
+          "last registration line: $($reg.Line)"
+      - name: 'Drive download via UI Automation: Install -> progress shots -> in-app Cancel'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
+          $AE = [System.Windows.Automation.AutomationElement]
+          $CT = [System.Windows.Automation.ControlType]
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bm)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bm.Save($name); "shot $name"
+          }
+          function Find-Named($root, $type, $name, $tries) {
+            for ($i = 0; $i -lt $tries; $i++) {
+              $cond = New-Object System.Windows.Automation.AndCondition(
+                (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $type)),
+                (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, $name)))
+              $el = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+              if ($el) { return $el }
+              Start-Sleep 1
+            }
+            return $null
+          }
+          $proc = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if (-not $proc) { throw 'app not running at UIA stage' }
+          $proc.Refresh()
+          $win = $AE::FromHandle($proc.MainWindowHandle)
+          if (-not $win) { throw 'no main window handle' }
+          $row = Find-Named $win $CT::ListItem 'Fixture Download (synthetic)' 15
+          if (-not $row) { throw 'UIA: fixture row not found' }
+          $sel = $row.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+          if ($sel) { $sel.Select() } else { $row.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+          'UIA: fixture row selected'
+          Start-Sleep 3
+          $install = Find-Named $win $CT::Button 'Install' 15
+          if (-not $install) { throw 'UIA: Install button not found on detail page' }
+          $install.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+          'UIA: Install invoked; download should start against the throttled fixture'
+          Start-Sleep 20
+          Shot 'feat-s1-download-early.png'
+          Start-Sleep 30
+          Shot 'feat-s2-download-later.png'
+          $cancel = Find-Named $win $CT::Button 'Cancel' 10
+          if (-not $cancel) {
+            'CANCEL-PATH-FAILED: in-app Cancel button not found while download active' | Out-File cancel-result.txt
+          } else {
+            $cancel.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            'UIA: in-app Cancel invoked (app-level cancel, exercised before any process teardown)'
+            'cancel invoked via StripCancel button' | Out-File cancel-result.txt
+          }
+          Start-Sleep 6
+          Shot 'feat-s3-after-cancel.png'
+      - name: Tray evidence, close-to-tray persistence, then labeled teardown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $proc = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if (-not $proc) { throw 'app not running at tray stage' }
+          $proc.CloseMainWindow() | Out-Null
+          Start-Sleep 10
+          $alive = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'process exited on window close despite tray enabled (close-to-tray regression)' }
+          'close-to-tray: window closed, process still running (tray persistence holds)'
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bm)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bm.Save('feat-s4-tray-window-closed.png'); 'shot s4 (window hidden; tray icon should remain in the taskbar area)'
+          $log = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          $tray = Select-String -Path $log -Pattern 'Tray icon added' -SimpleMatch | Select-Object -Last 1
+          "log: $($tray.Line)"
+          'process teardown AFTER the cancel path was exercised' | Out-File teardown.txt
+          $alive | Stop-Process -Force
+          'teardown: process stopped (cleanup, distinct from the cancel path result)'
+      - name: Upload feature evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feat-preview-out
+          path: |
+            feat-*.png
+            cancel-result.txt
+            teardown.txt
+          if-no-files-found: warn
+      - name: Copy app log
+        if: always()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $log) { Copy-Item $log feat-app-log.jsonl; 'app log copied' } else { 'no app log found' }
+      - name: Upload log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feat-preview-log
+          path: feat-app-log.jsonl
           if-no-files-found: warn
