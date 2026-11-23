@@ -39,6 +39,10 @@ on:
         description: 'Release tag to test (empty = latest stable release)'
         required: false
         default: ''
+      target:
+        description: 'vm = dockur Windows 11 VM; runner = standard Windows runner (no VM)'
+        required: true
+        default: 'vm'
 
 concurrency:
   group: windows-vm-test
@@ -46,6 +50,7 @@ concurrency:
 
 jobs:
   win:
+    if: inputs.target != 'runner'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -128,3 +133,160 @@ jobs:
           retention-days: 3
       - if: always()
         run: docker logs win 2>&1 | tail -40
+
+  # Functional verification on a standard GitHub-hosted Windows runner:
+  # stable interactive session, no VM boot, no OOBE hazards. Fails CLOSED:
+  # any unmet check (tag, hash, version, launch, survival, soak, relaunch,
+  # silent install/uninstall) fails the job. Runner is disposable; all
+  # installs/uninstalls happen only on it.
+  verify:
+    if: inputs.target == 'runner'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      REPO: Star-Dust-0/Obtainium-PC
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Download release assets and verify SHA256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:TAG.Trim()
+          if (-not $tag) { throw 'release_tag input is empty; refusing to fall back to latest' }
+          try { $rel = Invoke-RestMethod "https://api.github.com/repos/$env:REPO/releases/tags/$tag" }
+          catch { throw "could not resolve release tag '$tag': $($_.Exception.Message)" }
+          if ($rel.tag_name -ne $tag) { throw "resolved release '$($rel.tag_name)' does not match requested '$tag'" }
+          "release: $($rel.tag_name) (requested: '$tag')"
+          $sums = $rel.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
+          if (-not $sums) { throw 'SHA256SUMS.txt asset missing; cannot verify bytes' }
+          Invoke-WebRequest $sums.browser_download_url -OutFile SHA256SUMS.txt
+          foreach ($pat in @('portable\.zip$', 'Setup\.exe$')) {
+            $a = $rel.assets | Where-Object { $_.name -match $pat } | Select-Object -First 1
+            if (-not $a) { throw "no release asset matches '$pat'" }
+            Invoke-WebRequest $a.browser_download_url -OutFile $a.name
+            $line = Get-Content SHA256SUMS.txt | Where-Object { $_ -match [regex]::Escape($a.name) } | Select-Object -First 1
+            if (-not $line) { throw "$($a.name) not listed in SHA256SUMS.txt" }
+            $want = ($line -split '\s+')[0].ToLower()
+            $got = (Get-FileHash $a.name -Algorithm SHA256).Hash.ToLower()
+            "$($a.name): sha256 want=$want"
+            "$($a.name): sha256 got =$got"
+            if ($want -ne $got) { throw "SHA256 mismatch for $($a.name)" }
+            $zi = Get-Item $a.name -Stream Zone.Identifier -ErrorAction SilentlyContinue
+            if ($zi) { "MOTW $($a.name): Zone.Identifier PRESENT" } else { "MOTW $($a.name): no Zone.Identifier" }
+          }
+      - name: Extract portable zip and assert exe version matches tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Get-ChildItem *portable.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName app -Force
+          $exe = Get-ChildItem app -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          if (-not $exe) { throw 'ObtainiumPC.exe not found after extract' }
+          "exe: $($exe.FullName)"
+          $zi = Get-Item $exe.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue
+          if ($zi) { 'MOTW exe: Zone.Identifier PRESENT' } else { 'MOTW exe: no Zone.Identifier' }
+          $ver = (Get-Item $exe.FullName).VersionInfo.FileVersion
+          "exe version: $ver"
+          $wantV = $env:TAG.Trim().TrimStart('v','V')
+          if (-not $ver -or -not $ver.StartsWith($wantV)) { throw "exe version $ver does not match requested tag $env:TAG" }
+          'exe version matches requested tag'
+          "EXE_PATH=$($exe.FullName)" | Out-File $env:GITHUB_ENV -Append
+      - name: Launch and verify 30s survival + screenshot
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "launched pid $($p.Id) at $(Get-Date -Format o)"
+          Start-Sleep 30
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'process exited within 30s of launch' }
+          "alive after 30s: $($alive.Name) ws=$([math]::Round($alive.WorkingSet64/1MB))MB"
+          try {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bm=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bm)
+            $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size)
+            $bm.Save('launched.png'); "shot launched $($b.Width)x$($b.Height)"
+          } catch { "WARN screenshot failed (session may not render UI): $($_.Exception.Message)" }
+      - name: Bounded soak - 5 min process survival
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ok = $true
+          foreach ($m in 1..5) {
+            Start-Sleep 60
+            $pr = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+            if ($pr) {
+              $mb = [math]::Round((($pr | Measure-Object WorkingSet64 -Sum).Sum)/1MB)
+              "soak t+${m}min: alive, ${mb}MB"
+            } else { "soak t+${m}min: PROCESS GONE"; $ok = $false; break }
+          }
+          if (-not $ok) { throw 'process died during soak' }
+          'soak: PASS (5 min stable)'
+      - name: Close and relaunch - repeat-launch check + screenshot
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $pr = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if (-not $pr) { throw 'process not running before relaunch test' }
+          $pr | ForEach-Object { $_.CloseMainWindow() | Out-Null }
+          Start-Sleep 10
+          $still = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if ($still) { 'still running after CloseMainWindow; force stopping'; $still | Stop-Process -Force; Start-Sleep 5 }
+          $p2 = Start-Process $env:EXE_PATH -PassThru
+          "relaunched pid $($p2.Id) at $(Get-Date -Format o)"
+          Start-Sleep 30
+          $alive2 = Get-Process -Id $p2.Id -ErrorAction SilentlyContinue
+          if (-not $alive2) { throw 'relaunched process exited within 30s' }
+          "relaunch: alive after 30s, ws=$([math]::Round($alive2.WorkingSet64/1MB))MB"
+          try {
+            $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bm=New-Object System.Drawing.Bitmap $b.Width,$b.Height
+            $g=[System.Drawing.Graphics]::FromImage($bm)
+            $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size)
+            $bm.Save('relaunch.png'); "shot relaunch $($b.Width)x$($b.Height)"
+          } catch { "WARN screenshot failed (session may not render UI): $($_.Exception.Message)" }
+          $alive2 | Stop-Process -Force
+      - name: Silent install, registry entry, silent uninstall (disposable runner only)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          $setup = Get-ChildItem *Setup.exe | Select-Object -First 1
+          "running installer: $($setup.Name)"
+          $proc = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES' -Wait -PassThru
+          "setup exit code: $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) { throw "installer exited $($proc.ExitCode)" }
+          $roots = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+                     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+                     'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+          $entry = $null
+          foreach ($r in $roots) {
+            $entry = Get-ChildItem $r -ErrorAction SilentlyContinue |
+              Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -match 'Obtainium' } |
+              ForEach-Object { Get-ItemProperty $_.PSPath } | Select-Object -First 1
+            if ($entry) { break }
+          }
+          if (-not $entry) { throw 'no Obtainium uninstall registry entry after silent install' }
+          "uninstall entry: $($entry.DisplayName) $($entry.DisplayVersion)"
+          "install location: $($entry.InstallLocation)"
+          $unins = Join-Path $entry.InstallLocation 'unins000.exe'
+          if (-not (Test-Path $unins)) { throw "uninstaller not found at $unins" }
+          $uproc = Start-Process $unins -ArgumentList '/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES' -Wait -PassThru
+          "uninstaller exit code: $($uproc.ExitCode)"
+          if ($uproc.ExitCode -ne 0) { throw "uninstaller exited $($uproc.ExitCode)" }
+          $stillThere = $false
+          foreach ($r in $roots) {
+            if (Get-ChildItem $r -ErrorAction SilentlyContinue | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -match 'Obtainium' }) { $stillThere = $true }
+          }
+          if ($stillThere) { throw 'uninstall registry entry still present after silent uninstall' }
+          'install/uninstall: PASS (entry created by install, removed by uninstall)'
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-runner-test-out
+          path: '*.png'
+          if-no-files-found: warn
