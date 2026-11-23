@@ -47,6 +47,10 @@ on:
         description: 'vm = dockur Windows 11 VM; runner = standard Windows runner (no VM)'
         required: true
         default: 'vm'
+      icon_check:
+        description: 'runner target only: run the icon render verification job instead of the standard candidate preview'
+        required: false
+        default: 'false'
 
 concurrency:
   group: windows-vm-test
@@ -304,7 +308,7 @@ jobs:
   # merges, or changes a release. All fixtures live only on the ephemeral
   # runner and vanish with it.
   preview:
-    if: inputs.target == 'runner' && inputs.artifact_run_id != ''
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -409,4 +413,217 @@ jobs:
           path: |
             *.png
             live-probe.txt
+          if-no-files-found: warn
+
+  # Icon render verification for the pixelation report (candidate code).
+  # Downloads the SAME build artifact as the standard preview (never builds
+  # the app here), then exercises each icon path on the ephemeral runner:
+  #   exe-resource frame selection (fixture exe whose frames are distinct
+  #   solid colours, so rendered pixels identify the decoded frame exactly),
+  #   the actual own-app icon (artifact exe registered as the installed
+  #   "Obtainium-PC", matched by the auto-created own record), the live
+  #   GitHub avatar path, and the missing-avatar placeholder fallback.
+  # Effective DPI is READ FROM WINDOWS (GetDpiForWindow on the app window);
+  # a 150% capture is produced only when that API confirms 144 DPI, never
+  # resized imagery. All fixtures live only on the disposable runner.
+  iconpreview:
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      REPO: Star-Dust-0/Obtainium-PC
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Record artifact run provenance (fail closed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:ARTIFACT_RUN_ID.Trim()) { throw 'artifact_run_id is empty' }
+          $info = gh run view $env:ARTIFACT_RUN_ID -R $env:REPO --json status,conclusion,headSha,headBranch,displayTitle | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "could not read run $env:ARTIFACT_RUN_ID" }
+          "artifact source run: $($info.displayTitle) status=$($info.status) conclusion=$($info.conclusion)"
+          "artifact source commit: $($info.headSha) (branch: $($info.headBranch))"
+          if ($info.conclusion -ne 'success') { throw 'source run is not green; refusing to preview its artifact' }
+      - name: Download build artifact from that run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
+          if ($LASTEXITCODE -ne 0) { throw 'artifact download failed' }
+          $exe = Get-ChildItem artifact -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          if (-not $exe) { throw 'ObtainiumPC.exe not found in artifact' }
+          "exe: $($exe.FullName)"
+          "exe version: $((Get-Item $exe.FullName).VersionInfo.FileVersion)"
+          "EXE_PATH=$($exe.FullName)" | Out-File $env:GITHUB_ENV -Append
+      - name: Build fixture exe with colour-coded icon frames
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Each frame a distinct solid colour so rendered pixels identify the decoded frame:
+          # 16=red 32=green 48=blue 64=yellow 128=cyan 256=magenta. A correct pipeline
+          # (smallest frame >= 64px) renders YELLOW; red/green/blue would prove a small
+          # frame was stretched (the pixelation mechanism).
+          $frames = @(
+            @{ s = 16;  rgb = @(255, 0, 0) },
+            @{ s = 32;  rgb = @(0, 200, 0) },
+            @{ s = 48;  rgb = @(0, 0, 255) },
+            @{ s = 64;  rgb = @(255, 255, 0) },
+            @{ s = 128; rgb = @(0, 255, 255) },
+            @{ s = 256; rgb = @(255, 0, 255) }
+          )
+          $imgs = @()
+          foreach ($f in $frames) {
+            $s = $f.s; $r = $f.rgb[0]; $g = $f.rgb[1]; $b = $f.rgb[2]
+            $ms = New-Object System.IO.MemoryStream
+            $bw = New-Object System.IO.BinaryWriter($ms)
+            $bw.Write([uint32]40); $bw.Write([int32]$s); $bw.Write([int32](2 * $s))
+            $bw.Write([uint16]1); $bw.Write([uint16]32); $bw.Write([uint32]0)
+            $bw.Write([uint32]($s * $s * 4)); $bw.Write([int32]0); $bw.Write([int32]0)
+            $bw.Write([uint32]0); $bw.Write([uint32]0)
+            for ($i = 0; $i -lt $s * $s; $i++) { $bw.Write([byte]$b); $bw.Write([byte]$g); $bw.Write([byte]$r); $bw.Write([byte]255) }
+            for ($y = 0; $y -lt $s; $y++) { for ($x = 0; $x -lt (($s + 31) -band (-bnot 31)) / 8; $x++) { $bw.Write([byte]0) } }
+            $bw.Flush(); $imgs += ,@{ s = $s; data = $ms.ToArray() }
+          }
+          $ico = New-Object System.IO.MemoryStream
+          $w = New-Object System.IO.BinaryWriter($ico)
+          $w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$imgs.Count)
+          $offset = 6 + 16 * $imgs.Count
+          foreach ($im in $imgs) {
+            $wb = if ($im.s -ge 256) { [byte]0 } else { [byte]$im.s }
+            $w.Write($wb); $w.Write($wb); $w.Write([byte]0); $w.Write([byte]0)
+            $w.Write([uint16]1); $w.Write([uint16]32)
+            $w.Write([uint32]$im.data.Length); $w.Write([uint32]$offset)
+            $offset += $im.data.Length
+          }
+          foreach ($im in $imgs) { $w.Write($im.data) }
+          $w.Flush()
+          New-Item -ItemType Directory C:\icon-fixture -Force | Out-Null
+          [System.IO.File]::WriteAllBytes('C:\icon-fixture\fixture.ico', $ico.ToArray())
+          Set-Content C:\icon-fixture\fixture.cs 'class P { static void Main() {} }'
+          $csc = 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $csc /nologo /target:exe /win32icon:C:\icon-fixture\fixture.ico /out:C:\icon-fixture\fixture.exe C:\icon-fixture\fixture.cs
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path C:\icon-fixture\fixture.exe)) { throw 'fixture exe build failed' }
+          "fixture exe: $((Get-Item C:\icon-fixture\fixture.exe).Length) bytes, 6 colour-coded frames (16 red .. 256 magenta)"
+      - name: Register fixture and own app as installed (runner-local HKCU only)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $u = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+          $k1 = New-Item "$u\IconFrameFixture" -Force
+          Set-ItemProperty $k1.PSPath DisplayName 'Icon Frame Fixture'
+          Set-ItemProperty $k1.PSPath DisplayIcon 'C:\icon-fixture\fixture.exe,0'
+          Set-ItemProperty $k1.PSPath DisplayVersion '1.0'
+          Set-ItemProperty $k1.PSPath Publisher 'IconFixture'
+          $k2 = New-Item "$u\ObtainiumPC-iconcheck" -Force
+          Set-ItemProperty $k2.PSPath DisplayName 'Obtainium-PC'
+          Set-ItemProperty $k2.PSPath DisplayIcon "$($env:EXE_PATH),0"
+          Set-ItemProperty $k2.PSPath DisplayVersion ((Get-Item $env:EXE_PATH).VersionInfo.FileVersion)
+          Set-ItemProperty $k2.PSPath Publisher 'Star-Dust-0'
+          'registered: Icon Frame Fixture -> fixture.exe; Obtainium-PC -> artifact exe'
+      - name: First launch (store + own record), then close
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "first launch pid $($p.Id)"
+          Start-Sleep 20
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'process exited during first launch' }
+          $alive.CloseMainWindow() | Out-Null
+          Start-Sleep 8
+          $still = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if ($still) { $still | Stop-Process -Force; Start-Sleep 5 }
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          if (-not (Test-Path $store)) { throw "apps.json not created at $store" }
+          $doc = Get-Content $store -Raw | ConvertFrom-Json
+          $own = @($doc | Where-Object { $_.name -eq 'Obtainium-PC' })
+          if ($own.Count -ne 1) { throw "expected 1 auto-created own record, found $($own.Count)" }
+          "own record: osMatchedName=$($own[0].osMatchedName) installedVersion=$($own[0].installedVersion)"
+      - name: Append icon-path seed rows (SYNTHETIC fixtures)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
+          $new = @(
+            [ordered]@{ id = '33333333-3333-3333-3333-333333333333'; url = 'https://github.com/IconFixture/icon-frame-fixture'; author = 'IconFixture'; name = 'Icon Frame Fixture'; installedVersion = '1.0'; latestVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '44444444-4444-4444-4444-444444444444'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Avatar Path Sample'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '55555555-5555-5555-5555-555555555555'; url = 'https://github.com/zzz-nonexistent-owner-404xyz/nope'; author = 'zzz-nonexistent-owner-404xyz'; name = 'Avatar Fallback Sample'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
+          )
+          ($doc + $new | ConvertTo-Json -Depth 6) | Set-Content $store -Encoding UTF8
+          'seeded: exe-resource fixture + live avatar (fluent-prayer-times) + 404-avatar fallback; own record preserved'
+      - name: Relaunch, record real effective DPI, screenshot native pixels
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          Add-Type -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetDpiForSystem(); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetDpiForWindow(System.IntPtr h);' -Name U32 -Namespace W
+          $p = Start-Process $env:EXE_PATH -PassThru
+          "relaunch pid $($p.Id)"
+          Start-Sleep 60
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { throw 'relaunched process exited within 60s' }
+          $alive.Refresh()
+          $sysDpi = [W.U32]::GetDpiForSystem()
+          $winDpi = [W.U32]::GetDpiForWindow($alive.MainWindowHandle)
+          "EFFECTIVE-DPI system=$sysDpi window=$winDpi scale=$([math]::Round($winDpi / 96.0 * 100))%" | Tee-Object dpi.txt
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          "primary screen: $($b.Width)x$($b.Height) physical px" | Out-File dpi.txt -Append
+          $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bm)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bm.Save('preview-icons-100.png'); "shot preview-icons-100 $($b.Width)x$($b.Height)"
+          $alive | Stop-Process -Force
+      - name: Attempt REAL 150% scaling (verified by GetDpiForWindow, never resized)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          Add-Type -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetDpiForWindow(System.IntPtr h);' -Name U32b -Namespace W
+          Set-ItemProperty 'HKCU:\Control Panel\Desktop' LogPixels 144
+          Set-ItemProperty 'HKCU:\Control Panel\Desktop' Win8DpiScaling 1
+          Set-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' AppliedDPI 144 -ErrorAction SilentlyContinue
+          $sig = '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern System.IntPtr SendMessageTimeout(System.IntPtr h, uint m, System.IntPtr w, string l, uint f, uint t, out System.IntPtr r);'
+          Add-Type -MemberDefinition $sig -Name U32c -Namespace W
+          $r = [System.IntPtr]::Zero
+          [W.U32c]::SendMessageTimeout([System.IntPtr]0xffff, 0x001A, [System.IntPtr]::Zero, 'Environment', 2, 1000, [ref]$r) | Out-Null
+          $p = Start-Process $env:EXE_PATH -PassThru
+          Start-Sleep 45
+          $alive = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+          if (-not $alive) { 'SCALE-150 not exercised: app did not relaunch' | Out-File dpi.txt -Append; exit 0 }
+          $alive.Refresh()
+          $winDpi = [W.U32b]::GetDpiForWindow($alive.MainWindowHandle)
+          if ($winDpi -eq 144) {
+            "SCALE-150 CONFIRMED by GetDpiForWindow=$winDpi" | Tee-Object dpi150.txt
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bm)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bm.Save('preview-icons-150.png'); "shot preview-icons-150 $($b.Width)x$($b.Height)"
+          } else {
+            "SCALE-150 NOT genuinely achieved (GetDpiForWindow=$winDpi after LogPixels=144 + relaunch); no 150% capture produced" | Tee-Object dpi150.txt
+          }
+          $alive | Stop-Process -Force
+      - name: Upload icon evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icon-preview-out
+          path: |
+            *.png
+            dpi*.txt
+          if-no-files-found: warn
+      - name: Upload app log (icon diag lines)
+        if: always()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\logs.jsonl'
+          if (Test-Path $log) { Copy-Item $log app-log.jsonl; 'app log copied' } else { 'no app log found' }
+      - name: Upload log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icon-preview-log
+          path: app-log.jsonl
           if-no-files-found: warn
