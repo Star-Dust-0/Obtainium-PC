@@ -279,12 +279,15 @@ namespace ObtainiumPC.Pages
             }
             EmptyState.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             var total = App.TrackedApps.Count;
-            var updates = filtered.Count(r => r.HasUpdate);
-            // A failed last check means the app's true state is unknown; the
+            // Classify every visible app: a failed last check or a never-
+            // completed check means the app's true state is unknown, so the
             // summary names those apps instead of calling everything current.
-            var failedChecks = filtered.Count(r => !r.App.Disabled && r.App.ConsecutiveFailedChecks > 0);
+            var states = filtered.Select(r => Services.Updates.AppsSummaryText.Classify(r.App, r.HasUpdate)).ToList();
+            var updates = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.UpdateAvailable);
+            var failedChecks = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.FailedCheck);
+            var notCheckedYet = states.Count(s => s == Services.Updates.AppsSummaryText.CheckState.NotCheckedYet);
             SubtitleText.Visibility = total == 0 ? Visibility.Collapsed : Visibility.Visible;
-            SubtitleText.Text = Services.Updates.AppsSummaryText.Format(total, updates, failedChecks, Services.Localization.Loc.T);
+            SubtitleText.Text = Services.Updates.AppsSummaryText.Format(total, updates, failedChecks, notCheckedYet, Services.Localization.Loc.T);
         }
 
         private void SearchBox_TextChanged(object sender, AutoSuggestBoxTextChangedEventArgs e)
