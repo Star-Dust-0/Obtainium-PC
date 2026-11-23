@@ -34,6 +34,11 @@
 name: windows-vm-test
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test (empty = latest stable release)'
+        required: false
+        default: ''
 
 concurrency:
   group: windows-vm-test
@@ -55,6 +60,7 @@ jobs:
       - name: Start dockur/windows
         run: |
           mkdir -p shared; cp .dockur-test/run.ps1 shared/run.ps1
+          printf '%s' "${{ inputs.release_tag }}" > shared/release-tag.txt
           docker run -d --name win -e VERSION=11l -e RAM_SIZE=6G -e CPU_CORES=3 -e DISK_SIZE=40G \
             --device /dev/kvm --device /dev/net/tun --cap-add NET_ADMIN \
             -p 8006:8006 -p 7100:7100 -e ARGUMENTS="-monitor telnet:0.0.0.0:7100,server,nowait" \
