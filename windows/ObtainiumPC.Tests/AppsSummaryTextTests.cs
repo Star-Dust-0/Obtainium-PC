@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ObtainiumPC.Models;
 using ObtainiumPC.Services.Updates;
 using Xunit;
@@ -199,6 +200,20 @@ public class AppsSummaryTextTests
             "{0} not checked yet",
             "{0} with unknown status",
             "{0} apps: {1}",
+            ", ",
         }, seen);
+    }
+
+    [Fact]
+    public void Composed_parts_and_separator_come_from_the_translator()
+    {
+        var ar = new Dictionary<string, string>
+        {
+            ["{0} apps: {1}"] = "{0} APPS: {1}",
+            ["{0} with updates"] = "{0} UPD",
+            ["{0} with failed checks"] = "{0} FAILED",
+            [", "] = " / ",
+        };
+        Assert.Equal("3 APPS: 1 UPD / 2 FAILED", Format(3, 1, 2, 0, 0, false, s => ar[s]));
     }
 }

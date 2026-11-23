@@ -33,4 +33,19 @@ public class ArabicOverlayTests
             Assert.True(loc.Contains("[\"" + k + "\"] = \"") || upstream.Contains("[\"" + up + "\"] = \""), "no Arabic text for: " + k);
         }
     }
+
+    [Fact]
+    public void Every_literal_passed_to_translate_in_AppsSummaryText_has_a_translation_source()
+    {
+        // The summary literals live in Services (passed as the translate delegate), outside the
+        // Pages scan above; this is the gap that once shipped English-only summary states.
+        var root = Root();
+        var loc = File.ReadAllText(Path.Combine(root, "ObtainiumPC", "Services", "Localization", "Loc.cs"));
+        var summary = File.ReadAllText(Path.Combine(root, "ObtainiumPC", "Services", "Updates", "AppsSummaryText.cs"));
+        var re = new Regex("translate\\(\"([^\"]*)\"\\)");
+        var keys = re.Matches(summary).Select(m => m.Groups[1].Value).Distinct().ToList();
+        Assert.True(keys.Count >= 5);
+        foreach (var k in keys)
+            Assert.True(loc.Contains("[\"" + k + "\"] = \""), "no Arabic text for: " + k);
+    }
 }

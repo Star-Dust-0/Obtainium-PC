@@ -73,6 +73,6 @@ public static class AppsSummaryText
             // Nothing wrong to name, but not everything is installed and
             // current (track-only/disabled present): stay neutral.
             return string.Format(translate("{0} apps"), total);
-        return string.Format(translate("{0} apps: {1}"), total, string.Join(", ", parts));
+        return string.Format(translate("{0} apps: {1}"), total, string.Join(translate(", "), parts));
     }
 }
