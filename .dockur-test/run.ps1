@@ -40,6 +40,13 @@ Start-Sleep 40
 $ws = New-Object -ComObject WScript.Shell
 $ws.SendKeys('{ESC}'); Start-Sleep 2
 $ws.SendKeys('{ESC}'); Start-Sleep 18
+# Close the leftover install console so it cannot cover the app window
+Get-Process cmd -ErrorAction SilentlyContinue | ? { $_.MainWindowTitle -match 'Install' } | % { $_.CloseMainWindow() | Out-Null }
+Start-Sleep 2
+# Bring the app window to the foreground before the screenshots
+$appProc = Get-Process | ? { $_.Name -match $ExeMatch -and $_.MainWindowHandle -ne 0 } | select -First 1
+if ($appProc) { $ws.AppActivate($appProc.Id) | Out-Null; "activated window: $($appProc.MainWindowTitle)" } else { "WARN: no app window handle" }
+Start-Sleep 5
 Get-Process | ? { $_.Name -match $ExeMatch } | % { "proc: $($_.Name) $((Get-Item $_.Path).VersionInfo.FileVersion)" }
 "exe version: $((Get-Item $exe.FullName).VersionInfo.FileVersion)"
 Shot 'app'
