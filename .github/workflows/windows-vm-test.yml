@@ -693,8 +693,10 @@ jobs:
           $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
           $new = @(
-            [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
-            [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1' }
+            [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; latestVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
+            [ordered]@{ id = '88888888-8888-8888-8888-888888888888'; url = 'https://github.com/example/never-checked'; author = 'example'; name = 'NullLatest Sample (never checked)'; installedVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '99999999-9999-9999-9999-999999999999'; url = 'https://github.com/example/stale-failing'; author = 'example'; name = 'Stale Failure Sample'; installedVersion = '1.0'; latestVersion = '2.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
           )
           ($doc + $new | ConvertTo-Json -Depth 6) | Set-Content $store -Encoding UTF8
           'seeded: DirectLink fixture (background-exempt) + live update-available sample (installedVersion 0.1)'
@@ -758,8 +760,12 @@ jobs:
           $proc.Refresh()
           $win = $AE::FromHandle($proc.MainWindowHandle)
           if (-not $win) { throw 'no main window handle' }
-          $row = Find-Named $win $CT::ListItem 'Fixture Download (synthetic)' 15
-          if (-not $row) { throw 'UIA: fixture row not found' }
+          $title = Find-Named $win $CT::Text 'Fixture Download (synthetic)' 15
+          if (-not $title) { throw 'UIA: fixture row title Text not found' }
+          $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+          $row = $title
+          while ($row -and $row.Current.ControlType -ne $CT::ListItem) { $row = $walker.GetParent($row) }
+          if (-not $row) { throw 'UIA: ListViewItem ancestor of the title not found' }
           $sel = $row.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
           if ($sel) { $sel.Select() } else { $row.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
           'UIA: fixture row selected'
