@@ -43,7 +43,9 @@ Expand-Archive C:\app.zip C:\app -Force
 $exe = Get-ChildItem C:\app -Recurse -Filter *.exe | ? { $_.Name -match $ExeMatch } | select -First 1
 if (-not $exe) { "ERROR: no exe matches '$ExeMatch'"; exit 1 }
 "exe: $($exe.FullName)"
-Start-Process $exe.FullName
+"launching at $(Get-Date -Format o)"
+try { Start-Process $exe.FullName; "Start-Process returned at $(Get-Date -Format o)" }
+catch { "ERROR launching: $($_.Exception.Message)" }
 Start-Sleep 40
 # Close the Start menu / any first-run shell popup so the app is unobstructed
 $ws = New-Object -ComObject WScript.Shell

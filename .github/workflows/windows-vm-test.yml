@@ -73,12 +73,18 @@ jobs:
             grep -q DONE shared/result.txt 2>/dev/null && break
             if [ $((i%6)) -eq 0 ]; then
               echo "t=$(( $(date +%s)-start ))s"; docker logs win 2>&1 | tail -3
-              python3 - <<'PY'
+              python3 - <<PY
           import socket,time
-          s=socket.create_connection(("127.0.0.1",7100),timeout=5); time.sleep(.5)
-          s.sendall(b"screendump /tmp/s.ppm\n"); time.sleep(1.5); s.close()
+          try:
+            s=socket.create_connection(("127.0.0.1",7100),timeout=5); time.sleep(1)
+            s.sendall(b"screendump /shared/mon-$i.png -f png\n"); time.sleep(2.5)
+            s.settimeout(2)
+            try: print("monitor:", s.recv(4096).decode("utf-8","replace")[-200:])
+            except Exception: pass
+            s.close()
+          except Exception as e: print("monitor-error:", e)
           PY
-              docker cp win:/tmp/s.ppm s.ppm && (convert s.ppm shot-$i.png || python3 -c 'print(1)') || echo screendump-failed
+              [ -f shared/mon-$i.png ] && cp shared/mon-$i.png shot-$i.png || echo screendump-failed
             fi
             sleep 20
           done
