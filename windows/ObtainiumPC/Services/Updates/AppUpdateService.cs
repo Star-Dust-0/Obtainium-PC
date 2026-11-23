@@ -206,6 +206,7 @@ public sealed class AppUpdateService
         app.NewerReleasesFilteredOut = details.NewerReleasesFilteredOut;
         app.LastUpdateCheckUs = TrackedApp.ToMicroseconds(DateTimeOffset.Now);
         app.ConsecutiveFailedChecks = 0;
+        app.LastCheckError = null;
         if (currentApp == null) app.AdditionalSettingsJson = JsonSerializer.Serialize(settings);
         if (!suppressYoung && (app.LatestVersionChangedAtUs == null || currentApp?.LatestVersion != version))
             app.LatestVersionChangedAtUs = TrackedApp.ToMicroseconds(DateTimeOffset.Now);

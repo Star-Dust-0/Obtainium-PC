@@ -98,7 +98,7 @@ namespace ObtainiumPC.Pages
                 if (App.Disabled) return "Tracking disabled";
                 if (HealthFlagged) return "Update-health issue";
                 if (HasUpdate) return Services.Localization.Loc.T("Update available");
-                if (App.ConsecutiveFailedChecks > 0) return $"Last check failed ({App.ConsecutiveFailedChecks}x)";
+                if (App.ConsecutiveFailedChecks > 0) return Services.Updates.CheckFailureText.Format(App.ConsecutiveFailedChecks, App.LastCheckError);
                 return "";
             }
         }

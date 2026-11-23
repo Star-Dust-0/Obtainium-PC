@@ -97,6 +97,7 @@ public sealed class TrackedApp
     public long? KnownPreferredSize() => PreferredAssetUrl() is { } u ? KnownSizeFor(u) : null;
     [JsonPropertyName("latestVersionChangedAt")] public long? LatestVersionChangedAtUs { get; set; }
     [JsonPropertyName("consecutiveFailedChecks")] public int ConsecutiveFailedChecks { get; set; }
+    [JsonPropertyName("lastCheckError")] public string? LastCheckError { get; set; }
     [JsonPropertyName("isArchived")] public bool? IsArchived { get; set; }
     [JsonPropertyName("newerReleasesFilteredOut")] public int? NewerReleasesFilteredOut { get; set; }
     [JsonPropertyName("updateHealthEnabled")] public bool UpdateHealthEnabled { get; set; } = true;
