@@ -61,6 +61,9 @@ public static class AppsSummaryText
         if (total <= 0) return "";
         if (claimUpToDate)
             return string.Format(translate("{0} apps, all up to date"), total);
+        if (withUpdates > 0 && withFailedChecks == 0 && notCheckedYet == 0 && unknownVersion == 0)
+            // Preserve the established localized key for the common case.
+            return string.Format(translate("{0} apps, {1} with updates"), total, withUpdates);
         var parts = new List<string>(4);
         if (withUpdates > 0) parts.Add(string.Format(translate("{0} with updates"), withUpdates));
         if (withFailedChecks > 0) parts.Add(string.Format(translate("{0} with failed checks"), withFailedChecks));
@@ -70,9 +73,6 @@ public static class AppsSummaryText
             // Nothing wrong to name, but not everything is installed and
             // current (track-only/disabled present): stay neutral.
             return string.Format(translate("{0} apps"), total);
-        if (parts.Count == 1 && withUpdates > 0)
-            // Preserve the established localized key for the common case.
-            return string.Format(translate("{0} apps, {1} with updates"), total, withUpdates);
         return string.Format(translate("{0} apps: {1}"), total, string.Join(", ", parts));
     }
 }
