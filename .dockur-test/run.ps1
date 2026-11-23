@@ -10,9 +10,18 @@ $ErrorActionPreference='Continue'
 Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 function Shot($n){ $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bm=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bm); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bm.Save("\\host.lan\Data\$n.png"); "shot $n $($b.Width)x$($b.Height)" }
 Shot 'desktop'
+# Fail closed: a supplied tag that cannot be read or resolved must stop the run,
+# never silently fall back to the latest stable release.
+$tagFile = '\\host.lan\Data\release-tag.txt'
+$tagFilePresent = Test-Path $tagFile
 $tag = ''
-if (Test-Path '\\host.lan\Data\release-tag.txt') { $tag = (Get-Content '\\host.lan\Data\release-tag.txt' -Raw).Trim() }
-if ($tag) { $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/tags/$tag" }
+if ($tagFilePresent) { $tag = (Get-Content $tagFile -Raw).Trim() }
+if ($tagFilePresent -and -not $tag) { "ERROR: release-tag.txt exists but is empty or unreadable; refusing to fall back to latest"; exit 1 }
+if ($tag) {
+  try { $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/tags/$tag" }
+  catch { "ERROR: could not resolve release tag '$tag': $($_.Exception.Message)"; exit 1 }
+  if ($rel.tag_name -ne $tag) { "ERROR: resolved release '$($rel.tag_name)' does not match requested tag '$tag'"; exit 1 }
+}
 else { $rel = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest" }
 "release: $($rel.tag_name) (requested tag: '$tag')"; $rel.assets | % { "asset: $($_.name) $($_.size)" }
 $a = $rel.assets | ? { $_.name -match $AssetMatch } | select -First 1
@@ -48,7 +57,13 @@ $appProc = Get-Process | ? { $_.Name -match $ExeMatch -and $_.MainWindowHandle -
 if ($appProc) { $ws.AppActivate($appProc.Id) | Out-Null; "activated window: $($appProc.MainWindowTitle)" } else { "WARN: no app window handle" }
 Start-Sleep 5
 Get-Process | ? { $_.Name -match $ExeMatch } | % { "proc: $($_.Name) $((Get-Item $_.Path).VersionInfo.FileVersion)" }
-"exe version: $((Get-Item $exe.FullName).VersionInfo.FileVersion)"
+$fileVer = (Get-Item $exe.FullName).VersionInfo.FileVersion
+"exe version: $fileVer"
+if ($tag) {
+  $wantV = $tag.TrimStart('v','V')
+  if ($fileVer -and -not $fileVer.StartsWith($wantV)) { "ERROR: exe version $fileVer does not match requested tag $tag"; exit 1 }
+  "exe version matches requested tag"
+}
 Shot 'app'
 Start-Sleep 45
 Shot 'app2'
