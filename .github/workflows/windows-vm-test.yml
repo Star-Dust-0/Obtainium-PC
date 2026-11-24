@@ -695,6 +695,8 @@ jobs:
           $new = @(
             [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666667'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download B (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; url = 'https://github.com/Star-Dust-0/obtainium-nonexistent-repo-check'; author = 'Star-Dust-0'; name = 'Real Failing With Stale Latest'; installedVersion = '1.0'; latestVersion = '2.0' },
+            [ordered]@{ id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Recovering After Real Check'; installedVersion = '1.0'; latestVersion = '1.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404' },
             [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
             [ordered]@{ id = '88888888-8888-8888-8888-888888888888'; url = 'https://github.com/example/never-checked'; author = 'example'; name = 'NullLatest Sample (never checked)'; installedVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '99999999-9999-9999-9999-999999999999'; url = 'https://github.com/example/stale-failing'; author = 'example'; name = 'Stale Failure Sample'; installedVersion = '1.0'; latestVersion = '2.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
@@ -731,6 +733,34 @@ jobs:
           "log lines requesting 'update available' notification: $($hits.Count)"
           $reg = Select-String -Path $log -Pattern 'Notifications registered' -SimpleMatch | Select-Object -Last 1
           "last registration line: $($reg.Line)"
+      - name: 'Verdict check: real update-check outcomes on the changed verdict code (UI texts + persisted store)'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          $AE = [System.Windows.Automation.AutomationElement]; $CT = [System.Windows.Automation.ControlType]
+          $proc = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
+          if (-not $proc) { 'app not running' | Out-File result-verdict-env.txt; throw 'app not running' }
+          $win = $AE::FromHandle($proc.MainWindowHandle)
+          $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text)))
+          $names = @(); foreach ($e in $all) { $names += $e.Current.Name }
+          $names | Out-File result-verdict-texts.txt
+          'UI texts:'; $names | ForEach-Object { "  $_" }
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          Copy-Item $store feat-store-after-check.json
+          $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
+          function Row($name) { $doc | Where-Object { $_.name -eq $name } | Select-Object -First 1 }
+          $out = @()
+          $r2 = Row 'Real Failing With Stale Latest'
+          $out += "R2 stale+real failure: consecutiveFailedChecks=$($r2.consecutiveFailedChecks) lastCheckError=$($r2.lastCheckError) latestVersion=$($r2.latestVersion)"
+          $r4 = Row 'Recovering After Real Check'
+          $out += "R4 recovery: consecutiveFailedChecks=$($r4.consecutiveFailedChecks) lastCheckError=$($r4.lastCheckError) latestVersion=$($r4.latestVersion)"
+          $r7 = Row 'Update Available Sample'
+          $out += "R7 real update available: installed=$($r7.installedVersion) latest=$($r7.latestVersion)"
+          $r8 = Row 'NullLatest Sample (never checked)'
+          $out += "R8 null-latest exempt: latestVersion=[$($r8.latestVersion)] lastUpdateCheck=[$($r8.lastUpdateCheck)]"
+          $out | Out-File result-verdict-store.txt
+          $out | ForEach-Object { $_ }
       - name: 'Drive download via UI Automation: per-observable outcomes, evidence-first cancel, finally teardown (audit v2)'
         shell: pwsh
         run: |
@@ -975,6 +1005,7 @@ jobs:
           name: feat-preview-out
           path: |
             feat-*.png
+            feat-store-after-check.json
             result-*.txt
             cancel-result.txt
             teardown.txt
