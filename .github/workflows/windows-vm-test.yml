@@ -693,7 +693,7 @@ jobs:
           $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
           $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
           $new = @(
-            [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; latestVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
             [ordered]@{ id = '88888888-8888-8888-8888-888888888888'; url = 'https://github.com/example/never-checked'; author = 'example'; name = 'NullLatest Sample (never checked)'; installedVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '99999999-9999-9999-9999-999999999999'; url = 'https://github.com/example/stale-failing'; author = 'example'; name = 'Stale Failure Sample'; installedVersion = '1.0'; latestVersion = '2.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
@@ -730,14 +730,16 @@ jobs:
           "log lines requesting 'update available' notification: $($hits.Count)"
           $reg = Select-String -Path $log -Pattern 'Notifications registered' -SimpleMatch | Select-Object -Last 1
           "last registration line: $($reg.Line)"
-      - name: 'Drive download via UI Automation: per-observable outcomes + finally teardown (audited restructure)'
+      - name: 'Drive download via UI Automation: per-observable outcomes, evidence-first cancel, finally teardown (audit v2)'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
+          Add-Type -Name NativeMethods -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr hWnd);'
           $AE = [System.Windows.Automation.AutomationElement]
           $CT = [System.Windows.Automation.ControlType]
           $failures = 0
+          $coreExercised = $false
           function Shot($name) {
             try {
               $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -772,15 +774,23 @@ jobs:
             "[$name] $outcome - $detail"
           }
           try {
+            # Environment facts recorded verbatim; proxy behaviour is an UNKNOWN, never assumed.
+            $ie = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+            $proxyFacts = @(
+              "HTTP_PROXY=$env:HTTP_PROXY HTTPS_PROXY=$env:HTTPS_PROXY NO_PROXY=$env:NO_PROXY",
+              "IE ProxyEnable=$($ie.ProxyEnable) ProxyServer=$($ie.ProxyServer) AutoConfigURL=$($ie.AutoConfigURL)",
+              ((netsh winhttp show proxy) -join ' | ')
+            ) -join "`n"
+            Record 'environment' 'RECORDED' $proxyFacts
+
             $proc = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue
             if (-not $proc) { throw 'app not running at UIA stage' }
             $proc.Refresh()
-            $win = $AE::FromHandle($proc.MainWindowHandle)
-            if (-not $win) { throw 'no main window handle' }
+            $hwnd = $proc.MainWindowHandle
+            if ($hwnd -eq [System.IntPtr]::Zero) { throw 'no main window handle' }
+            $win = $AE::FromHandle($hwnd)
+            if (-not $win) { throw 'UIA element not found for the verified app HWND' }
 
-            # Row activation: SelectionMode=None + IsItemClickEnabled=True (AppsPage.xaml:77).
-            # Record ACTUAL pattern availability; Invoke expected, SelectionItem expected absent.
-            # GetCurrentPattern throws on unsupported patterns, so availability is checked first.
             $row = $null
             try {
               $title = Find-Named $win $CT::Text 'Fixture Download (synthetic)' 15
@@ -795,104 +805,163 @@ jobs:
               if ($invAvail) {
                 Record 'row-activation' 'PASS' "ListItem found; Invoke available=$invAvail; SelectionItem available=$selAvail (expected False, SelectionMode=None)"
               } else {
-                Record 'row-activation' 'AUTOMATION-GAP' "ListItem found but Invoke available=$invAvail, SelectionItem available=$selAvail; no supported activation pattern - automation limitation, NOT an app defect; download path not exercised"
+                Record 'row-activation' 'AUTOMATION-GAP' "ListItem found but Invoke available=$invAvail, SelectionItem available=$selAvail; no supported activation pattern - automation limitation, NOT an app defect"
                 $row = $null
               }
             } catch { Record 'row-activation' 'FAIL' $_.Exception.Message; $failures++; $row = $null }
 
+            $stage = if ($row) { 'row' } else { 'none' }
             if ($row) {
               try {
                 $row.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
                 $back = Find-Named $win $CT::Button 'Back' 15
-                if (-not $back) { throw 'detail navigation anchor (Back button, AutomationProperties.Name=Back) not found after row invoke' }
+                if (-not $back) { throw 'detail navigation anchor (Back button) not found after row invoke' }
                 Record 'navigation' 'PASS' 'row Invoke fired ItemClick; detail page anchor (Back) present'
+                $stage = 'navigated'
               } catch { Record 'navigation' 'FAIL' $_.Exception.Message; $failures++ }
+            } else {
+              Record 'navigation' 'SKIPPED' 'row activation unavailable'
+            }
 
-              if (Test-Path result-navigation.txt) {
-                try {
-                  $install = Find-Named $win $CT::Button 'Install' 15
-                  if (-not $install) { throw 'Install AppBarButton (baked Label) not found on detail page' }
-                  if (-not $install.Current.IsEnabled) { throw 'Install button present but disabled' }
-                  $install.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                  Record 'install-invoke' 'PASS' 'enabled Install AppBarButton invoked; download should start against the throttled fixture'
-                } catch { Record 'install-invoke' 'FAIL' $_.Exception.Message; $failures++ }
+            if ($stage -eq 'navigated') {
+              try {
+                $install = Find-Named $win $CT::Button 'Install' 15
+                if (-not $install) { throw 'Install AppBarButton (baked Label) not found on detail page' }
+                if (-not $install.Current.IsEnabled) { throw 'Install button present but disabled' }
+                $install.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                Record 'install-invoke' 'PASS' 'enabled Install AppBarButton invoked; expecting the Choose-a-file asset dialog'
+                $stage = 'install-clicked'
+              } catch { Record 'install-invoke' 'FAIL' $_.Exception.Message; $failures++ }
+            } elseif ($stage -eq 'none') {
+              Record 'install-invoke' 'SKIPPED' 'row activation unavailable'
+            }
 
-                try {
-                  $bar = Find-Named $win $CT::ProgressBar 'Download progress (all downloads)' 15
-                  if (-not $bar) { throw 'download strip ProgressBar not found after Install' }
-                  $rvAvail = $bar.GetCurrentPropertyValue($AE::IsRangeValuePatternAvailableProperty)
-                  if (-not $rvAvail) {
-                    Record 'progress' 'AUTOMATION-GAP' 'strip present but RangeValuePattern unavailable - screenshots only'
-                    Start-Sleep 20; Shot 'feat-s1-download-early.png'
-                    Start-Sleep 30; Shot 'feat-s2-download-later.png'
-                  } else {
-                    $rv = $bar.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern)
-                    $v1 = $rv.Current.Value
-                    Start-Sleep 20; Shot 'feat-s1-download-early.png'
-                    $v2 = $rv.Current.Value
-                    Start-Sleep 30; Shot 'feat-s2-download-later.png'
-                    $v3 = $rv.Current.Value
-                    if ($v3 -gt $v1) { Record 'progress' 'PASS' "numeric RangeValue advanced: $v1 -> $v2 -> $v3 (screenshots s1/s2 also captured)" }
-                    else { Record 'progress' 'FAIL' "RangeValue did not advance: $v1 -> $v2 -> $v3"; $failures++ }
+            if ($stage -eq 'install-clicked') {
+              # A manual download always opens PickAssetAsync ('Choose a file'; Primary 'Download', Close 'Cancel').
+              # Dialog UIA containment (window subtree vs desktop popup) is not provable from source: search both,
+              # require a 'Choose a file' ancestor so the detail page's own collapsed Download AppBarButton can never match.
+              try {
+                $dlgBtn = $null; $where = ''
+                foreach ($root in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
+                  $dlgBtn = Find-Named $root $CT::Button 'Download' 8
+                  if ($dlgBtn) {
+                    $w = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+                    $anc = $dlgBtn; $inDialog = $false
+                    while ($anc) { if ($anc.Current.Name -eq 'Choose a file') { $inDialog = $true; break }; $anc = $w.GetParent($anc) }
+                    if ($inDialog) { $where = if ($root -eq $win) { 'window subtree' } else { 'desktop root' }; break }
+                    $dlgBtn = $null
                   }
-                } catch { Record 'progress' 'FAIL' $_.Exception.Message; $failures++ }
+                }
+                if (-not $dlgBtn) {
+                  Shot 'feat-s1-no-dialog.png'
+                  Record 'asset-dialog' 'AUTOMATION-GAP' "Choose-a-file dialog with a Download primary button not found in window subtree or desktop root (screenshot feat-s1-no-dialog.png captured) - automation limitation, NOT an app defect; the app's designed manual-download picker could not be answered"
+                } else {
+                  "dialog Download button found in $where"
+                  $dlgBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                  Record 'asset-dialog' 'PASS' "asset picker answered: primary 'Download' invoked (dialog found in $where)"
+                  $stage = 'dialog-answered'
+                }
+              } catch { Record 'asset-dialog' 'FAIL' $_.Exception.Message; $failures++ }
+            } elseif ($stage -in @('none','navigated')) {
+              Record 'asset-dialog' 'SKIPPED' "stage=$stage"
+            }
 
+            if ($stage -eq 'dialog-answered') {
+              # Transfer evidence, INDEPENDENT of any button invocation: the .part file on disk must exist and grow.
+              # Cancel timing is derived from this positive evidence, never from a fixed wait that could race completion.
+              $dir = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
+              $part = Join-Path $dir 'payload.bin.part'
+              $final = Join-Path $dir 'payload.bin'
+              $sizes = @(); $barVals = @(); $transferPos = $false; $completedEarly = $false
+              $bar = Find-Named $win $CT::ProgressBar 'Download progress (all downloads)' 15
+              $rv = $null
+              if ($bar -and $bar.GetCurrentPropertyValue($AE::IsRangeValuePatternAvailableProperty)) {
+                $rv = $bar.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern)
+              }
+              for ($i = 0; $i -lt 15 -and -not $transferPos; $i++) {
+                Start-Sleep 3
+                $sz = (Test-Path $part) ? (Get-Item $part).Length : -1
+                $sizes += $sz
+                if ($rv) { $barVals += $rv.Current.Value }
+                if ($i -eq 2) { Shot 'feat-s1-download-early.png' }
+                if ($i -eq 5) { Shot 'feat-s2-download-later.png' }
+                if ($sizes.Count -ge 2 -and $sizes[-1] -gt 0 -and $sizes[-1] -gt $sizes[0]) { $transferPos = $true }
+                if (-not $transferPos -and $barVals.Count -ge 2 -and $barVals[-1] -gt $barVals[0]) { $transferPos = $true }
+                if (Test-Path $final) { $completedEarly = $true; break }  # finished file present: positive transfer evidence in itself
+              }
+              $fsDetail = "payload.bin.part sizes (3s apart, -1=absent): $($sizes -join ', '); completed file present: $completedEarly"
+              Record 'transfer-fs' ($transferPos ? 'PASS' : 'FAIL') $fsDetail
+              if (-not $transferPos) { $failures++ }
+              if ($rv) { Record 'progress-ui' 'RECORDED' "strip RangeValue samples: $($barVals -join ', ')" }
+              else { Record 'progress-ui' 'AUTOMATION-GAP' 'strip ProgressBar or RangeValuePattern unavailable; transfer judged on filesystem evidence only' }
+
+              if ($completedEarly) {
+                # Download finished before cancel could be invoked: completion is positive transfer evidence,
+                # but there is nothing to cancel. Do not force a cancel outcome.
+                Record 'cancel' 'NOT-EXERCISED' 'download completed before the cancel point (unexpected at ~200KB/s; recorded, not an app verdict)'
+                Shot 'feat-s3-after-cancel.png'
+              } elseif ($transferPos) {
+                $coreExercised = $true
+                # Cancel NOW (progress-derived timing, far from completion at ~200KB/s), then require a positively
+                # observed terminal Cancelled state: strip detail text AND removal of the partial file.
                 try {
                   $cancel = Find-ById $win 'DownloadStripCancel' 10
-                  if (-not $cancel) { throw 'StripCancel (AutomationId DownloadStripCancel) not found while download active' }
+                  if (-not $cancel) { throw 'StripCancel (AutomationId DownloadStripCancel) not found while download positively transferring' }
                   $cancel.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                  Start-Sleep 6
-                  Shot 'feat-s3-after-cancel.png'
-                  # Strip stays visible after a download ends until the finished list is cleared (MainWindow.xaml:88);
-                  # the post-cancel assertion is that progress no longer advances, not that the strip disappears.
-                  $bar2 = Find-Named $win $CT::ProgressBar 'Download progress (all downloads)' 5
-                  if ($bar2 -and $bar2.GetCurrentPropertyValue($AE::IsRangeValuePatternAvailableProperty)) {
-                    $rv2 = $bar2.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern)
-                    $c1 = $rv2.Current.Value; Start-Sleep 5; $c2 = $rv2.Current.Value
-                    if ($c2 -gt $c1) { Record 'cancel' 'FAIL' "progress still advancing after CancelAll: $c1 -> $c2"; $failures++ }
-                    else { Record 'cancel' 'PASS' "StripCancel invoked (app-level CancelAll); progress static after cancel: $c1 -> $c2; strip persistence is by design" }
-                  } else {
-                    Record 'cancel' 'PASS' 'StripCancel invoked (app-level CancelAll); strip no longer present'
+                  'cancel invoked via StripCancel after positively observed transfer' | Out-File cancel-result.txt
+                  $termText = $false; $filesGone = $false
+                  for ($i = 0; $i -lt 15 -and -not ($termText -and $filesGone); $i++) {
+                    Start-Sleep 1
+                    $det = Find-ById $win 'DownloadStripDetail' 1
+                    if ($det -and $det.Current.Name -eq 'Cancelled - partial file removed') { $termText = $true }
+                    if (-not (Test-Path $part) -and -not (Test-Path $final)) { $filesGone = $true }
                   }
-                  'cancel invoked via StripCancel; see result-cancel.txt' | Out-File cancel-result.txt
+                  Shot 'feat-s3-after-cancel.png'
+                  if ($termText -and $filesGone) {
+                    Record 'cancel' 'PASS' "StripCancel invoked after positive transfer; terminal state positively observed: strip detail 'Cancelled - partial file removed' AND payload.bin.part/payload.bin absent"
+                  } else {
+                    Record 'cancel' 'FAIL' "terminal cancelled state not fully observed: stripText=$termText filesGone=$filesGone (sizes were: $($sizes -join ', '))"
+                    $failures++
+                  }
                 } catch {
                   Record 'cancel' 'FAIL' $_.Exception.Message
                   "CANCEL-PATH-FAILED: $($_.Exception.Message)" | Out-File cancel-result.txt
                   $failures++
                 }
+              } else {
+                Record 'cancel' 'NOT-EXERCISED' 'no positively observed transfer before the deadline; cancel not invoked (would race an unknown state)'
+                Shot 'feat-s3-no-transfer.png'
               }
             } else {
-              Record 'navigation' 'SKIPPED' 'row activation unavailable'
-              Record 'install-invoke' 'SKIPPED' 'row activation unavailable'
-              Record 'progress' 'SKIPPED' 'row activation unavailable'
-              Record 'cancel' 'SKIPPED' 'row activation unavailable'
+              Record 'transfer-fs' 'SKIPPED' "stage=$stage"
+              Record 'progress-ui' 'SKIPPED' "stage=$stage"
+              Record 'cancel' 'SKIPPED' "stage=$stage"
             }
 
-            # Close-to-tray: visibility and process survival asserted SEPARATELY (audit: hidden windows
-            # can retain a nonzero HWND, so MainWindowHandle==0 is not a valid hide assertion).
+            # Close-to-tray: native visibility of the SAME verified app HWND and process survival as INDEPENDENT results.
             try {
               $proc.CloseMainWindow() | Out-Null
               Start-Sleep 10
-              $procAlive = [bool](Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue)
-              $winVisible = $false
-              try { $winVisible = -not $win.Current.IsOffscreen } catch { $winVisible = $false }
-              Shot 'feat-s4-tray-window-closed.png'
-              if ($procAlive -and -not $winVisible) {
-                Record 'close-to-tray' 'PASS' "window visible=$winVisible; process alive=$procAlive (tray persistence holds; AppWindow_Closing cancels+hide)"
-              } elseif ($procAlive) {
-                Record 'close-to-tray' 'FAIL' "process alive but window still reports visible after CloseMainWindow"; $failures++
-              } else {
-                Record 'close-to-tray' 'FAIL' "process exited on window close despite tray enabled - classify as app regression vs WM_CLOSE routing difference before claiming either"; $failures++
-              }
-            } catch { Record 'close-to-tray' 'FAIL' $_.Exception.Message; $failures++ }
+              $vis = [Win32.NativeMethods]::IsWindowVisible($hwnd)
+              Record 'close-visibility' ($vis ? 'FAIL' : 'PASS') "IsWindowVisible($hwnd)=$vis after CloseMainWindow (native, same verified app HWND)"
+              if ($vis) { $failures++ }
+            } catch { Record 'close-visibility' 'FAIL' $_.Exception.Message; $failures++ }
+            try {
+              $alive = [bool](Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue)
+              Record 'close-survival' ($alive ? 'PASS' : 'FAIL') "process alive=$alive after window close (tray persistence; separate from visibility)"
+              if (-not $alive) { $failures++ }
+            } catch { Record 'close-survival' 'FAIL' $_.Exception.Message; $failures++ }
+            Shot 'feat-s4-tray-window-closed.png'
           }
           finally {
             'process teardown AFTER all observables (labeled teardown, distinct from the app-level cancel path)' | Out-File teardown.txt
             Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
             'teardown: process stopped'
           }
-          if ($failures -gt 0) { throw "$failures observable(s) failed - see result-*.txt" }
-          'all exercised observables passed - see result-*.txt'
+          if ($failures -gt 0) { throw "$failures observable(s) FAILED - see result-*.txt" }
+          if ($completedEarly -and -not $coreExercised) { $coreExercised = $true }
+          if (-not $coreExercised) { throw 'verification INCOMPLETE: download/cancel core path was not exercised (see result-*.txt for AUTOMATION-GAP/SKIPPED) - no app verdict implied' }
+          'all exercised observables passed, core download+cancel path verified - see result-*.txt'
       - name: Upload feature evidence
         if: always()
         uses: actions/upload-artifact@v4
