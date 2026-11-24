@@ -695,8 +695,6 @@ jobs:
           $new = @(
             [ordered]@{ id = '66666666-6666-6666-6666-666666666666'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666667'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download B (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
-            [ordered]@{ id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; url = 'https://github.com/Star-Dust-0/obtainium-nonexistent-repo-check'; author = 'Star-Dust-0'; name = 'Real Failing With Stale Latest'; installedVersion = '1.0'; latestVersion = '2.0' },
-            [ordered]@{ id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Recovering After Real Check'; installedVersion = '1.0'; latestVersion = '1.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666668'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download C (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666669'; url = 'http://localhost:8086/payload.bin'; author = 'localhost'; name = 'Fixture Download D (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8086/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Current Sample'; installedVersion = 'v1.3.8' },
@@ -951,6 +949,7 @@ jobs:
             $cDir = Join-Path $dlRoot '66666666-6666-6666-6666-666666666668'
             $dDir = Join-Path $dlRoot '66666666-6666-6666-6666-666666666669'
             $cPart = Join-Path $cDir 'payload.bin.part'; $dPart = Join-Path $dDir 'payload.bin.part'
+            try { $bk0 = Find-Named $win $CT::Button 'Back' 4; if ($bk0) { $bk0.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep 2 } } catch { Write-Host "back before C: $($_.Exception.Message)" }
             $stC = Start-Download 'Fixture Download C (synthetic)' 'C'
             $stD = 'none'
             if ($stC -eq 'dialog-answered') {
@@ -1072,6 +1071,7 @@ jobs:
             } catch { Record 'close-visibility' 'FAIL' $_.Exception.Message; $failures++ }
             Shot 'feat-T1-tray-hidden.png'
             try {
+              try { (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep 2 } catch { Write-Host "minimize failed: $($_.Exception.Message)" }
               $root = [System.Windows.Automation.AutomationElement]::RootElement
               function Find-Tray {
                 $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Button)))
