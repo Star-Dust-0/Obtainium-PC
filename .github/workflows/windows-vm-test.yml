@@ -697,6 +697,10 @@ jobs:
             [ordered]@{ id = '66666666-6666-6666-6666-666666666667'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download B (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; url = 'https://github.com/Star-Dust-0/obtainium-nonexistent-repo-check'; author = 'Star-Dust-0'; name = 'Real Failing With Stale Latest'; installedVersion = '1.0'; latestVersion = '2.0' },
             [ordered]@{ id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Recovering After Real Check'; installedVersion = '1.0'; latestVersion = '1.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404' },
+            [ordered]@{ id = '66666666-6666-6666-6666-666666666668'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download C (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '66666666-6666-6666-6666-666666666669'; url = 'http://localhost:8086/payload.bin'; author = 'localhost'; name = 'Fixture Download D (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8086/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Current Sample'; installedVersion = 'v1.3.8' },
+            [ordered]@{ id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Unknown Status Sample'; installedVersion = '1.0'; additionalSettings = '{"minimumUpdateAgeDays":"3650"}' },
             [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
             [ordered]@{ id = '88888888-8888-8888-8888-888888888888'; url = 'https://github.com/example/never-checked'; author = 'example'; name = 'NullLatest Sample (never checked)'; installedVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '99999999-9999-9999-9999-999999999999'; url = 'https://github.com/example/stale-failing'; author = 'example'; name = 'Stale Failure Sample'; installedVersion = '1.0'; latestVersion = '2.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
@@ -709,9 +713,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
           [IO.File]::WriteAllBytes('C:\fixture-server.ps1', [Convert]::FromBase64String('JGxpc3RlbmVyID0gTmV3LU9iamVjdCBTeXN0ZW0uTmV0Lkh0dHBMaXN0ZW5lcgokbGlzdGVuZXIuUHJlZml4ZXMuQWRkKCdodHRwOi8vbG9jYWxob3N0OjgwODUvJykKJGxpc3RlbmVyLlN0YXJ0KCkKJHBheWxvYWQgPSBOZXctT2JqZWN0IGJ5dGVbXSAoMjBNQikKKE5ldy1PYmplY3QgUmFuZG9tIDQyKS5OZXh0Qnl0ZXMoJHBheWxvYWQpCndoaWxlICgkbGlzdGVuZXIuSXNMaXN0ZW5pbmcpIHsKICB0cnkgewogICAgJGN0eCA9ICRsaXN0ZW5lci5HZXRDb250ZXh0KCkKICAgICRyZXMgPSAkY3R4LlJlc3BvbnNlCiAgICAkcmVzLkhlYWRlcnMuQWRkKCdDb250ZW50LVR5cGUnLCdhcHBsaWNhdGlvbi9vY3RldC1zdHJlYW0nKQogICAgJHJlcy5Db250ZW50TGVuZ3RoNjQgPSAkcGF5bG9hZC5MZW5ndGgKICAgICRyZXMuU3RhdHVzQ29kZSA9IDIwMAogICAgaWYgKCRjdHguUmVxdWVzdC5IdHRwTWV0aG9kIC1lcSAnSEVBRCcpIHsKICAgICAgJHJlcy5PdXRwdXRTdHJlYW0uQ2xvc2UoKQogICAgICBjb250aW51ZQogICAgfQogICAgJGNodW5rID0gNDA5NjAKICAgIGZvciAoJG9mZiA9IDA7ICRvZmYgLWx0ICRwYXlsb2FkLkxlbmd0aDsgJG9mZiArPSAkY2h1bmspIHsKICAgICAgJG4gPSBbTWF0aF06Ok1pbigkY2h1bmssICRwYXlsb2FkLkxlbmd0aCAtICRvZmYpCiAgICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLldyaXRlKCRwYXlsb2FkLCAkb2ZmLCAkbik7ICRyZXMuT3V0cHV0U3RyZWFtLkZsdXNoKCkgfSBjYXRjaCB7IGJyZWFrIH0KICAgICAgU3RhcnQtU2xlZXAgLU1pbGxpc2Vjb25kcyAyMDAKICAgIH0KICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLkNsb3NlKCkgfSBjYXRjaCB7fQogIH0gY2F0Y2ggeyBTdGFydC1TbGVlcCAtTWlsbGlzZWNvbmRzIDUwMCB9Cn0K'))
           Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:\fixture-server.ps1'
+          [IO.File]::WriteAllBytes('C:\fixture-server2.ps1', [Convert]::FromBase64String('JGxpc3RlbmVyID0gTmV3LU9iamVjdCBTeXN0ZW0uTmV0Lkh0dHBMaXN0ZW5lcgokbGlzdGVuZXIuUHJlZml4ZXMuQWRkKCdodHRwOi8vbG9jYWxob3N0OjgwODYvJykKJGxpc3RlbmVyLlN0YXJ0KCkKJHBheWxvYWQgPSBOZXctT2JqZWN0IGJ5dGVbXSAoMjBNQikKKE5ldy1PYmplY3QgUmFuZG9tIDQyKS5OZXh0Qnl0ZXMoJHBheWxvYWQpCndoaWxlICgkbGlzdGVuZXIuSXNMaXN0ZW5pbmcpIHsKICB0cnkgewogICAgJGN0eCA9ICRsaXN0ZW5lci5HZXRDb250ZXh0KCkKICAgICRyZXMgPSAkY3R4LlJlc3BvbnNlCiAgICAkcmVzLkhlYWRlcnMuQWRkKCdDb250ZW50LVR5cGUnLCdhcHBsaWNhdGlvbi9vY3RldC1zdHJlYW0nKQogICAgJHJlcy5Db250ZW50TGVuZ3RoNjQgPSAkcGF5bG9hZC5MZW5ndGgKICAgICRyZXMuU3RhdHVzQ29kZSA9IDIwMAogICAgaWYgKCRjdHguUmVxdWVzdC5IdHRwTWV0aG9kIC1lcSAnSEVBRCcpIHsKICAgICAgJHJlcy5PdXRwdXRTdHJlYW0uQ2xvc2UoKQogICAgICBjb250aW51ZQogICAgfQogICAgJGNodW5rID0gNDA5NjAKICAgIGZvciAoJG9mZiA9IDA7ICRvZmYgLWx0ICRwYXlsb2FkLkxlbmd0aDsgJG9mZiArPSAkY2h1bmspIHsKICAgICAgJG4gPSBbTWF0aF06Ok1pbigkY2h1bmssICRwYXlsb2FkLkxlbmd0aCAtICRvZmYpCiAgICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLldyaXRlKCRwYXlsb2FkLCAkb2ZmLCAkbik7ICRyZXMuT3V0cHV0U3RyZWFtLkZsdXNoKCkgfSBjYXRjaCB7IGJyZWFrIH0KICAgICAgU3RhcnQtU2xlZXAgLU1pbGxpc2Vjb25kcyAyMDAKICAgIH0KICAgIHRyeSB7ICRyZXMuT3V0cHV0U3RyZWFtLkNsb3NlKCkgfSBjYXRjaCB7fQogIH0gY2F0Y2ggeyBTdGFydC1TbGVlcCAtTWlsbGlzZWNvbmRzIDUwMCB9Cn0K'))
+          Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:\fixture-server2.ps1'
           Start-Sleep 3
           $code = curl.exe -sS -o NUL -w '%{http_code}' -I http://localhost:8085/payload.bin
           if ($code -ne '200') { throw "fixture server not serving (HEAD -> $code)" }
+          $code2 = curl.exe -sS -o NUL -w '%{http_code}' -I http://localhost:8086/payload.bin
+          if ($code2 -ne '200') { throw "second fixture server not serving (HEAD -> $code2)" }
           "fixture server up: HEAD -> $code, 20MB throttled ~200KB/s, payload.bin never executed"
       - name: Relaunch, verify update-available state (UI + toast-request log)
         shell: pwsh
@@ -939,6 +947,117 @@ jobs:
               }
             } else { Record 'B-cancel-cleanup' 'SKIPPED' "stage=$stB"; $failures++ }
 
+            # ---- Phase C: two CONCURRENT downloads (different servers), cancel ONE from the Downloads flyout ----
+            $cDir = Join-Path $dlRoot '66666666-6666-6666-6666-666666666668'
+            $dDir = Join-Path $dlRoot '66666666-6666-6666-6666-666666666669'
+            $cPart = Join-Path $cDir 'payload.bin.part'; $dPart = Join-Path $dDir 'payload.bin.part'
+            $stC = Start-Download 'Fixture Download C (synthetic)' 'C'
+            $stD = 'none'
+            if ($stC -eq 'dialog-answered') {
+              try { $bk = Find-Named $win $CT::Button 'Back' 5; if ($bk) { $bk.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep 2 } } catch { Write-Host "back after C: $($_.Exception.Message)" }
+              $stD = Start-Download 'Fixture Download D (synthetic)' 'D'
+            }
+            if ($stC -eq 'dialog-answered' -and $stD -eq 'dialog-answered') {
+              Start-Sleep 12
+              $both = (Test-Path -LiteralPath $cPart) -and (Test-Path -LiteralPath $dPart)
+              $stripBtn = Find-ById $win 'DownloadStripCancel' 5
+              $stripName = if ($stripBtn) { $stripBtn.Current.Name } else { 'not found' }
+              Shot 'feat-C1-two-active.png'
+              Record 'C-both-active' ($both ? 'PASS' : 'FAIL') "C part present=$(Test-Path -LiteralPath $cPart) at $cPart; D part present=$(Test-Path -LiteralPath $dPart) at $dPart; strip cancel button name='$stripName' (expect 'Cancel all' with 2 active)"
+              if (-not $both) { $failures++ }
+              Record 'C-strip-label' ($stripName -eq 'Cancel all' ? 'PASS' : 'FAIL') "strip button name='$stripName'"
+              if ($stripName -ne 'Cancel all') { $failures++ }
+              # Open the Downloads flyout and press the per-entry Cancel of row C only.
+              $listBtn = Find-ById $win 'DownloadStripList' 5
+              $cancelledC = $false
+              if ($listBtn) {
+                try { $listBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { Write-Host "flyout invoke: $($_.Exception.Message)" }
+                Start-Sleep 3
+                Shot 'feat-C2-flyout.png'
+                $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+                $btns = @()
+                foreach ($r in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
+                  $found = $r.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Button)), (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Cancel')))))
+                  foreach ($f in $found) { if ($f.Current.AutomationId -ne 'DownloadStripCancel') { $btns += $f } }
+                  if ($btns.Count -gt 0) { break }
+                }
+                $target = $null
+                foreach ($bt in $btns) {
+                  $par = $walker.GetParent($bt)
+                  if (-not $par) { continue }
+                  $tt = $par.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text)))
+                  foreach ($t in $tt) { if ($t.Current.Name -like '*Download C*') { $target = $bt } }
+                }
+                $ftexts = @(); try { $ff = ([System.Windows.Automation.AutomationElement]::RootElement).FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text))); foreach ($e in $ff) { $n = $e.Current.Name; if ($n -match 'Fixture Download|Downloading|MB|Saved|Cancel|Downloads') { $ftexts += $n } } } catch {}
+                ($ftexts | Select-Object -Unique) -join ' || ' | Out-File 'result-texts-C-flyout.txt'
+                Record 'C-flyout-rows' (($btns.Count -ge 2) ? 'PASS' : 'FAIL') "per-entry Cancel buttons found (excluding strip): $($btns.Count); row C button located=$([bool]$target)"
+                if ($btns.Count -lt 2) { $failures++ }
+                if ($target) { $target.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $cancelledC = $true }
+              } else { Record 'C-flyout-rows' 'AUTOMATION-GAP' 'Downloads button not found' }
+              if ($cancelledC) {
+                $cGone = $false; $dAlways = $true
+                for ($i = 0; $i -lt 30 -and -not $cGone; $i++) {
+                  Start-Sleep 1
+                  if (-not (Test-Path -LiteralPath $cPart)) { $cGone = $true }
+                  if (-not (Test-Path -LiteralPath $dPart) -and -not (Test-Path -LiteralPath (Join-Path $dDir 'payload.bin'))) { $dAlways = $false }
+                }
+                Shot 'feat-C3-after-one-cancel.png'
+                $cList = (Get-ChildItem $cDir -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', '
+                Record 'C-cancel-one' (($cGone -and -not (Test-Path -LiteralPath (Join-Path $cDir 'payload.bin'))) ? 'PASS' : 'FAIL') "C exact part gone=$cGone; C final absent; C folder listing: [$cList]"
+                if (-not $cGone) { $failures++ }
+                Record 'C-other-unharmed' ($dAlways ? 'PASS' : 'FAIL') "D part-or-final present at every 1s sample during the 30s after C cancel: $dAlways"
+                if (-not $dAlways) { $failures++ }
+                # D must run to a full, correctly sized, saved file.
+                $dDone = $false
+                for ($i = 0; $i -lt 70 -and -not $dDone; $i++) {
+                  Start-Sleep 3
+                  $df = Join-Path $dDir 'payload.bin'
+                  if ((Test-Path -LiteralPath $df) -and (Get-Item -LiteralPath $df).Length -ge 20971520 -and -not (Test-Path -LiteralPath $dPart)) { $dDone = $true }
+                }
+                Shot 'feat-C4-D-complete.png'
+                $dSize = if (Test-Path -LiteralPath (Join-Path $dDir 'payload.bin')) { (Get-Item -LiteralPath (Join-Path $dDir 'payload.bin')).Length } else { -1 }
+                Record 'C-D-complete' ($dDone ? 'PASS' : 'FAIL') "D final size=$dSize (expect 20971520), D part gone=$(-not (Test-Path -LiteralPath $dPart))"
+                if (-not $dDone) { $failures++ }
+                Dump-Texts 'D-after'
+                $cr = Find-Named $win $CT::Button 'Retry' 2
+                $frows = ($ftexts | Select-Object -Unique) -join ' || '
+                Record 'C-flyout-state' 'RECORDED' "Retry button present on flyout at idle=[$([bool]$cr)]; flyout texts at cancel time: $frows"
+                try { [System.Windows.Forms.SendKeys]::SendWait('{ESC}') } catch {}
+              }
+            } else { Record 'C-both-active' 'SKIPPED' "stages C=$stC D=$stD"; $failures++ }
+
+            # ---- Summary states on the Apps page: filter via the search box so only chosen rows are visible ----
+            function Set-Search($text) {
+              $edits = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Edit)))
+              foreach ($ed in $edits) {
+                if ($ed.GetCurrentPropertyValue($AE::IsValuePatternAvailableProperty)) { $ed.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($text); return $true }
+              }
+              return $false
+            }
+            function Summary-Text() {
+              $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text)))
+              $out = @(); foreach ($e in $all) { $n = $e.Current.Name; if ($n -match '^\d+ apps') { $out += $n } }
+              return ($out -join ' | ')
+            }
+            try {
+              $nav = Find-ById $win 'Nav_apps' 5
+              if ($nav) { try { $nav.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { try { $nav.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} } }
+              Start-Sleep 3
+              $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+              $doc = @(Get-Content $store -Raw | ConvertFrom-Json)
+              $cur = $doc | Where-Object { $_.name -eq 'Current Sample' } | Select-Object -First 1
+              $unk = $doc | Where-Object { $_.name -eq 'Unknown Status Sample' } | Select-Object -First 1
+              Record 'S-store' 'RECORDED' "Current Sample installed=$($cur.installedVersion) latest=$($cur.latestVersion) fails=$($cur.consecutiveFailedChecks); Unknown Status Sample installed=$($unk.installedVersion) latest=[$($unk.latestVersion)] lastCheck=[$($unk.lastUpdateCheck)] fails=$($unk.consecutiveFailedChecks)"
+              $ok1 = Set-Search 'Current Sample'; Start-Sleep 3; $t1 = Summary-Text; Shot 'feat-S1-current-only.png'
+              $curCurrent = ($cur.latestVersion -and $cur.installedVersion -eq $cur.latestVersion)
+              if ($ok1 -and $curCurrent) { Record 'S-all-up-to-date' (($t1 -match 'all up to date') ? 'PASS' : 'FAIL') "search set=$ok1; only the installed+current row visible; summary: [$t1]"; if ($t1 -notmatch 'all up to date') { $failures++ } }
+              else { Record 'S-all-up-to-date' 'NOT-EXERCISED' "search set=$ok1; Current Sample installed=$($cur.installedVersion) latest=$($cur.latestVersion) (upstream latest moved, so the row is not current); summary: [$t1]" }
+              $ok2 = Set-Search 'Unknown Status'; Start-Sleep 3; $t2 = Summary-Text; Shot 'feat-S2-unknown-only.png'
+              Record 'S-unknown-status' (($ok2 -and $t2 -match 'unknown status') ? 'PASS' : 'FAIL') "search set=$ok2; summary: [$t2]"
+              if (-not ($ok2 -and $t2 -match 'unknown status')) { $failures++ }
+              Set-Search '' | Out-Null; Start-Sleep 2
+            } catch { Record 'S-summary' 'FAIL' $_.Exception.Message; $failures++ }
+
             # ---- Close to tray, then restore FROM THE TRAY ICON ----
             try {
               $proc.Refresh(); $hwnd = $proc.MainWindowHandle
@@ -998,6 +1117,39 @@ jobs:
           if ($completedEarly -and -not $coreExercised) { $coreExercised = $true }
           if (-not $coreExercised) { throw 'verification INCOMPLETE: download/cancel core path was not exercised (see result-*.txt for AUTOMATION-GAP/SKIPPED) - no app verdict implied' }
           'all exercised observables passed, core download+cancel path verified - see result-*.txt'
+      - name: 'Relaunch after FORCED stop (crash-style, not a graceful exit): no stale state'
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          $AE = [System.Windows.Automation.AutomationElement]; $CT = [System.Windows.Automation.ControlType]
+          Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 3
+          $p = Start-Process $env:EXE_PATH -PassThru
+          Start-Sleep 45
+          $alive = [bool](Get-Process -Id $p.Id -ErrorAction SilentlyContinue)
+          $root = Join-Path $env:USERPROFILE 'Downloads\ObtainiumPC'
+          $files = (Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "$($_.FullName.Substring($root.Length))[$($_.Length)]" }) -join '; '
+          $partsLeft = @(Get-ChildItem $root -Recurse -File -Filter '*.part' -ErrorAction SilentlyContinue).Count
+          $proc = Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue | Select-Object -First 1
+          $texts = ''
+          $strip = 'n/a'
+          if ($proc -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
+            $win = $AE::FromHandle($proc.MainWindowHandle)
+            $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text)))
+            $n = @(); foreach ($e in $all) { $n += $e.Current.Name }; $texts = $n -join ' || '
+            $st = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'DownloadStrip')))
+            $strip = if ($st) { 'strip element present (offscreen=' + $st.Current.IsOffscreen + ')' } else { 'strip element absent' }
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height; $g = [System.Drawing.Graphics]::FromImage($bm); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); $bm.Save('feat-R1-after-relaunch.png')
+          }
+          $store = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\apps.json'
+          Copy-Item $store feat-store-relaunch.json -ErrorAction SilentlyContinue
+          $out = @("relaunch alive=$alive", "files under Downloads\ObtainiumPC: $files", "leftover .part files: $partsLeft", "download strip after relaunch: $strip", "UI texts: $texts")
+          $out | Out-File result-relaunch.txt
+          $out | ForEach-Object { $_ }
+          Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue | Stop-Process -Force
       - name: Upload feature evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -1006,6 +1158,7 @@ jobs:
           path: |
             feat-*.png
             feat-store-after-check.json
+            feat-store-relaunch.json
             result-*.txt
             cancel-result.txt
             teardown.txt
