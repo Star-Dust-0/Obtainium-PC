@@ -735,7 +735,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
-          Add-Type -Name NativeMethods -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr hWnd);'
+          Add-Type -Name NativeMethods -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr hWnd); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindow(System.IntPtr hWnd);'
           $AE = [System.Windows.Automation.AutomationElement]
           $CT = [System.Windows.Automation.ControlType]
           $failures = 0
@@ -942,9 +942,16 @@ jobs:
             try {
               $proc.CloseMainWindow() | Out-Null
               Start-Sleep 10
+              $hvalid = [Win32.NativeMethods]::IsWindow($hwnd)
               $vis = [Win32.NativeMethods]::IsWindowVisible($hwnd)
-              Record 'close-visibility' ($vis ? 'FAIL' : 'PASS') "IsWindowVisible($hwnd)=$vis after CloseMainWindow (native, same verified app HWND)"
-              if ($vis) { $failures++ }
+              # An invalid handle can never count as a successful hide: PASS requires a valid, not-visible window.
+              if ($hvalid -and -not $vis) {
+                Record 'close-visibility' 'PASS' "IsWindow($hwnd)=$hvalid, IsWindowVisible=$vis after CloseMainWindow (native, same verified app HWND)"
+              } elseif (-not $hvalid) {
+                Record 'close-visibility' 'FAIL' "IsWindow($hwnd)=False (handle invalid) while visibility asked - window destroyed or handle recycled, NOT a proven hide; classify as close-not-hide vs WM_CLOSE routing difference before any app verdict"; $failures++
+              } else {
+                Record 'close-visibility' 'FAIL' "IsWindow=True but IsWindowVisible=True after CloseMainWindow - window still visible"; $failures++
+              }
             } catch { Record 'close-visibility' 'FAIL' $_.Exception.Message; $failures++ }
             try {
               $alive = [bool](Get-Process -Name ObtainiumPC -ErrorAction SilentlyContinue)
