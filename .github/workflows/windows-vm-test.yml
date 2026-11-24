@@ -698,7 +698,7 @@ jobs:
             [ordered]@{ id = '66666666-6666-6666-6666-666666666668'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download C (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666669'; url = 'http://localhost:8086/payload.bin'; author = 'localhost'; name = 'Fixture Download D (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8086/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Current Sample'; installedVersion = 'v1.3.8' },
-            [ordered]@{ id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Unknown Status Sample'; installedVersion = '1.0'; additionalSettings = '{"minimumUpdateAgeDays":"3650"}' },
+            [ordered]@{ id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Unknown Status Sample'; installedVersion = '1.0'; lastUpdateCheck = 1795556145818000; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
             [ordered]@{ id = '88888888-8888-8888-8888-888888888888'; url = 'https://github.com/example/never-checked'; author = 'example'; name = 'NullLatest Sample (never checked)'; installedVersion = '1.0'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '99999999-9999-9999-9999-999999999999'; url = 'https://github.com/example/stale-failing'; author = 'example'; name = 'Stale Failure Sample'; installedVersion = '1.0'; latestVersion = '2.0'; consecutiveFailedChecks = 3; lastCheckError = 'http_404'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' }
@@ -981,11 +981,18 @@ jobs:
                   if ($btns.Count -gt 0) { break }
                 }
                 $target = $null
-                foreach ($bt in $btns) {
-                  $par = $walker.GetParent($bt)
-                  if (-not $par) { continue }
-                  $tt = $par.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text)))
-                  foreach ($t in $tt) { if ($t.Current.Name -like '*Download C*') { $target = $bt } }
+                # Pair the row-C title Text with the Cancel button on the SAME visual row (nearest vertical centre).
+                $cTitle = $null
+                foreach ($rr in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
+                  $tx = $rr.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Fixture Download C (synthetic)')))
+                  foreach ($t in $tx) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 340)) { $cTitle = $t } }
+                  if ($cTitle) { break }
+                }
+                if ($cTitle) {
+                  $ty = $cTitle.Current.BoundingRectangle.Y + $cTitle.Current.BoundingRectangle.Height / 2
+                  $best = 1e9
+                  foreach ($bt in $btns) { $br = $bt.Current.BoundingRectangle; $dy = [math]::Abs(($br.Y + $br.Height / 2) - $ty); if ($dy -lt $best) { $best = $dy; $target = $bt } }
+                  Write-Host "row C title y=$ty nearest cancel dy=$best"
                 }
                 $ftexts = @(); try { $ff = ([System.Windows.Automation.AutomationElement]::RootElement).FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text))); foreach ($e in $ff) { $n = $e.Current.Name; if ($n -match 'Fixture Download|Downloading|MB|Saved|Cancel|Downloads') { $ftexts += $n } } } catch {}
                 ($ftexts | Select-Object -Unique) -join ' || ' | Out-File 'result-texts-C-flyout.txt'
