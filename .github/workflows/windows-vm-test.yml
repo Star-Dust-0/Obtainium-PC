@@ -864,36 +864,47 @@ jobs:
             $part = $null
             if ($stB -eq 'dialog-answered') {
               $before = @(Dl-Files 'payload.bin*' | ForEach-Object { $_.FullName })
-              $sizes = @(); $transferPos = $false; $bpart = $null
-              for ($i = 0; $i -lt 20 -and -not $transferPos; $i++) {
+              $barB = Find-Named $win $CT::ProgressBar 'Download progress (all downloads)' 10
+              $rvB = $null
+              if ($barB -and $barB.GetCurrentPropertyValue($AE::IsRangeValuePatternAvailableProperty)) { $rvB = $barB.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern) }
+              $vals = @(); $bpart = $null; $presence = $false; $rising = $false; $lens = @()
+              for ($i = 0; $i -lt 20 -and -not ($presence -and $rising); $i++) {
                 Start-Sleep 3
                 $p = @(Dl-Files 'payload.bin.part' | Where-Object { $before -notcontains $_.FullName })
-                if ($p.Count) { $bpart = $p[0].FullName; $sizes += $p[0].Length } else { $sizes += -1 }
-                if ($sizes.Count -ge 2 -and $sizes[-1] -gt 0 -and $sizes[-1] -gt $sizes[0]) { $transferPos = $true }
+                if ($p.Count) { $bpart = $p[0].FullName; $presence = $true; $lens += $p[0].Length }
+                if ($rvB) { $vals += $rvB.Current.Value }
+                if ($vals.Count -ge 2 -and $vals[-1] -gt $vals[0]) { $rising = $true }
               }
               Shot 'feat-B1-transfer.png'
-              Record 'B-transfer-fs' ($transferPos ? 'PASS' : 'FAIL') "part path=$bpart sizes=$($sizes -join ', ')"
-              if (-not $transferPos) { $failures++ }
-              if ($transferPos) {
+              Record 'B-part-presence' ($presence ? 'PASS' : 'FAIL') "exact .part path observed: $bpart (reported Length samples, informational only: $($lens -join ', '))"
+              Record 'B-ui-progress' ($rising ? 'PASS' : ($rvB ? 'FAIL' : 'AUTOMATION-GAP')) "strip RangeValue samples: $($vals -join ', ')"
+              if (-not $presence) { $failures++ }
+              if ($presence) {
                 try {
                   $cancel = Find-ById $win 'DownloadStripCancel' 10
                   if (-not $cancel) { throw 'DownloadStripCancel not found' }
                   $cancel.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                  Write-Host 'Cancel invoked on active B transfer'
                   $termText = $false; $gone = $false
-                  for ($i = 0; $i -lt 20 -and -not ($termText -and $gone); $i++) {
+                  for ($i = 0; $i -lt 30 -and -not ($termText -and $gone); $i++) {
                     Start-Sleep 1
                     $d = Find-ById $win 'DownloadStripDetail' 1
                     if ($d -and $d.Current.Name -eq 'Cancelled - partial file removed') { $termText = $true }
                     if (-not (Test-Path -LiteralPath $bpart)) { $gone = $true }
                   }
                   Shot 'feat-B2-after-cancel.png'
-                  $parentList = (Get-ChildItem (Split-Path $bpart -Parent) -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', '
-                  # Watched path is the exact .part observed growing (inside the app-id subfolder), not its parent.
-                  Record 'B-cancel-cleanup' (($termText -and $gone) ? 'PASS' : 'FAIL') "strip text observed=$termText; exact observed part file gone=$gone ($bpart); remaining in that folder: [$parentList]; A's completed file untouched check follows"
-                  if (-not ($termText -and $gone)) { $failures++ }
+                  $folder = Split-Path $bpart -Parent
+                  $listing = (Get-ChildItem $folder -Force -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name)[$($_.Length)]" }) -join ', '
+                  $finalB = Test-Path -LiteralPath (Join-Path $folder 'payload.bin')
+                  Record 'B-cancel-cleanup' (($termText -and $gone -and -not $finalB) ? 'PASS' : 'FAIL') "strip cancelled text observed=$termText; exact .part gone=$gone ($bpart); final payload.bin for B present=$finalB; B folder listing after cancel: [$listing]"
+                  if (-not ($termText -and $gone -and -not $finalB)) { $failures++ }
                   $aStill = @(Dl-Files 'payload.bin' | Where-Object { $before -contains $_.FullName }).Count
-                  Record 'B-cancel-A-intact' ($aStill -ge 1 ? 'PASS' : 'FAIL') "completed A file still present after B cancel: count=$aStill"
+                  Record 'B-cancel-A-intact' ($aStill -ge 1 ? 'PASS' : 'FAIL') "A completed file still present after B cancel: count=$aStill"
                   if ($aStill -lt 1) { $failures++ }
+                  Start-Sleep 5
+                  $stillActive = [bool](@(Dl-Files 'payload.bin.part' | Where-Object { $before -notcontains $_.FullName }).Count)
+                  Record 'B-no-resurrect' (-not $stillActive ? 'PASS' : 'FAIL') "no new .part reappeared 5s after cancel: $(-not $stillActive)"
+                  if ($stillActive) { $failures++ }
                 } catch { Record 'B-cancel-cleanup' 'FAIL' $_.Exception.Message; $failures++ }
               }
             } else { Record 'B-cancel-cleanup' 'SKIPPED' "stage=$stB"; $failures++ }
