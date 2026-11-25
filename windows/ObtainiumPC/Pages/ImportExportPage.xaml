@@ -31,8 +31,9 @@
                 </ComboBox>
                 <InfoBar x:Name="ExportSecretsWarning" Severity="Warning" IsOpen="False"
                          Title="Warning"
-                         Message="The exported file will contain all settings in cleartext, which may include sensitive values such as tokens. Anyone with the file can read them. Manual and automatic exports both include everything."/>
-                <Button Content="Export to file (complete, with credentials)..." Click="Export_Click" HorizontalAlignment="Left"/>
+                         Message="Credentials are included: the exported file will contain tokens and saved logins in cleartext. Anyone with the file can read them. This applies to manual and automatic exports."/>
+                <ToggleSwitch x:Name="IncludeCredsToggle" Header="Include credentials in exports (off by default)" Toggled="IncludeCredsToggle_Toggled"/>
+                <Button Content="Export to file..." Click="Export_Click" HorizontalAlignment="Left"/>
                 <ToggleSwitch x:Name="InstalledOnlyToggle" Header="Only include installed apps in exports" Toggled="InstalledOnlyToggle_Toggled"/>
                 <ToggleSwitch x:Name="AutoExportToggle" Header="Automatically export on changes" Toggled="AutoExportToggle_Toggled"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">

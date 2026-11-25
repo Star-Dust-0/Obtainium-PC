@@ -1,3 +1,4 @@
+using ObtainiumPC.Services.Settings;
 using ObtainiumPC.Models;
 using ObtainiumPC.Services.Store;
 using Xunit;
@@ -92,6 +93,37 @@ public class ImportExportTests
             Assert.Equal("user:secret", apps[0].GetSettingString("github-creds"));
             Assert.Equal("synthetic-gh-token", imported!["GitHubPersonalAccessToken"].GetString());
         }
+    }
+
+    [Fact]
+    public void Default_export_strips_all_credentials_and_opt_in_includes_them()
+    {
+        var settings = new Dictionary<string, object?>
+        {
+            ["GitHubPersonalAccessToken"] = "synthetic-gh-token",
+            ["GitLabPersonalAccessToken"] = "synthetic-gl-token",
+            ["ForgejoPersonalAccessToken"] = "synthetic-fj-token",
+            ["Theme"] = 2,
+        };
+        foreach (var level in new[] { 0, 1 })
+        {
+            var json = AppStore.Export(new[] { SampleApp() }, settings, level, "t");
+            Assert.DoesNotContain("synthetic-", json);
+            Assert.DoesNotContain("user:secret", json);
+        }
+        var opt = AppStore.Export(new[] { SampleApp() }, settings, 1, "t", complete: true);
+        Assert.Contains("synthetic-gh-token", opt);
+        Assert.Contains("synthetic-fj-token", opt);
+        Assert.Contains("user:secret", opt);
+    }
+
+    [Fact]
+    public void Include_credentials_opt_in_defaults_off_and_is_not_imported()
+    {
+        Assert.False(new AppSettings().ExportIncludeCredentials);
+        var fresh = new AppSettings();
+        fresh.ApplyImported(new Dictionary<string, System.Text.Json.JsonElement> { ["ExportIncludeCredentials"] = System.Text.Json.JsonSerializer.SerializeToElement(true) });
+        Assert.False(fresh.ExportIncludeCredentials);
     }
 
     [Fact]

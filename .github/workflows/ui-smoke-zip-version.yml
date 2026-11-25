@@ -313,13 +313,13 @@ jobs:
           if ($script:dialogText -notlike '*config.ini*' -or $script:dialogText -notlike '*kept*') { throw "the extraction dialog did not list the kept user-edited config.ini (text: $script:dialogText)" }
           'kept-files list shown in the dialog'
           Snap 'after 2.0.0'
-          # Automatic export is complete (credentials included) and holds the app; synthetic token only.
+          # Automatic export holds the app but, by default, not the credentials; synthetic token only.
           Start-Sleep 5
           $ae = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
           if (-not (Test-Path $ae)) { throw 'automatic export file missing' }
           $aeText = Get-Content $ae -Raw
           "auto-export has the synthetic token: $($aeText.Contains('synthetic-token-for-export-check')); has the app: $($aeText.Contains('seed-myapp'))"
-          if (-not $aeText.Contains('synthetic-token-for-export-check')) { throw 'automatic export does not include the stored token' }
+          if ($aeText.Contains('synthetic-token-for-export-check')) { throw 'automatic export leaked the stored token with credentials off' }
           if (-not $aeText.Contains('seed-myapp')) { throw 'automatic export does not include the app' }
           ClickNamedIn 'Import / Export' $win
           Start-Sleep 3
@@ -327,7 +327,8 @@ jobs:
           $sel = FindNamed 'What to include' $win
           "export level selector present: $($sel -ne $null)"
           if ($sel -ne $null) { throw 'the old export level selector is still visible' }
-          if ((FindNamed 'Export to file (complete, with credentials)...' $win) -eq $null) { throw 'complete export button label not found' }
+          if ((FindNamed 'Export to file...' $win) -eq $null) { throw 'export button not found' }
+          "include-credentials toggle present: $((FindNamed 'Include credentials in exports (off by default)' $win) -ne $null)"
           Shot 'v3-after-upgrade'
           "detail after 2.0.0: $(Installed)"
           if ((Installed) -notlike '*2.0.0*') { throw 'app does not record 2.0.0 after the upgrade' }

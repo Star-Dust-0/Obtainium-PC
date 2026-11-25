@@ -17,7 +17,7 @@ namespace ObtainiumPC.Pages
             // Persisted like upstream settings_provider exportSettings; the
             // same level drives auto-export on changes.
             ExportLevelCombo.SelectedIndex = App.Settings.ExportSettingsLevel;
-            ExportSecretsWarning.IsOpen = true; // every export is complete, credentials included
+            ExportSecretsWarning.IsOpen = App.Settings.ExportIncludeCredentials;
             ExportLevelCombo.SelectionChanged += (_, _) =>
             {
                 if (ExportLevelCombo.SelectedIndex >= 0)
@@ -27,12 +27,12 @@ namespace ObtainiumPC.Pages
                     // Level 2 stays tied to this explicit selection; the warning
                     // (upstream exportIncludesSecretsWarning) stays visible while
                     // it is selected, and it also covers auto-export-on-changes.
-                    ExportSecretsWarning.IsOpen = true;
                 }
             };
             Loaded += (_, _) => Services.Localization.Localizer.Apply(this);
             Loaded += (s2, e2) =>
             {
+                IncludeCredsToggle.IsOn = App.Settings.ExportIncludeCredentials;
                 InstalledOnlyToggle.IsOn = App.Settings.ExportInstalledOnly;
                 AutoExportToggle.IsOn = App.Settings.AutoExportOnChanges;
                 AutoExportPathBox.Text = App.Settings.AutoExportPath ?? "";
@@ -67,9 +67,9 @@ namespace ObtainiumPC.Pages
             var file = await picker.PickSaveFileAsync();
             if (file == null) return;
 
-            // A manual export is always complete and restorable, credentials included (owner decision 2026-11-20).
-            // The old level selector is hidden; no export strips anything.
-            var level = 2;
+            // Default: credentials stripped. They are included only when the user turned on
+            // "Include credentials in exports" (explicit opt-in, re-confirmed below).
+            var level = App.Settings.ExportIncludeCredentials ? 2 : 1;
             // lib/pages/import_export.dart runObtainiumExport: a secrets-level
             // export re-confirms every time.
             if (level >= 2)
@@ -89,13 +89,13 @@ namespace ObtainiumPC.Pages
             {
                 var el = JsonSerializer.SerializeToElement(App.Settings);
                 settings = el.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value);
-                if (level < 2) settings.Remove(nameof(Services.Settings.AppSettings.GitHubPersonalAccessToken));
+                settings.Remove(nameof(Services.Settings.AppSettings.ExportIncludeCredentials));
             }
             // lib/providers/settings_provider.dart exportInstalledOnly
             var toExport = App.Settings.ExportInstalledOnly
                 ? App.SnapshotApps().Where(a => a.InstalledVersion != null).ToList()
                 : App.SnapshotApps();
-            var json = Services.Store.AppStore.Export(toExport, settings, level, Services.Updates.SelfUpdate.RunningVersion(), complete: true);
+            var json = Services.Store.AppStore.Export(toExport, settings, level, Services.Updates.SelfUpdate.RunningVersion(), complete: level >= 2);
             // The auto-export target and this manual target can be the same file. Then both
             // writers go through the same serialized, atomic path so neither can truncate or
             // interleave with the other; otherwise keep the picker-granted write.
@@ -180,6 +180,13 @@ namespace ObtainiumPC.Pages
 
         // lib/pages/import_export.dart: URL-list import -> addAppsByURL with a
         // per-URL error report.
+        private void IncludeCredsToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            App.Settings.ExportIncludeCredentials = IncludeCredsToggle.IsOn;
+            ExportSecretsWarning.IsOpen = IncludeCredsToggle.IsOn;
+            App.Settings.Save();
+        }
+
         private void InstalledOnlyToggle_Toggled(object sender, RoutedEventArgs e)
         {
             App.Settings.ExportInstalledOnly = InstalledOnlyToggle.IsOn;
