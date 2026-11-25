@@ -1309,7 +1309,7 @@ jobs:
         run: |
           Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
           Add-Type -Name W -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool GetWindowRect(System.IntPtr h, out RECT r); public struct RECT { public int L, T, R, B; }'
-          $AE = [System.Windows.Automation.AutomationElement]
+          $AEL = [System.Windows.Automation.AutomationElement]
           $info = gh run view $env:ARTIFACT_RUN_ID -R $env:REPO --json headSha,conclusion | ConvertFrom-Json
           "artifact run $env:ARTIFACT_RUN_ID head=$($info.headSha) conclusion=$($info.conclusion)" | Tee-Object -FilePath export-info.txt
           gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
@@ -1320,12 +1320,12 @@ jobs:
           $apps = @(@{ id = 'seed-exp'; url = 'http://127.0.0.1:1/'; author = 'local'; name = 'expapp'; overrideSource = 'HTML'
             apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0; additionalSettings = $add; categories = @(); pinned = $false; disabled = $false; installedVersion = '0.1.0' })
           ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
-          $ae = Join-Path $dir 'auto-export.json'
-          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = 'synthetic-gh-token'; GitLabPersonalAccessToken = 'synthetic-gl-token'; ForgejoPersonalAccessToken = 'synthetic-fj-token'; AutoExportOnChanges = $true; AutoExportPath = $ae }
+          $aef = Join-Path $dir 'auto-export.json'
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = 'synthetic-gh-token'; GitLabPersonalAccessToken = 'synthetic-gl-token'; ForgejoPersonalAccessToken = 'synthetic-fj-token'; AutoExportOnChanges = $true; AutoExportPath = $aef }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
           function Probe($label) {
-            if (-not (Test-Path $ae)) { throw "$label : auto-export file missing" }
-            $t = [IO.File]::ReadAllText($ae)
+            if (-not (Test-Path $aef)) { throw "$label : auto-export file missing" }
+            $t = [IO.File]::ReadAllText($aef)
             "$label file length: $($t.Length)" | Add-Content export-info.txt
             $r = [ordered]@{}
             foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = ($t.IndexOf($k) -ge 0) }
@@ -1334,7 +1334,7 @@ jobs:
           }
           function Launch() {
             $p = Start-Process $exe.FullName -PassThru
-            for ($i=0; $i -lt 40; $i++) { Start-Sleep 2; if (Test-Path $ae) { break } }
+            for ($i=0; $i -lt 40; $i++) { Start-Sleep 2; if (Test-Path $aef) { break } }
             Start-Sleep 5
             if (-not (Get-Process -Id $p.Id -ErrorAction SilentlyContinue)) { throw 'app exited' }
             return $p
@@ -1345,11 +1345,11 @@ jobs:
             "window handle ($name): $h" | Add-Content export-info.txt
             (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep 1
             [Win32.W]::ShowWindow($h, 9) | Out-Null; [Win32.W]::ShowWindow($h, 3) | Out-Null; [Win32.W]::SetForegroundWindow($h) | Out-Null; Start-Sleep 2
-            $win = $AE::FromHandle($h)
-            $nav = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'Nav_importexport')))
+            $win = $AEL::FromHandle($h)
+            $nav = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AEL::AutomationIdProperty, 'Nav_importexport')))
             try { $nav.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { try { $nav.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
             Start-Sleep 3
-            $tog = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'IncludeCredsToggle')))
+            $tog = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AEL::AutomationIdProperty, 'IncludeCredsToggle')))
             $state = 'toggle not found'
             if ($tog) { try { $state = $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState } catch { $state = 'no toggle pattern' } }
             "toggle ($name) name=[$(if ($tog) { $tog.Current.Name })] state=$state" | Add-Content export-info.txt
@@ -1375,7 +1375,7 @@ jobs:
           $sj = Get-Content (Join-Path $dir 'settings.json') -Raw | ConvertFrom-Json
           "settings.json ExportIncludeCredentials after toggle: $($sj.ExportIncludeCredentials)" | Add-Content export-info.txt
           Stop-Process -Name ObtainiumPC -Force; Start-Sleep 3
-          Remove-Item $ae -Force
+          Remove-Item $aef -Force
           $null = Launch
           Probe 'ON auto-export'; $on = $script:last
           foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if (-not $on[$k]) { $fail += "ON missing $k" } }
