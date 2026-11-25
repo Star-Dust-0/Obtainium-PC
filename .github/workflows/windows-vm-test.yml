@@ -1365,7 +1365,7 @@ jobs:
           Probe 'OFF auto-export'; $off = $script:last
           Shoot 'off'; $tog = $script:tog
           $fail = @()
-          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if ($off[$k]) { $fail += "OFF leaked $k" } }
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie') { if ($off[$k]) { $fail += "OFF leaked $k" } }
           if (-not $off['seed-exp']) { $fail += 'OFF export missing the app' }
           # ---- opt in through the UI, restart, auto-export again ----
           if ($tog) { try { $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { $fail += 'toggle click failed' } }
@@ -1378,7 +1378,53 @@ jobs:
           Remove-Item $aef -Force
           $null = Launch
           Probe 'ON auto-export'; $on = $script:last
-          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if (-not $on[$k]) { $fail += "ON missing $k" } }
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie') { if (-not $on[$k]) { $fail += "ON missing $k" } }
+          # ---- manual export through the real save picker: ON (confirm dialog) then OFF ----
+          function FindByName($scope, $name) { return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AEL::NameProperty, $name))) }
+          function ManualExport($path, $expectConfirm) {
+            $h = (Get-Process -Name ObtainiumPC | Select-Object -First 1).MainWindowHandle
+            [Win32.W]::SetForegroundWindow($h) | Out-Null
+            $win = $AEL::FromHandle($h)
+            $btn = $null; for ($i=0;$i -lt 10 -and -not $btn;$i++) { $btn = FindByName $win 'Export to file...'; if (-not $btn) { Start-Sleep 1 } }
+            if (-not $btn) { throw 'Export to file... button not found' }
+            $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            $fn = $null
+            for ($i=0;$i -lt 20 -and -not $fn;$i++) { Start-Sleep 1; foreach ($el in $AEL::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) { if ($el.Current.Name -like 'File name*') { $fn = $el; break } } }
+            if (-not $fn) { throw 'save picker did not appear' }
+            try { $fn.SetFocus() } catch {}
+            Start-Sleep -Milliseconds 500
+            [System.Windows.Forms.SendKeys]::SendWait('^a'); Start-Sleep -Milliseconds 300
+            [System.Windows.Forms.SendKeys]::SendWait($path); Start-Sleep -Milliseconds 500
+            [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+            $confirmed = $false; $done = $false
+            for ($i=0;$i -lt 30 -and -not $done;$i++) {
+              Start-Sleep 1
+              $c = FindByName $AEL::RootElement 'Continue'
+              if ($c) { try { $c.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $confirmed = $true } catch {} }
+              if (FindByName $win 'Export complete') { $done = $true }
+            }
+            "manual export to $(Split-Path $path -Leaf): confirm dialog shown=$confirmed (expected $expectConfirm); export complete=$done" | Add-Content export-info.txt
+            if (-not $done) { $script:fail += "manual export to $path did not complete" }
+            if ($confirmed -ne $expectConfirm) { $script:fail += "confirm dialog shown=$confirmed expected $expectConfirm for $path" }
+            $t = [IO.File]::ReadAllText($path)
+            $r = [ordered]@{}
+            foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = ($t.IndexOf($k) -ge 0) }
+            "manual file $(Split-Path $path -Leaf): " + (($r.GetEnumerator() | % { "$($_.Key)=$($_.Value)" }) -join '; ') | Add-Content export-info.txt
+            $script:last = $r
+          }
+          $fail = @($fail)
+          # app is running with the toggle ON after the restart
+          Shoot 'on-after-restart'
+          $mOn = Join-Path $dir 'manual-on.json'
+          ManualExport $mOn $true
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie') { if (-not $script:last[$k]) { $fail += "manual ON missing $k" } }
+          Shoot 'toggle-back'; $tg2 = $script:tog
+          if ($tg2) { try { $tg2.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { $fail += 'toggle off failed' } }
+          Start-Sleep 2
+          $mOff = Join-Path $dir 'manual-off.json'
+          ManualExport $mOff $false
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie') { if ($script:last[$k]) { $fail += "manual OFF leaked $k" } }
+          if (-not $script:last['seed-exp']) { $fail += 'manual OFF missing the app' }
           "FAILURES: $($fail -join ' | ')" | Add-Content export-info.txt
           if ($fail.Count -gt 0) { throw ($fail -join '; ') }
       - uses: actions/upload-artifact@v4
