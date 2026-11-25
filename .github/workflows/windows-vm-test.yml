@@ -1340,7 +1340,9 @@ jobs:
             return $p
           }
           function Shoot($name) {
-            $proc = Get-Process -Name ObtainiumPC | Select-Object -First 1; $h = $proc.MainWindowHandle
+            $h = [IntPtr]::Zero
+            for ($w=0; $w -lt 40; $w++) { $proc = Get-Process -Name ObtainiumPC | Select-Object -First 1; $h = $proc.MainWindowHandle; if ($h -ne [IntPtr]::Zero) { break }; Start-Sleep 2 }
+            "window handle ($name): $h" | Add-Content export-info.txt
             (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep 1
             [Win32.W]::ShowWindow($h, 9) | Out-Null; [Win32.W]::ShowWindow($h, 3) | Out-Null; [Win32.W]::SetForegroundWindow($h) | Out-Null; Start-Sleep 2
             $win = $AE::FromHandle($h)
