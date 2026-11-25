@@ -697,6 +697,8 @@ jobs:
             [ordered]@{ id = '66666666-6666-6666-6666-666666666667'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download B (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666668'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Download C (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '66666666-6666-6666-6666-666666666669'; url = 'http://localhost:8086/payload.bin'; author = 'localhost'; name = 'Fixture Download D (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8086/payload.bin"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '66666666-6666-6666-6666-66666666666a'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Checksum OK (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; otherAssetUrls = '[["SHA256SUMS.txt","http://localhost:8087/SHA256SUMS.txt"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
+            [ordered]@{ id = '66666666-6666-6666-6666-66666666666b'; url = 'http://localhost:8085/payload.bin'; author = 'localhost'; name = 'Fixture Checksum Bad (synthetic)'; latestVersion = '1.0'; apkUrls = '[["payload.bin","http://localhost:8085/payload.bin"]]'; otherAssetUrls = '[["SHA256SUMS.txt","http://localhost:8088/SHA256SUMS.txt"]]'; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Current Sample'; installedVersion = 'v1.3.8' },
             [ordered]@{ id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Unknown Status Sample'; installedVersion = '1.0'; lastUpdateCheck = 1795556145818000; additionalSettings = '{"exemptFromBackgroundUpdates":true}' },
             [ordered]@{ id = '77777777-7777-7777-7777-777777777777'; url = 'https://github.com/Star-Dust-0/fluent-prayer-times'; author = 'Star-Dust-0'; name = 'Update Available Sample'; installedVersion = '0.1'; latestVersion = '0.1' },
@@ -719,6 +721,20 @@ jobs:
           $code2 = curl.exe -sS -o NUL -w '%{http_code}' -I http://localhost:8086/payload.bin
           if ($code2 -ne '200') { throw "second fixture server not serving (HEAD -> $code2)" }
           "fixture server up: HEAD -> $code, 20MB throttled ~200KB/s, payload.bin never executed"
+          # Checksum fixtures (runner-local): hash of the exact served payload; one matching list, one deliberately wrong.
+          curl.exe -sS -o C:\payload-ref.bin http://localhost:8085/payload.bin
+          $h = (Get-FileHash C:\payload-ref.bin -Algorithm SHA256).Hash.ToLower()
+          $bad = ('0' * 63) + $(if ($h[63] -eq '1') { '2' } else { '1' })
+          New-Item -ItemType Directory C:\sums-good, C:\sums-bad -Force | Out-Null
+          Set-Content C:\sums-good\SHA256SUMS.txt "$h  payload.bin" -Encoding ascii
+          Set-Content C:\sums-bad\SHA256SUMS.txt "$bad  payload.bin" -Encoding ascii
+          Start-Process python -ArgumentList '-m','http.server','8087','--directory','C:\sums-good','--bind','127.0.0.1' -WindowStyle Hidden
+          Start-Process python -ArgumentList '-m','http.server','8088','--directory','C:\sums-bad','--bind','127.0.0.1' -WindowStyle Hidden
+          Start-Sleep 3
+          $g = curl.exe -sS -o NUL -w '%{http_code}' http://localhost:8087/SHA256SUMS.txt
+          $b = curl.exe -sS -o NUL -w '%{http_code}' http://localhost:8088/SHA256SUMS.txt
+          "checksum fixtures: payload sha256 prefix $($h.Substring(0,8)); good list HTTP $g; bad list HTTP $b; ref size $((Get-Item C:\payload-ref.bin).Length)"
+          if ($g -ne '200' -or $b -ne '200') { throw 'checksum fixture servers not serving' }
       - name: Relaunch, verify update-available state (UI + toast-request log)
         shell: pwsh
         run: |
@@ -1025,12 +1041,87 @@ jobs:
                 Record 'C-D-complete' ($dDone ? 'PASS' : 'FAIL') "D final size=$dSize (expect 20971520), D part gone=$(-not (Test-Path -LiteralPath $dPart))"
                 if (-not $dDone) { $failures++ }
                 Dump-Texts 'D-after'
+                # ---- Retry: click Retry on the cancelled row C, expect a fresh full download ----
+                try {
+                  $cTitle2 = $null
+                  foreach ($rr in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
+                    $tx2 = $rr.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Fixture Download C (synthetic)')))
+                    foreach ($t in $tx2) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 340)) { $cTitle2 = $t } }
+                    if ($cTitle2) { break }
+                  }
+                  $rbtns = @()
+                  foreach ($rr in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
+                    $fr = $rr.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Button)), (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Retry')))))
+                    foreach ($f in $fr) { if (-not $f.Current.IsOffscreen) { $rbtns += $f } }
+                    if ($rbtns.Count -gt 0) { break }
+                  }
+                  $rtarget = $null
+                  if ($cTitle2 -and $rbtns.Count -gt 0) {
+                    $ty2 = $cTitle2.Current.BoundingRectangle.Y + $cTitle2.Current.BoundingRectangle.Height / 2; $best2 = 1e9
+                    foreach ($bt in $rbtns) { $br = $bt.Current.BoundingRectangle; $dy = [math]::Abs(($br.Y + $br.Height / 2) - $ty2); if ($dy -lt $best2) { $best2 = $dy; $rtarget = $bt } }
+                  }
+                  if (-not $rtarget) { Record 'R-retry' 'AUTOMATION-GAP' "Retry button for row C not located (retry buttons visible=$($rbtns.Count), titleFound=$([bool]$cTitle2))" }
+                  else {
+                    $rtarget.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                    Write-Host 'Retry invoked on row C'
+                    $partSeen = $false
+                    for ($i = 0; $i -lt 20 -and -not $partSeen; $i++) { Start-Sleep 1; if (Test-Path -LiteralPath $cPart) { $partSeen = $true } }
+                    Shot 'feat-R2-retry-running.png'
+                    $cFinal = Join-Path $cDir 'payload.bin'; $cDone = $false
+                    for ($i = 0; $i -lt 70 -and -not $cDone; $i++) {
+                      Start-Sleep 3
+                      if ((Test-Path -LiteralPath $cFinal) -and (Get-Item -LiteralPath $cFinal).Length -ge 20971520 -and -not (Test-Path -LiteralPath $cPart)) { $cDone = $true }
+                    }
+                    $cSize = if (Test-Path -LiteralPath $cFinal) { (Get-Item -LiteralPath $cFinal).Length } else { -1 }
+                    Shot 'feat-R3-retry-complete.png'
+                    Dump-Texts 'C-after-retry'
+                    Record 'R-retry' (($partSeen -and $cDone) ? 'PASS' : 'FAIL') "Retry clicked on row C; new .part seen=$partSeen; final size=$cSize (expect 20971520); .part gone=$(-not (Test-Path -LiteralPath $cPart))"
+                    if (-not ($partSeen -and $cDone)) { $failures++ }
+                  }
+                } catch { Record 'R-retry' 'FAIL' $_.Exception.Message; $failures++ }
                 $cr = Find-Named $win $CT::Button 'Retry' 2
                 $frows = ($ftexts | Select-Object -Unique) -join ' || '
                 Record 'C-flyout-state' 'RECORDED' "Retry button present on flyout at idle=[$([bool]$cr)]; flyout texts at cancel time: $frows"
                 try { [System.Windows.Forms.SendKeys]::SendWait('{ESC}') } catch {}
               }
             } else { Record 'C-both-active' 'SKIPPED' "stages C=$stC D=$stD"; $failures++ }
+
+            # ---- Checksum wiring: matching list promotes the file, deliberately wrong list is rejected ----
+            try {
+              try { $bk1 = Find-Named $win $CT::Button 'Back' 3; if ($bk1) { $bk1.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep 2 } } catch {}
+              $eDir = Join-Path $dlRoot '66666666-6666-6666-6666-66666666666a'; $fDir = Join-Path $dlRoot '66666666-6666-6666-6666-66666666666b'
+              $stE = Start-Download 'Fixture Checksum OK (synthetic)' 'E'
+              if ($stE -eq 'dialog-answered') {
+                $eFinal = Join-Path $eDir 'payload.bin'; $ePart = Join-Path $eDir 'payload.bin.part'; $eDone = $false
+                for ($i = 0; $i -lt 70 -and -not $eDone; $i++) {
+                  Start-Sleep 3
+                  if ((Test-Path -LiteralPath $eFinal) -and (Get-Item -LiteralPath $eFinal).Length -ge 20971520 -and -not (Test-Path -LiteralPath $ePart)) { $eDone = $true }
+                }
+                Shot 'feat-E1-checksum-match.png'
+                $eSize = if (Test-Path -LiteralPath $eFinal) { (Get-Item -LiteralPath $eFinal).Length } else { -1 }
+                Record 'E-checksum-match' ($eDone ? 'PASS' : 'FAIL') "matching SHA-256 list: final size=$eSize (expect 20971520); .part gone=$(-not (Test-Path -LiteralPath $ePart)); verified-vs-not is read from the app log"
+                if (-not $eDone) { $failures++ }
+                Dump-Texts 'E-after'
+              } else { Record 'E-checksum-match' 'SKIPPED' "stage=$stE"; $failures++ }
+              try { $bk2 = Find-Named $win $CT::Button 'Back' 4; if ($bk2) { $bk2.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep 2 } } catch {}
+              $stF = Start-Download 'Fixture Checksum Bad (synthetic)' 'F'
+              if ($stF -eq 'dialog-answered') {
+                $fFinal = Join-Path $fDir 'payload.bin'; $fPart = Join-Path $fDir 'payload.bin.part'; $fSeen = $false; $fEnded = $false
+                for ($i = 0; $i -lt 90 -and -not $fEnded; $i++) {
+                  Start-Sleep 3
+                  if (Test-Path -LiteralPath $fPart) { $fSeen = $true }
+                  if ($fSeen -and -not (Test-Path -LiteralPath $fPart)) { $fEnded = $true }
+                  if (Test-Path -LiteralPath $fFinal) { $fEnded = $true }
+                }
+                Start-Sleep 3
+                Shot 'feat-F1-checksum-bad.png'
+                $fFinalPresent = Test-Path -LiteralPath $fFinal
+                $fList = (Get-ChildItem $fDir -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', '
+                Record 'F-checksum-mismatch' (($fSeen -and $fEnded -and -not $fFinalPresent) ? 'PASS' : 'FAIL') "wrong SHA-256 list: .part seen=$fSeen; ended=$fEnded; final file present=$fFinalPresent; folder listing: [$fList]"
+                if (-not ($fSeen -and $fEnded -and -not $fFinalPresent)) { $failures++ }
+                Dump-Texts 'F-after'
+              } else { Record 'F-checksum-mismatch' 'SKIPPED' "stage=$stF"; $failures++ }
+            } catch { Record 'E-F-checksum' 'FAIL' $_.Exception.Message; $failures++ }
 
             # ---- Summary states on the Apps page: filter via the search box so only chosen rows are visible ----
             function Set-Search($text) {
