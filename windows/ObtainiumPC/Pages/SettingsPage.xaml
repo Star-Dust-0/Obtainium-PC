@@ -106,6 +106,11 @@
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <StackPanel Spacing="6">
                 <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0,8,0,8">
+                    <Image x:Name="AboutLogo" Width="88" Height="88" HorizontalAlignment="Center" AutomationProperties.AutomationId="AboutLogo"/>
+                    <TextBlock Text="Obtainium-PC" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="AboutVersionText" AutomationProperties.AutomationId="AboutVersion" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
                 <TextBlock Text="Obtainium-PC - a native Windows port of Obtainium by ImranR98, licensed GPL-3.0. Brought to you by Instinct." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <HyperlinkButton Content="Upstream Obtainium (ImranR98)" NavigateUri="https://github.com/ImranR98/Obtainium"/>
                 <HyperlinkButton Content="Obtainium-PC source (this fork)" NavigateUri="https://github.com/Star-Dust-0/Obtainium-PC"/>
