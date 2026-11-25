@@ -1001,7 +1001,7 @@ jobs:
                 $cTitle = $null
                 foreach ($rr in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
                   $tx = $rr.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Fixture Download C (synthetic)')))
-                  foreach ($t in $tx) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 340)) { $cTitle = $t } }
+                  foreach ($t in $tx) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 200)) { $cTitle = $t } }
                   if ($cTitle) { break }
                 }
                 if ($cTitle) {
@@ -1046,7 +1046,7 @@ jobs:
                   $cTitle2 = $null
                   foreach ($rr in @($win, [System.Windows.Automation.AutomationElement]::RootElement)) {
                     $tx2 = $rr.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, 'Fixture Download C (synthetic)')))
-                    foreach ($t in $tx2) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 340)) { $cTitle2 = $t } }
+                    foreach ($t in $tx2) { if ($t.Current.ControlType -eq $CT::Text -and -not $t.Current.IsOffscreen -and ($t.Current.BoundingRectangle.Y -gt 200)) { $cTitle2 = $t } }
                     if ($cTitle2) { break }
                   }
                   $rbtns = @()
