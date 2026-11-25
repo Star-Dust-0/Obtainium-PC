@@ -26,9 +26,6 @@ Obtainium-PC is a native Windows (WinUI 3) app that tracks apps by their release
 - Options save while you type and when you leave the page, and an app is re-checked after an option changes.
 - Options that nothing used are no longer shown. Your stored values are kept.
 
-## Testing and known limits
-Tested with automated unit tests and on a Windows runner with the real app: download, cancel and retry, checksum match and mismatch, relaunch and tray restore, portable ZIP upgrade, the About page, and exports with credentials off and on. Not yet checked on a physical desktop: high-DPI scaling, notification toasts, Windows 11 window blur, the interactive installer wizard, blocking a downgrade, and Arabic. The restore of earlier files after a failed ZIP update, and keeping an earlier good download after a checksum mismatch, are covered by unit tests only.
-
 ## Downloads
 - Obtainium-PC-v2.0.0-win-x64-Setup.exe: installer, with an optional desktop shortcut. Needs administrator permission.
 - Obtainium-PC-v2.0.0-win-x64-portable.zip: unzip anywhere and run ObtainiumPC.exe.
