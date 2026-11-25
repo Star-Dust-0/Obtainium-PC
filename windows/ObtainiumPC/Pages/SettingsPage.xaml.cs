@@ -30,7 +30,7 @@ namespace ObtainiumPC.Pages
 
         private void LoadAboutIdentity()
         {
-            AboutVersionText.Text = Services.Localization.Loc.T("Version") + " " + Services.Updates.SelfUpdate.RunningVersion();
+            AboutVersionText.Text = "Version " + Services.Updates.SelfUpdate.RunningVersion();
             try
             {
                 var logo = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppLogo256.png");
