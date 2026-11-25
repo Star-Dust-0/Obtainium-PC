@@ -312,7 +312,7 @@ jobs:
   # merges, or changes a release. All fixtures live only on the ephemeral
   # runner and vanish with it.
   preview:
-    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true' && inputs.feat_check != 'true'
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true' && inputs.feat_check != 'true' && inputs.feat_check != 'about'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -1295,3 +1295,64 @@ jobs:
           name: feat-preview-log
           path: feat-app-log.jsonl
           if-no-files-found: warn
+  aboutshot:
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.feat_check == 'about'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Download artifact and launch
+        shell: pwsh
+        run: |
+          gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
+          $exe = Get-ChildItem artifact -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          $p = Start-Process $exe.FullName -PassThru
+          Start-Sleep 25
+          if (-not (Get-Process -Id $p.Id -ErrorAction SilentlyContinue)) { throw 'app exited' }
+          "launched $($exe.FullName)"
+      - name: Capture About card (maximized window, nothing else open)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
+          Add-Type -Name W -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool GetWindowRect(System.IntPtr h, out RECT r); public struct RECT { public int L, T, R, B; }'
+          $AE = [System.Windows.Automation.AutomationElement]; $CT = [System.Windows.Automation.ControlType]
+          (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep 2
+          $proc = Get-Process -Name ObtainiumPC | Select-Object -First 1
+          $h = $proc.MainWindowHandle
+          [Win32.W]::ShowWindow($h, 9) | Out-Null; [Win32.W]::ShowWindow($h, 3) | Out-Null; [Win32.W]::SetForegroundWindow($h) | Out-Null
+          Start-Sleep 3
+          $win = $AE::FromHandle($h)
+          function FindId($id) { for ($i=0;$i -lt 10;$i++){ $e = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, $id))); if ($e) { return $e }; Start-Sleep 1 }; return $null }
+          $nav = FindId 'Nav_settings'
+          try { $nav.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { try { $nav.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+          Start-Sleep 3
+          $items = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::ListItem)))
+          $names = @(); $about = $null
+          foreach ($it in $items) { $n = $it.Current.Name; $names += $n; if ($n -eq 'About') { $about = $it } }
+          "list items: $($names -join ' | ')" | Tee-Object -FilePath about-info.txt
+          if ($about) { try { $about.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { "select failed: $($_.Exception.Message)" | Add-Content about-info.txt }; Start-Sleep 2 }
+          else { $v = FindId 'AboutVersion'; try { $v.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } catch {}; Start-Sleep 2 }
+          [Win32.W]::SetForegroundWindow($h) | Out-Null; Start-Sleep 2
+          $vEl = FindId 'AboutVersion'; $lEl = FindId 'AboutLogo'
+          "version text=[$($vEl.Current.Name)] version rect=[$($vEl.Current.BoundingRectangle)] logo rect=[$($lEl.Current.BoundingRectangle)] offscreen(version)=$($vEl.Current.IsOffscreen)" | Tee-Object -FilePath about-info.txt -Append
+          $r = New-Object Win32.W+RECT; [Win32.W]::GetWindowRect($h, [ref]$r) | Out-Null
+          "window rect: $($r.L),$($r.T),$($r.R),$($r.B)" | Tee-Object -FilePath about-info.txt -Append
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bm = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bm); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bm.Save('about-original-fullscreen.png')
+          $w = $r.R - $r.L; $ht = $r.B - $r.T
+          $cr = New-Object System.Drawing.Bitmap $w, $ht
+          $g2 = [System.Drawing.Graphics]::FromImage($cr); $g2.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht))
+          $cr.Save('about-window-only.png')
+          "screen $($b.Width)x$($b.Height)" | Tee-Object -FilePath about-info.txt -Append
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: about-shot
+          path: |
+            about-*.png
+            about-info.txt
