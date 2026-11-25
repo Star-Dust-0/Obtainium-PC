@@ -97,8 +97,13 @@ namespace ObtainiumPC.Pages
             {
                 if (App.Disabled) return "Tracking disabled";
                 if (HealthFlagged) return "Update-health issue";
-                if (HasUpdate) return Services.Localization.Loc.T("Update available");
+                // A failed check wins over a stale known latest, same as
+                // AppsSummaryText.Classify: the true state is uncertain, so the
+                // row must not promise "Update available" while the summary
+                // counts it as failed. The stale latest stays visible in the
+                // version subtitle as last-known state, not a fresh check.
                 if (App.ConsecutiveFailedChecks > 0) return Services.Updates.CheckFailureText.Format(App.ConsecutiveFailedChecks, App.LastCheckError, Services.Localization.Loc.T);
+                if (HasUpdate) return Services.Localization.Loc.T("Update available");
                 return "";
             }
         }
@@ -629,7 +634,7 @@ namespace ObtainiumPC.Pages
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
             var file = await picker.PickSaveFileAsync();
             if (file == null) return;
-            var json = Services.Store.AppStore.Export(sel, null, 0, Services.Updates.SelfUpdate.RunningVersion(), complete: true);
+            var json = Services.Store.AppStore.Export(sel, null, 0, Services.Updates.SelfUpdate.RunningVersion(), complete: App.Settings.ExportIncludeCredentials);
             await Windows.Storage.FileIO.WriteTextAsync(file, json);
         }
 

@@ -1117,13 +1117,14 @@ jobs:
           $exportFile = Join-Path $env:LOCALAPPDATA 'ObtainiumPC\auto-export.json'
           if (-not (Test-Path $exportFile)) { Shot 'auto-export-missing'; throw 'auto-export file missing after the deep-link import' }
           if ((Get-Content $exportFile -Raw) -notlike '*deeplink-smoke-1*') { Shot 'auto-export-content'; throw 'auto-export file does not contain the imported app' }
-          # Owner decision 2026-11-20: automatic export is complete, credentials included. The seeded token is the
-          # runner's throwaway job token; only the boolean is printed, never the value.
+          # Default export is stripped of credentials. The seeded token is the runner's throwaway job token;
+          # only the boolean is printed, never the value.
           $tokCheck = $env:SMOKE_GH_TOKEN
           if ($tokCheck) {
             $hasTok = (Get-Content $exportFile -Raw).Contains($tokCheck)
-            "auto-export contains the stored token (complete export): $hasTok"
-            if (-not $hasTok) {
+            "auto-export contains the stored token (must be False by default): $hasTok"
+            if ($hasTok) { throw 'automatic export leaked the stored token with credentials off' }
+            if ($false) {
               $ae = Get-Content $exportFile -Raw | ConvertFrom-Json
               $setObj = $ae.settings
               $tv = if ($setObj) { $setObj.GitHubPersonalAccessToken } else { $null }
@@ -1601,7 +1602,7 @@ jobs:
           $beforeWrite = (Get-Item $autoPath).LastWriteTimeUtc
           ClickNamedIn 'Import / Export' $win3
           Start-Sleep 3
-          ClickNamedIn 'Export to file (complete, with credentials)...' $win3
+          ClickNamedIn 'Export to file...' $win3
           $fnEdit = $null
           foreach ($i in 1..20) {
             Start-Sleep 1

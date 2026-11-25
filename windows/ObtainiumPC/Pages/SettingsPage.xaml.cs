@@ -25,6 +25,19 @@ namespace ObtainiumPC.Pages
             this.InitializeComponent();
             Loaded += (_, _) => { Services.Localization.Localizer.Apply(this); BuildSectionList(); ApplyLayout(); };
             LoadValues();
+            LoadAboutIdentity();
+        }
+
+        private void LoadAboutIdentity()
+        {
+            AboutVersionText.Text = "Version " + Services.Updates.SelfUpdate.RunningVersion();
+            try
+            {
+                var logo = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppLogo256.png");
+                if (System.IO.File.Exists(logo))
+                    AboutLogo.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(logo));
+            }
+            catch { }
         }
 
         // Wide: section list on the left, one section on the right (Task Scheduler Studio

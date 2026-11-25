@@ -200,8 +200,9 @@ public sealed class AppStore
     /// </summary>
     public static string Export(IEnumerable<TrackedApp> apps, Dictionary<string, object?>? settings, int exportLevel, string appVersion, bool complete = false)
     {
-        // Owner decision (2026-11-20): a manual export is complete and restorable (credentials, tokens, headers).
-        // Callers ask for that with complete: true; the automatic export keeps using the chosen level.
+        // Credentials (per-app "-creds" values and the *PersonalAccessToken settings) are stripped below level 2.
+        // complete: true is the explicit opt-in that forces level 2; callers pass it only when the user turned
+        // on "Include credentials in exports".
         if (complete) exportLevel = 2;
         var appList = new List<Dictionary<string, JsonElement>>();
         foreach (var app in apps)

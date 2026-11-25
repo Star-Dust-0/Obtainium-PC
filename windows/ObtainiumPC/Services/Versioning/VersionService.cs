@@ -282,6 +282,12 @@ public static class VersionService
     {
         var installed = installedVersion;
         var latest = latestVersion;
+        // No update verdict without a known latest: a null latest means never
+        // checked (or checked but version unknown, e.g. a release suppressed by
+        // minimumUpdateAgeDays), not "different from installed". Without this
+        // guard a never-checked installed record was presented as an available
+        // update, and the hide-downgrades comparison below dereferenced null.
+        if (latest == null) return false;
         if (installed == null || installed == latest) return false;
         if (!hideDowngrades) return true;
         var comparison = CompareVersionsNumerically(installed, latest!);

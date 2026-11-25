@@ -92,6 +92,10 @@ public sealed class AppSettings
         set => _exportSettingsLevel = value is > 2 or < 0 ? 1 : value;
     }
 
+    // Explicit opt-in: exports (manual and automatic) include credentials and
+    // tokens only while this is on. Default off: exports are stripped.
+    public bool ExportIncludeCredentials { get; set; }
+
     // Update-health detection thresholds (upstream defaults).
     public int UpdateHealthStaleReleaseDays { get; set; } = 180;
     public int UpdateHealthStaleVersionDays { get; set; } = 180;
@@ -156,7 +160,7 @@ public sealed class AppSettings
     }
 
     // Machine-local keys an import never overwrites.
-    private static readonly HashSet<string> ImportSkipped = new(StringComparer.OrdinalIgnoreCase) { nameof(AutoExportPath), nameof(FirstRunHandled) };
+    private static readonly HashSet<string> ImportSkipped = new(StringComparer.OrdinalIgnoreCase) { nameof(AutoExportPath), nameof(FirstRunHandled), nameof(ExportIncludeCredentials) };
 
     /// Applies the "settings" block of an export file (the same JSON names the export wrote, tokens
     /// included) to this instance. Unknown keys and values of the wrong type are skipped, never fatal.
