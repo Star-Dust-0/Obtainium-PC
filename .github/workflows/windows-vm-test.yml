@@ -1164,6 +1164,10 @@ jobs:
               if ($aboutItem) { try { $aboutItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch {} ; Start-Sleep 2 }
               $vEl = Find-ById $win 'AboutVersion' 8
               $lEl = Find-ById $win 'AboutLogo' 3
+              try { if ($vEl) { $vEl.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } } catch { Write-Host "scrollintoview: $($_.Exception.Message)" }
+              Start-Sleep 1
+              try { if ($lEl) { $lEl.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView() } } catch {}
+              Start-Sleep 2
               Shot 'feat-ABOUT1.png'
               $vName = if ($vEl) { $vEl.Current.Name } else { '' }
               $lRect = if ($lEl) { $lEl.Current.BoundingRectangle.ToString() } else { 'not found' }
