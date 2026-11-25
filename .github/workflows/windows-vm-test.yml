@@ -1324,11 +1324,13 @@ jobs:
           $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = 'synthetic-gh-token'; GitLabPersonalAccessToken = 'synthetic-gl-token'; ForgejoPersonalAccessToken = 'synthetic-fj-token'; AutoExportOnChanges = $true; AutoExportPath = $ae }
           ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
           function Probe($label) {
-            $t = Get-Content $ae -Raw
+            if (-not (Test-Path $ae)) { throw "$label : auto-export file missing" }
+            $t = [IO.File]::ReadAllText($ae)
+            "$label file length: $($t.Length)" | Add-Content export-info.txt
             $r = [ordered]@{}
-            foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = $t.Contains($k) }
-            ($label + ': ' + (($r.GetEnumerator() | % { "$($_.Key)=$($_.Value)" }) -join '; ')) | Tee-Object -FilePath export-info.txt -Append
-            return $r
+            foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = ($t.IndexOf($k) -ge 0) }
+            ($label + ': ' + (($r.GetEnumerator() | % { "$($_.Key)=$($_.Value)" }) -join '; ')) | Add-Content export-info.txt
+            return ,$r
           }
           function Launch() {
             $p = Start-Process $exe.FullName -PassThru
@@ -1348,7 +1350,7 @@ jobs:
             $tog = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'IncludeCredsToggle')))
             $state = 'toggle not found'
             if ($tog) { try { $state = $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState } catch { $state = 'no toggle pattern' } }
-            "toggle ($name) name=[$(if ($tog) { $tog.Current.Name })] state=$state" | Tee-Object -FilePath export-info.txt -Append
+            "toggle ($name) name=[$(if ($tog) { $tog.Current.Name })] state=$state" | Add-Content export-info.txt
             $r = New-Object Win32.W+RECT; [Win32.W]::GetWindowRect($h, [ref]$r) | Out-Null
             $w = $r.R - $r.L; $ht = $r.B - $r.T
             $cr = New-Object System.Drawing.Bitmap $w, $ht
@@ -1369,13 +1371,13 @@ jobs:
           [Win32.W]::SetForegroundWindow((Get-Process -Name ObtainiumPC | Select-Object -First 1).MainWindowHandle) | Out-Null
           $null = Shoot 'on'
           $sj = Get-Content (Join-Path $dir 'settings.json') -Raw | ConvertFrom-Json
-          "settings.json ExportIncludeCredentials after toggle: $($sj.ExportIncludeCredentials)" | Tee-Object -FilePath export-info.txt -Append
+          "settings.json ExportIncludeCredentials after toggle: $($sj.ExportIncludeCredentials)" | Add-Content export-info.txt
           Stop-Process -Name ObtainiumPC -Force; Start-Sleep 3
           Remove-Item $ae -Force
           $p = Launch
           $on = Probe 'ON auto-export'
           foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if (-not $on[$k]) { $fail += "ON missing $k" } }
-          "FAILURES: $($fail -join ' | ')" | Tee-Object -FilePath export-info.txt -Append
+          "FAILURES: $($fail -join ' | ')" | Add-Content export-info.txt
           if ($fail.Count -gt 0) { throw ($fail -join '; ') }
       - uses: actions/upload-artifact@v4
         if: always()
