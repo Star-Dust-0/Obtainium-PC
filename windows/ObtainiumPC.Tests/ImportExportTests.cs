@@ -118,6 +118,19 @@ public class ImportExportTests
     }
 
     [Fact]
+    public void Default_export_omits_request_headers_and_opt_in_keeps_them_without_touching_the_live_app()
+    {
+        var app = SampleApp();
+        var s = app.AdditionalSettings;
+        s["requestHeader"] = System.Text.Json.JsonSerializer.SerializeToElement(new[] { new Dictionary<string, string> { ["requestHeader"] = "Authorization: Bearer synthetic-header-authz" } });
+        app.AdditionalSettings = s;
+        foreach (var level in new[] { 0, 1 })
+            Assert.DoesNotContain("synthetic-header-authz", AppStore.Export(new[] { app }, null, level, "t"));
+        Assert.Contains("synthetic-header-authz", AppStore.Export(new[] { app }, null, 1, "t", complete: true));
+        Assert.Contains("synthetic-header-authz", app.AdditionalSettingsJson);
+    }
+
+    [Fact]
     public void Include_credentials_opt_in_defaults_off_and_is_not_imported()
     {
         Assert.False(new AppSettings().ExportIncludeCredentials);

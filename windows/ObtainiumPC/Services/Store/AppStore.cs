@@ -211,7 +211,8 @@ public sealed class AppStore
             if (exportLevel < 2)
             {
                 var additional = app.AdditionalSettings;
-                foreach (var key in additional.Keys.Where(k => k.EndsWith("-creds")).ToList())
+                // Per-app request headers can carry Authorization/Cookie/API-key values, so the whole field is omitted too.
+                foreach (var key in additional.Keys.Where(k => k.EndsWith("-creds") || k == "requestHeader").ToList())
                     additional.Remove(key);
                 json["additionalSettings"] = JsonSerializer.SerializeToElement(JsonSerializer.Serialize(additional));
             }
