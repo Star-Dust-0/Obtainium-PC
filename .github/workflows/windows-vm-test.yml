@@ -1155,6 +1155,23 @@ jobs:
               Set-Search '' | Out-Null; Start-Sleep 2
             } catch { Record 'S-summary' 'FAIL' $_.Exception.Message; $failures++ }
 
+            # ---- About page: logo and version shown ----
+            try {
+              $navS = Find-ById $win 'Nav_settings' 5
+              if ($navS) { try { $navS.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { try { $navS.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} } }
+              Start-Sleep 3
+              $aboutItem = Find-Named $win $CT::ListItem 'About' 5
+              if ($aboutItem) { try { $aboutItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch {} ; Start-Sleep 2 }
+              $vEl = Find-ById $win 'AboutVersion' 8
+              $lEl = Find-ById $win 'AboutLogo' 3
+              Shot 'feat-ABOUT1.png'
+              $vName = if ($vEl) { $vEl.Current.Name } else { '' }
+              $lRect = if ($lEl) { $lEl.Current.BoundingRectangle.ToString() } else { 'not found' }
+              $exeVer = try { $proc.MainModule.FileVersionInfo.FileVersion } catch { "n/a" }
+              Record 'about-identity' (($vEl -and $vName -match '2\.0\.0') ? 'PASS' : 'FAIL') "About version text=[$vName]; logo element rect=[$lRect]; exe FileVersion=[$exeVer]; list item found=$([bool]$aboutItem)"
+              if (-not ($vEl -and $vName -match '2\.0\.0')) { $failures++ }
+            } catch { Record 'about-identity' 'FAIL' $_.Exception.Message; $failures++ }
+
             # ---- Close to tray, then restore FROM THE TRAY ICON ----
             try {
               $proc.Refresh(); $hwnd = $proc.MainWindowHandle
