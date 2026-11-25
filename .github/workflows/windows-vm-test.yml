@@ -312,7 +312,7 @@ jobs:
   # merges, or changes a release. All fixtures live only on the ephemeral
   # runner and vanish with it.
   preview:
-    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true' && inputs.feat_check != 'true' && inputs.feat_check != 'about'
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.icon_check != 'true' && inputs.feat_check != 'true' && inputs.feat_check != 'about' && inputs.feat_check != 'export'
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -1295,6 +1295,95 @@ jobs:
           name: feat-preview-log
           path: feat-app-log.jsonl
           if-no-files-found: warn
+  exportcheck:
+    if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.feat_check == 'export'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Export default OFF then opt-in ON on the exact build (synthetic secrets only)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
+          Add-Type -Name W -Namespace Win32 -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int c); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool GetWindowRect(System.IntPtr h, out RECT r); public struct RECT { public int L, T, R, B; }'
+          $AE = [System.Windows.Automation.AutomationElement]
+          $info = gh run view $env:ARTIFACT_RUN_ID -R $env:REPO --json headSha,conclusion | ConvertFrom-Json
+          "artifact run $env:ARTIFACT_RUN_ID head=$($info.headSha) conclusion=$($info.conclusion)" | Tee-Object -FilePath export-info.txt
+          gh run download $env:ARTIFACT_RUN_ID -R $env:REPO -n ObtainiumPC-win-x64 -D artifact
+          $exe = Get-ChildItem artifact -Recurse -Filter ObtainiumPC.exe | Select-Object -First 1
+          $dir = Join-Path $env:LOCALAPPDATA 'ObtainiumPC'; New-Item -ItemType Directory -Force $dir | Out-Null
+          $hdr = '[{"requestHeader":"Authorization: Bearer synthetic-header-authz"},{"requestHeader":"Cookie: session=synthetic-header-cookie"}]'
+          $add = @{ 'github-creds' = 'synthetic-app-cred'; requestHeader = (ConvertFrom-Json $hdr) } | ConvertTo-Json -Compress -Depth 5
+          $apps = @(@{ id = 'seed-exp'; url = 'http://127.0.0.1:1/'; author = 'local'; name = 'expapp'; overrideSource = 'HTML'
+            apkUrls = '[]'; otherAssetUrls = '[]'; preferredApkIndex = 0; additionalSettings = $add; categories = @(); pinned = $false; disabled = $false; installedVersion = '0.1.0' })
+          ConvertTo-Json -InputObject $apps -Depth 6 | Set-Content (Join-Path $dir 'apps.json')
+          $ae = Join-Path $dir 'auto-export.json'
+          $settings = @{ FirstRunHandled = $true; UpdateIntervalMinutes = 360; CheckOnStart = $true; NotifyUpdates = $false; GitHubPersonalAccessToken = 'synthetic-gh-token'; GitLabPersonalAccessToken = 'synthetic-gl-token'; ForgejoPersonalAccessToken = 'synthetic-fj-token'; AutoExportOnChanges = $true; AutoExportPath = $ae }
+          ($settings | ConvertTo-Json) | Set-Content (Join-Path $dir 'settings.json')
+          function Probe($label) {
+            $t = Get-Content $ae -Raw
+            $r = [ordered]@{}
+            foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = $t.Contains($k) }
+            ($label + ': ' + (($r.GetEnumerator() | % { "$($_.Key)=$($_.Value)" }) -join '; ')) | Tee-Object -FilePath export-info.txt -Append
+            return $r
+          }
+          function Launch() {
+            $p = Start-Process $exe.FullName -PassThru
+            for ($i=0; $i -lt 40; $i++) { Start-Sleep 2; if (Test-Path $ae) { break } }
+            Start-Sleep 5
+            if (-not (Get-Process -Id $p.Id -ErrorAction SilentlyContinue)) { throw 'app exited' }
+            return $p
+          }
+          function Shoot($name) {
+            $proc = Get-Process -Name ObtainiumPC | Select-Object -First 1; $h = $proc.MainWindowHandle
+            (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep 1
+            [Win32.W]::ShowWindow($h, 9) | Out-Null; [Win32.W]::ShowWindow($h, 3) | Out-Null; [Win32.W]::SetForegroundWindow($h) | Out-Null; Start-Sleep 2
+            $win = $AE::FromHandle($h)
+            $nav = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'Nav_importexport')))
+            try { $nav.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch { try { $nav.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch {} }
+            Start-Sleep 3
+            $tog = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, 'IncludeCredsToggle')))
+            $state = 'toggle not found'
+            if ($tog) { try { $state = $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState } catch { $state = 'no toggle pattern' } }
+            "toggle ($name) name=[$(if ($tog) { $tog.Current.Name })] state=$state" | Tee-Object -FilePath export-info.txt -Append
+            $r = New-Object Win32.W+RECT; [Win32.W]::GetWindowRect($h, [ref]$r) | Out-Null
+            $w = $r.R - $r.L; $ht = $r.B - $r.T
+            $cr = New-Object System.Drawing.Bitmap $w, $ht
+            $g2 = [System.Drawing.Graphics]::FromImage($cr); $g2.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht))
+            $cr.Save("export-$name.png")
+            return $tog
+          }
+          # ---- OFF (default) ----
+          $p = Launch
+          $off = Probe 'OFF auto-export'
+          $tog = Shoot 'off'
+          $fail = @()
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if ($off[$k]) { $fail += "OFF leaked $k" } }
+          if (-not $off['seed-exp']) { $fail += 'OFF export missing the app' }
+          # ---- opt in through the UI, restart, auto-export again ----
+          if ($tog) { try { $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { $fail += 'toggle click failed' } }
+          Start-Sleep 3
+          [Win32.W]::SetForegroundWindow((Get-Process -Name ObtainiumPC | Select-Object -First 1).MainWindowHandle) | Out-Null
+          $null = Shoot 'on'
+          $sj = Get-Content (Join-Path $dir 'settings.json') -Raw | ConvertFrom-Json
+          "settings.json ExportIncludeCredentials after toggle: $($sj.ExportIncludeCredentials)" | Tee-Object -FilePath export-info.txt -Append
+          Stop-Process -Name ObtainiumPC -Force; Start-Sleep 3
+          Remove-Item $ae -Force
+          $p = Launch
+          $on = Probe 'ON auto-export'
+          foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if (-not $on[$k]) { $fail += "ON missing $k" } }
+          "FAILURES: $($fail -join ' | ')" | Tee-Object -FilePath export-info.txt -Append
+          if ($fail.Count -gt 0) { throw ($fail -join '; ') }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: export-check
+          path: |
+            export-*.png
+            export-info.txt
   aboutshot:
     if: inputs.target == 'runner' && inputs.artifact_run_id != '' && inputs.feat_check == 'about'
     runs-on: windows-latest
