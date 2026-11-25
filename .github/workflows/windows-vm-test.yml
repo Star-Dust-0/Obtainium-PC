@@ -1330,7 +1330,7 @@ jobs:
             $r = [ordered]@{}
             foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred','synthetic-header-authz','synthetic-header-cookie','seed-exp') { $r[$k] = ($t.IndexOf($k) -ge 0) }
             ($label + ': ' + (($r.GetEnumerator() | % { "$($_.Key)=$($_.Value)" }) -join '; ')) | Add-Content export-info.txt
-            return ,$r
+            $script:last = $r
           }
           function Launch() {
             $p = Start-Process $exe.FullName -PassThru
@@ -1356,12 +1356,12 @@ jobs:
             $cr = New-Object System.Drawing.Bitmap $w, $ht
             $g2 = [System.Drawing.Graphics]::FromImage($cr); $g2.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht))
             $cr.Save("export-$name.png")
-            return $tog
+            $script:tog = $tog
           }
           # ---- OFF (default) ----
-          $p = Launch
-          $off = Probe 'OFF auto-export'
-          $tog = Shoot 'off'
+          $null = Launch
+          Probe 'OFF auto-export'; $off = $script:last
+          Shoot 'off'; $tog = $script:tog
           $fail = @()
           foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if ($off[$k]) { $fail += "OFF leaked $k" } }
           if (-not $off['seed-exp']) { $fail += 'OFF export missing the app' }
@@ -1369,13 +1369,13 @@ jobs:
           if ($tog) { try { $tog.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle() } catch { $fail += 'toggle click failed' } }
           Start-Sleep 3
           [Win32.W]::SetForegroundWindow((Get-Process -Name ObtainiumPC | Select-Object -First 1).MainWindowHandle) | Out-Null
-          $null = Shoot 'on'
+          Shoot 'on'
           $sj = Get-Content (Join-Path $dir 'settings.json') -Raw | ConvertFrom-Json
           "settings.json ExportIncludeCredentials after toggle: $($sj.ExportIncludeCredentials)" | Add-Content export-info.txt
           Stop-Process -Name ObtainiumPC -Force; Start-Sleep 3
           Remove-Item $ae -Force
-          $p = Launch
-          $on = Probe 'ON auto-export'
+          $null = Launch
+          Probe 'ON auto-export'; $on = $script:last
           foreach ($k in 'synthetic-gh-token','synthetic-gl-token','synthetic-fj-token','synthetic-app-cred') { if (-not $on[$k]) { $fail += "ON missing $k" } }
           "FAILURES: $($fail -join ' | ')" | Add-Content export-info.txt
           if ($fail.Count -gt 0) { throw ($fail -join '; ') }
